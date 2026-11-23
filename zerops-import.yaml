@@ -17,7 +17,7 @@ services:
     type: postgresql:single@18
     priority: 30
     # Tetos fixos já: sem isto herda o perfil `oltp-staging` (8 vCPU / 48 GB /
-    # 250 GB). Paga-se pelo uso, mas o disco nunca encolhe. Os metadados de
+    # 250 GB). O disco nunca encolhe. Os metadados de
     # 100k fotos cabem em poucos GB; as imagens estão no R2.
     verticalAutoscaling:
       cpuMode: SHARED

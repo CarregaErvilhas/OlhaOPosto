@@ -29,9 +29,9 @@ Ficheiros:
 
 ## 1. Próximos passos
 
-- [ ] **Fernando:** criar o projeto no Zerops (core *Lightweight*) e passar o ID.
+- [ ] Criar o projeto no Zerops (core *Lightweight*) e passar o ID.
 - [ ] Importar os serviços: `zcli project service-import zerops-import.yaml -P <project-id>`.
-- [ ] **Fernando:** criar o bucket R2 `panoramax` e um token R2 só para ele
+- [ ] Criar o bucket R2 `panoramax` e um token R2 só para ele
   (secção 5).
 - [ ] Pôr o `FS_URL` como variável secreta do `pano` (secção 6).
 - [ ] Ligar o webhook do GitHub ao `pano` (secção 8) ou fazer o primeiro
@@ -63,8 +63,7 @@ Ficheiros:
 - **Ubuntu, não Alpine**: o `pyexiv2` (o leitor de metadados EXIF/XMP de
   que o Panoramax depende) não tem wheels para musl, a libc do Alpine; no
   Alpine teria de ser compilado com o exiv2 de sistema. E o Python 3.14 do
-  Zerops só existe em Ubuntu. A imagem Ubuntu é maior, mas o custo é o mesmo
-  (paga-se CPU, RAM e disco usados).
+  Zerops só existe em Ubuntu.
 - **PostgreSQL 18, gerido pelo Zerops** (`postgresql:single@18`): backups,
   autoscaling e atualizações *minor* são do Zerops. É a versão mais recente
   que o Zerops oferece. A 19 saiu a 2026-11-19 e ainda não está disponível.
@@ -77,7 +76,7 @@ As imagens não estão no Zerops: vão para o bucket R2 `panoramax`
 (originais em `permanent/`, tamanhos em `derivatives/`, envios a meio em
 `tmp/`).
 
-### Recursos e custo
+### Recursos
 
 | Serviço | mínimo | máximo | containers |
 | --- | --- | --- | --- |
@@ -87,20 +86,10 @@ As imagens não estão no Zerops: vão para o bucket R2 `panoramax`
 Tudo em CPU `SHARED`. O segundo container do `pano` só existe durante um
 deploy (rolling).
 
-Custo em repouso, pelos [preços do Zerops](https://docs.zerops.io/billing/pricing)
-(CPU partilhado 0,60 $, 0,25 GB de RAM 0,75 $, 0,5 GB de disco 0,05 $, por
-30 dias), com o core *Lightweight* grátis:
-
-- `pano`: 0,60 + 1,50 + 0,10 = **2,20 $**
-- `db`: 0,60 + 0,75 + 0,10 = **1,45 $**
-- Total: **~3,7 $/mês**, mais os picos (o autoscaling cobra ao minuto). O
-  R2 soma ~1,7 $/mês com 100k fotos (`plan.md`). Fica dentro dos 10 €. O
-  ensaio confirma.
-
 O *Lightweight* inclui 100 GB/mês de tráfego de saída. Como as imagens do
 Panoramax passam pela API (secção 5), cada visualização conta. Os links
 estáticos `pictures.*` não passam por aqui, por isso não deve chegar ao
-limite. Acima disso, 0,02 $/GB.
+limite.
 
 ---
 
@@ -183,7 +172,7 @@ disso, **mudar a variável não tem efeito**: só um aviso no log. Para mudar,
 ### Contas: sem OAuth, e a conta de serviço não é admin
 
 O `plan.md` previa `OAUTH_PROVIDER=osm` só para a conta de serviço e o
-admin. **Proposta: não ligar OAuth nenhum** (decisão do Fernando, ver secção 11): as rotas `/api/auth/*` respondem 501 e
+admin. **Proposta: não ligar OAuth nenhum** (por decidir, ver secção 11): as rotas `/api/auth/*` respondem 501 e
 ninguém consegue entrar, nem por engano. Não há app OAuth no OSM para
 manter.
 
@@ -237,7 +226,7 @@ s3://<access-key-id>:<secret-access-key>@panoramax/data?endpoint_url=https://<ac
 - O prefixo `/data` evita a raiz do bucket (com `/` o Panoramax gera
   caminhos `//tmp/`).
 
-**O que o Fernando cria na Cloudflare:**
+**O que se cria na Cloudflare:**
 
 1. Bucket R2 `panoramax`, **privado** (sem domínio público nem `r2.dev`).
 2. Token R2 com **Object Read & Write só nesse bucket**. Dá o
@@ -343,7 +332,7 @@ configuração. Em cada um, o que já sei e como se testa.
 | 3 | Foto isolada com etiquetas, pela API | — | `POST /api/upload_sets` → `/files` → `/complete`, com as etiquetas do `plan.md` |
 | 4 | `owner-only` e passar a `anyone` ao aprovar | Visibilidade por omissão configurável | Ver que a foto não aparece sem token; mudar a visibilidade; ver que aparece |
 | 5 | Crédito por foto (autor ≠ conta de serviço) | — | Etiqueta `pictures\|author=` e o que o visualizador e o STAC mostram |
-| 6 | Custo dentro dos 10 € | ~3,7 $/mês em repouso (secção 2) | Consumo real na GUI ao fim do dia, com ~100 fotos enviadas |
+| 6 | Consumo de recursos dentro do orçamento | — | Consumo real na GUI ao fim do dia, com ~100 fotos enviadas |
 | 7 | O pip instala o `geovisio` no `ubuntu/python@3.14` | As wheels `cp314` existem; a instalação não foi testada | Log do *prepare* |
 | 8 | `run.base: ubuntu/python@3.14` é aceite | A documentação mostra a forma `ubuntu/nodejs@22`; o CEME usa `alpine/nodejs@24` | O primeiro deploy |
 | 9 | `INFRA_NB_PROXIES` | — | `curl …/api/collections` e ver se os `href` saem `https://panoramax.ocarroeletrico.com/…`, primeiro no subdomínio e depois atrás da Cloudflare |
@@ -375,7 +364,7 @@ cd /var/www
 
 ## 11. Questões em aberto
 
-- [ ] ID do projeto Zerops (o Fernando cria amanhã).
+- [ ] ID do projeto Zerops.
 - [ ] Sem OAuth (secção 4)? Se sim, atualizar o `plan.md`.
 - [ ] `API_PICTURES_LICENSE_URL`: hoje aponta para a CC BY-SA 4.0. Quando
   houver uma página do VoltFrame com a autorização ODbL, passa para lá (como

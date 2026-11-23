@@ -1,0 +1,55 @@
+# Import dos serviços para o projeto Zerops do VoltFrame (criado à mão na GUI).
+#
+#   zcli project service-import zerops-import.yaml -P <project-id>
+#
+# Cria `db` (PostgreSQL) e `pano` (o runtime do Panoramax). Os hostnames não
+# são decorativos: o zerops.yml puxa `${db_connectionString}` e companhia do
+# `db`, e o webhook de deploy (ou `zcli push pano`) endereça o runtime pelo
+# hostname. Depois do import falta pôr a variável secreta FS_URL no `pano`
+# (Docs/infra.md, «Segredos»): sem ela o Panoramax não arranca.
+#yamlPreprocessor=on
+services:
+  # --- Base de dados ------------------------------------------------------
+  - hostname: db
+    # 18 é a mais recente no Zerops. O PostGIS vem no pg_available_extensions
+    # e é criado pelo panoramax/bootstrap_db.py com o superuser.
+    type: postgresql:single@18
+    priority: 30
+    # Tetos fixos já: sem isto herda o perfil `oltp-staging` (8 vCPU / 48 GB /
+    # 250 GB). Paga-se pelo uso, mas o disco nunca encolhe. Os metadados de
+    # 100k fotos cabem em poucos GB; as imagens estão no R2.
+    verticalAutoscaling:
+      cpuMode: SHARED
+      minCpu: 1
+      maxCpu: 2
+      minRam: 0.25
+      maxRam: 1
+      minDisk: 1
+      maxDisk: 5
+
+  # --- Panoramax (API + worker no mesmo container) ------------------------
+  - hostname: pano
+    type: python@3.12
+    priority: 10
+    # O primeiro deploy não fica à espera de código: os containers sobem e o
+    # webhook (ou `zcli push pano`) entrega a app.
+    startWithoutCode: true
+    # Subdomínio zerops.app para o ensaio, antes do domínio próprio.
+    enableSubdomainAccess: true
+    # 1 container. O 2.º só existe durante o rolling deploy.
+    minContainers: 1
+    maxContainers: 2
+    # O processamento das fotos (Pillow, 2048 px) é o que pede RAM. 0,5 GB
+    # de base, até 2 GB em picos de envio. Rever no ensaio.
+    verticalAutoscaling:
+      cpuMode: SHARED
+      minCpu: 1
+      maxCpu: 2
+      minRam: 0.5
+      maxRam: 2
+      minDisk: 1
+      maxDisk: 5
+    # Chave das sessões e dos tokens JWT do Panoramax: trocá-la invalida o
+    # token da conta de serviço. Gerada uma vez, aqui; nunca no repositório.
+    envSecrets:
+      FLASK_SECRET_KEY: <@generateRandomString(<64>)>

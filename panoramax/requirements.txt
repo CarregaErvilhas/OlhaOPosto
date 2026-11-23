@@ -1,0 +1,4 @@
+# Panoramax API (pacote PyPI `geovisio`). Versão fixa: subir de propósito,
+# lendo o changelog (https://gitlab.com/panoramax/server/api/-/blob/develop/CHANGELOG.md),
+# porque cada versão pode trazer migrações da BD.
+geovisio==2.17.0

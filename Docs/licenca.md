@@ -1,0 +1,26 @@
+# Licenças
+
+O VoltFrame tem duas licenças: uma para o código e outra para as fotos.
+
+## Código: MIT
+
+O código deste repositório está sob a [licença MIT](../LICENSE). Qualquer pessoa pode usá-lo, alterá-lo e montar uma cópia do serviço, desde que mantenha o aviso de copyright e a licença.
+
+Porquê a MIT: é a mesma licença do Panoramax (GeoVisio), o servidor onde ficam as fotos, por isso não há conflito entre as duas peças, e é a licença com menos atrito para quem quiser reutilizar o código (outras comunidades, operadores, o NAP dashboard).
+
+## Fotos: CC BY-SA 4.0, com autorização para dados
+
+As fotos enviadas pelo VoltFrame ficam sob a [Creative Commons Atribuição-CompartilhaIgual 4.0 Internacional (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/deed.pt), no mesmo modelo do Panoramax da OSM França ([wiki](https://wiki.openstreetmap.org/wiki/FR:Panoramax)):
+
+- **Fotos e derivados fotográficos** (recortes, tamanhos, versões desfocadas): CC BY-SA 4.0. É obrigatório dar crédito ao autor e partilhar os derivados sob a mesma licença.
+- **Dados não fotográficos** tirados das fotos (por exemplo, o tipo de tomada, o operador ou a posição de um posto, para pôr no OpenStreetMap): o autor autoriza também a sua publicação sob **CC BY 4.0** ou **ODbL**. Sem esta autorização, a CC BY-SA sozinha não é compatível com a ODbL e as fotos não poderiam ser usadas para melhorar o OSM.
+
+Quem envia uma foto aceita estas condições uma vez, ao entrar, e declara que é o autor da foto.
+
+**Atribuição.** O autor e a licença vão nos metadados (XMP/IPTC) da cópia pública e o crédito completo fica em `https://voltframe.ocarroeletrico.com/p/{photo_id}`.
+
+**Fotos de outras origens.** As fotos referenciadas a partir do OSM, do Wikimedia Commons ou de outro servidor Panoramax mantêm a licença e o autor de origem.
+
+---
+
+Isto é um resumo para facilitar a leitura; o que vale é o texto das licenças.

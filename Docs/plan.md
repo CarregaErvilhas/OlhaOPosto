@@ -1,6 +1,6 @@
 # Fotos dos postos de carregamento — design técnico
 
-2026-11-23 · Fernando · revisto depois de uma sessão de perguntas e respostas ao plano de 2026-11-22 (versão anterior: https://claude.ai/artifact/MUBnnd1mgtC66Sje56oFqN)
+2026-11-23 · Fernando · revisto depois de uma sessão de perguntas e respostas ao plano de 2026-11-22. Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`.
 
 ## Resumo e objetivos
 
@@ -109,7 +109,7 @@ O que falta no `ohmigo_chargers.json` acrescenta-se lá, no NAP dashboard:
 
 **Chave dos links.** O posto usa o `id` do local (`EZC-AMD-00051`: prefixo do operador + código), que é único e é o formato `OPC-XXXXXXXXXX` do Alexandre. A tomada usa o código EVSE do NAP sem os `*`.
 
-**Fotos que já existem.** As fotos que a comunidade já pôs no OSM (`panoramax=`, `wikimedia_commons=`, `mapillary=`, `image=`; o MapComplete grava-as no Panoramax dele) e que o `charger_photos.py` do NAP dashboard já recolhe **ficam só referenciadas**, com o autor e a licença de origem. Aparecem como candidatas e podem ser escolhidas como foto principal.
+**Fotos que já existem.** As fotos que a comunidade já pôs no OSM (`panoramax=`, `wikimedia_commons=`, `mapillary=`, `image=`; o MapComplete grava-as no Panoramax dele) e que o `charger_photos.py` do NAP dashboard já recolhe **ficam só referenciadas**, com o autor e a licença de origem. Aparecem na galeria do posto e na API, com o link para a origem, mas **não podem ser a foto principal** (ver *Fotos externas e links estáticos*).
 
 **Armadilhas de IDs** (do [gotchas.md](https://github.com/CarregaErvilhas/nap-dashboard/blob/main/references/gotchas.md) do NAP dashboard):
 
@@ -157,7 +157,7 @@ Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-s
 8. **Rodar, redimensionar e limpar.** Aplica-se a `Orientation` e re-codifica-se num `<canvas>` para 2048 px (mestre), 1024 px e 400 px, JPEG qualidade ~0,85. A re-codificação descarta todo o EXIF.
 9. **Enviar.** `POST /api/v1/photos` com as três imagens e um JSON: alvo, `taken_at`, `exif_lat`/`exif_lon`.
 10. **Validar no Worker.** Sessão, limite de envios (50 fotos/dia para `contributor`), Turnstile, alvo existente, nenhum segmento APP1/EXIF nos bytes, `distance_m` ao posto.
-11. **Enviar para o Panoramax** com a conta de serviço: `POST /api/upload_sets`, depois `.../files` com a mestre de 2048 px, as coordenadas (ver *Por decidir* abaixo) e a data, `isBlurred=true` e as etiquetas (`osm|ref:EU:EVSE=…`, `pictures|site=…`, `pictures|author=…`), e `.../complete`. Visibilidade `owner-only` até ser aprovada. As versões de 1024 e 400 px ficam num bucket R2 privado (`pictures-staging`) até à aprovação.
+11. **Enviar para o Panoramax** com a conta de serviço: `POST /api/upload_sets`, depois `.../files` com a mestre de 2048 px, as coordenadas do posto, a data do EXIF, `isBlurred=true` e as etiquetas (`osm|ref:EU:EVSE=…`, `pictures|site=…`, `pictures|author=…`), e `.../complete`. Visibilidade `owner-only` até ser aprovada. As versões de 1024 e 400 px ficam num bucket R2 privado (`pictures-staging`) até à aprovação.
 12. **Publicar ou rever.**
     - Conta `trusted` (promovida à mão), posto `active` e dentro de 300 m → aprovada logo.
     - Conta `contributor` → sempre `pending`, à espera de um moderador. Todas as contas novas começam aqui.
@@ -170,7 +170,7 @@ Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-s
 - Sinaliza discrepâncias: uma foto a 2 km do posto vai para revisão.
 - Ajuda a corrigir coordenadas: se várias fotos de pessoas diferentes concordam entre si e divergem do NAP, gera-se uma pista para reportar ao OPC ou corrigir no OSM.
 - Fica só na D1, visível para moderadores; a API pública mostra a data, nunca as coordenadas de quem tirou a foto.
-- **Por decidir:** o Panoramax é um mapa de fotos e pede coordenadas. A proposta é enviar as coordenadas do posto (não as do EXIF), para manter a regra de nunca publicar o GPS de quem tirou a foto.
+- O Panoramax é um mapa de fotos e pede coordenadas: recebe as **coordenadas do posto**, nunca as do EXIF, para manter a regra de nunca publicar o GPS de quem tirou a foto.
 
 ## Links estáticos
 
@@ -191,7 +191,28 @@ Notas:
 - **Re-keys:** o `301` do código antigo é uma regra de redirect da Cloudflare gerada a partir de `station_aliases`.
 - **Cache:** `Cache-Control: public, max-age=86400` em cada objeto; Edge TTL longo na Cache Rule; *purge* ao mudar a principal. No pior caso, um browser mostra a foto antiga durante 24 h.
 - **Atribuição:** o R2 não devolve cabeçalhos próprios, por isso o autor e a licença vão no **XMP/IPTC** da cópia pública (sem GPS), escritos pelo Worker ao publicar. O crédito completo fica em `voltframe.ocarroeletrico.com/p/{photo_id}`, que a CC BY-SA exige.
-- **Fotos externas** (MapComplete, Commons): **por decidir.** Foi decidido só as referenciar, mas o `pictures.*` não faz redirects, por isso uma foto externa só pode alimentar um link estático se for copiada (a licença permite-o com o crédito no XMP). Alternativa: as externas aparecem na galeria mas nunca são a principal.
+- **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
+
+### Fotos externas e links estáticos
+
+**Caso de uso.** Um posto tem uma foto que alguém pôs no OSM (pelo MapComplete, guardada no Panoramax deles) ou no Commons, mas ninguém a enviou pelo VoltFrame. O NAP dashboard já a mostra. O link estático `pictures.ocarroeletrico.com/<id>.jpg`, porém, só serve ficheiros que estejam no bucket: o `pictures.*` não tem Worker e não faz redirects.
+
+**Em comum às duas opções.** O cron diário lê as fotos que o `charger_photos.py` do NAP dashboard já recolhe do OSM (com autor, licença e miniatura) e guarda-as em `photos` com `origin=osm_panoramax` ou `commons`, só como referência. A API mostra-as com o link para a origem. As do Mapillary ficam de fora (a API deles pede uma chave).
+
+**B — só na galeria (decidido, 2026-11-23).**
+
+- As externas aparecem na página do posto e na API, mas nunca são a principal.
+- O link estático só existe para fotos enviadas pelo VoltFrame.
+- A favor: sem cópias de fotos de terceiros, sem sincronizar remoções.
+- Contra: no início, muitos postos que já têm foto noutro lado dão `404` no link estático.
+
+**A — copiar quando é escolhida como principal (para discutir mais tarde).**
+
+- O Worker vai buscar a imagem à origem (2048 px do Panoramax, ou a miniatura do Commons) e grava as três chaves em `pictures`, com o crédito do autor original no XMP.
+- A favor: o link estático cobre logo todos os postos que já têm foto.
+- Contra: guardamos cópias de fotos de outras pessoas (a licença permite-o com crédito). Se a foto sair da origem (o autor apaga-a ou há um pedido de remoção lá), o cron diário tem de o detetar e apagar a cópia.
+
+Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto pelo VoltFrame, ou um host separado com Worker que faça redirect para a origem (sem cópia, mas com o custo de pedidos dos Workers).
 
 ## OSM
 
@@ -376,5 +397,4 @@ Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
 - [ ] Resposta da OSM Portugal e da equipa do Panoramax (federação, nome, bot).
 - [ ] Convenção do MapComplete para várias fotos no mesmo elemento (`panoramax:1=`?).
 - [ ] Os seis pontos do ensaio do Panoramax no Zerops.
-- [ ] Coordenadas enviadas ao Panoramax: as do posto (proposta) ou as do EXIF?
-- [ ] Fotos externas como principal: copiar para `pictures` ou só na galeria?
+- [ ] Fotos externas e links estáticos: rever a opção B (em uso) contra a A ou outras alternativas.

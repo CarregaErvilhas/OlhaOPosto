@@ -11,8 +11,9 @@
 services:
   # --- Base de dados ------------------------------------------------------
   - hostname: db
-    # 18 é a mais recente no Zerops. O PostGIS vem no pg_available_extensions
-    # e é criado pelo panoramax/bootstrap_db.py com o superuser.
+    # PostgreSQL gerido do Zerops. 18 é a mais recente que o Zerops oferece
+    # (a 19 saiu a 2026-11-19 e ainda não está lá). O PostGIS vem no
+    # pg_available_extensions e é criado pelo panoramax/bootstrap_db.py.
     type: postgresql:single@18
     priority: 30
     # Tetos fixos já: sem isto herda o perfil `oltp-staging` (8 vCPU / 48 GB /
@@ -29,7 +30,8 @@ services:
 
   # --- Panoramax (API + worker no mesmo container) ------------------------
   - hostname: pano
-    type: python@3.12
+    # 3.14 só existe em Ubuntu; o zerops.yml escolhe ubuntu/python@3.14.
+    type: python@3.14
     priority: 10
     # O primeiro deploy não fica à espera de código: os containers sobem e o
     # webhook (ou `zcli push pano`) entrega a app.

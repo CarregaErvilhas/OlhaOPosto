@@ -23,6 +23,7 @@ Ficheiros:
 | `zerops.yml` | Build e runtime do `pano` (setup `pano`) |
 | `panoramax/requirements.txt` | Versão do Panoramax (`geovisio==2.17.0`, do PyPI) |
 | `panoramax/bootstrap_db.py` | Extensões, permissões e fuso da BD, com o superuser |
+| `panoramax/service_account.py` | Cria a conta de serviço `pictures` (não admin) e um token |
 
 ---
 
@@ -45,8 +46,32 @@ Ficheiros:
 
 | Serviço | Tipo | Função |
 | --- | --- | --- |
-| `pano` | `python@3.12`, Ubuntu | API do Panoramax (gunicorn, porta 5000) e o *worker* que processa as fotos, no mesmo container |
-| `db` | `postgresql:single@18` | Metadados, utilizadores, fila de processamento. PostGIS, `pg_trgm`, `uuid-ossp` |
+| `pano` | `python@3.14`, Ubuntu | API do Panoramax (gunicorn, porta 5000) e o *worker* que processa as fotos, no mesmo container |
+| `db` | `postgresql:single@18`, gerido pelo Zerops | Metadados, utilizadores, fila de processamento. PostGIS, `pg_trgm`, `uuid-ossp` |
+
+### Versões
+
+- **Panoramax 2.17.0**: a mais recente no PyPI (2026-11-23). O Panoramax
+  não tem versões LTS; publica versões *minor* com migrações da BD. Os
+  nomes das variáveis e comandos deste ficheiro foram confirmados no código
+  da 2.17.0 (`geovisio/config_app.py`, `admin_cli/`), não só na
+  documentação, que acompanha o `develop`.
+- **Python 3.14**: a mais recente no Zerops, que só a oferece em Ubuntu. O
+  changelog do Panoramax anuncia suporte ao 3.14, e as dependências
+  binárias da 2.17.0 (pyexiv2, rtree, opendal, Pillow, psycopg, pydantic,
+  timezonefinder) têm wheels `cp314` para glibc no PyPI.
+- **Ubuntu, não Alpine**: o `pyexiv2` (o leitor de metadados EXIF/XMP de
+  que o Panoramax depende) não tem wheels para musl, a libc do Alpine; no
+  Alpine teria de ser compilado com o exiv2 de sistema. E o Python 3.14 do
+  Zerops só existe em Ubuntu. A imagem Ubuntu é maior, mas o custo é o mesmo
+  (paga-se CPU, RAM e disco usados).
+- **PostgreSQL 18, gerido pelo Zerops** (`postgresql:single@18`): backups,
+  autoscaling e atualizações *minor* são do Zerops. É a versão mais recente
+  que o Zerops oferece. A 19 saiu a 2026-11-19 e ainda não está disponível.
+  Passar para a 19 mais tarde obriga a recriar o serviço `db` e restaurar
+  um dump (como no CEME). O PostGIS vem com o serviço; o contentor
+  `postgis/postgis` do `plan.md` era só a alternativa se o gerido falhasse
+  no ensaio.
 
 As imagens não estão no Zerops: vão para o bucket R2 `panoramax`
 (originais em `permanent/`, tamanhos em `derivatives/`, envios a meio em
@@ -90,8 +115,6 @@ limite. Acima disso, 0,02 $/GB.
 casa. Só volta a correr quando o `requirements.txt` ou os
 `prepareCommands` mudam.
 
-- **Ubuntu, não Alpine:** o `pyexiv2`, de que o leitor de metadados do
-  Panoramax depende, só tem wheels para glibc.
 - **venv:** o pip do sistema no Ubuntu 24.04 recusa instalar fora de um
   venv (PEP 668).
 
@@ -157,27 +180,44 @@ No primeiro arranque, o Panoramax grava `API_DEFAULT_PICTURE_VISIBILITY`
 disso, **mudar a variável não tem efeito**: só um aviso no log. Para mudar,
 é um `UPDATE configurations SET default_visibility = …` na BD.
 
-### Conta de serviço: sem OAuth
+### Contas: sem OAuth, e a conta de serviço não é admin
 
 O `plan.md` previa `OAUTH_PROVIDER=osm` só para a conta de serviço e o
-admin. Proponho **não ligar OAuth nenhum**:
+admin. **Proposta: não ligar OAuth nenhum** (decisão do Fernando, ver secção 11): as rotas `/api/auth/*` respondem 501 e
+ninguém consegue entrar, nem por engano. Não há app OAuth no OSM para
+manter.
 
-- A migração inicial do Panoramax cria uma **conta por omissão**, que é
-  `admin`.
-- O token JWT dela sai de `panoramax_backend default-account-tokens get`.
-  Funciona como `Authorization: Bearer` sem OAuth configurado
-  (`geovisio/utils/auth.py`).
-- Essa conta passa a ser a `pictures`:
-  `UPDATE accounts SET name = 'pictures' WHERE is_default;`.
-- Sem OAuth, as rotas `/api/auth/*` respondem 501. Ninguém consegue entrar,
-  nem por engano, e não há app OAuth no OSM para manter.
+Há duas contas:
 
-O que se perde: um admin com login no visualizador. A moderação é no
-VoltFrame, e para o resto chega o token e o CLI. **Decisão do Fernando**,
-porque muda o `plan.md`.
+| Conta | Papel | Para quê |
+| --- | --- | --- |
+| Conta por omissão (criada pela migração inicial) | `admin` | Manutenção à mão. O token não sai do container |
+| `pictures` | `user` | Envios do VoltFrame. O token vai para o Worker |
 
-O token vai para os *secrets* do Worker (`wrangler secret put`). Não tem
-data de expiração. Para o revogar, é preciso trocar o `FLASK_SECRET_KEY`.
+A `pictures` não é admin de propósito. Pode enviar fotos e mudar a
+visibilidade das suas, que é tudo o que o VoltFrame faz. Se o token vazar,
+quem o tiver não consegue apagar fotos de outras contas, mudar papéis nem
+tratar denúncias como admin.
+
+O Panoramax não tem comando para criar uma conta sem login, por isso o
+`panoramax/service_account.py` faz o mesmo que a rota de tokens: cria a
+conta com papel `user` (se não existir), acrescenta uma linha a `tokens` e
+assina o JWT com a função do próprio Panoramax. Recusa correr sobre a conta
+por omissão ou sobre um admin.
+
+```bash
+# no container (zcli vpn up <project-id>; ssh pano)
+cd /var/www
+/home/zerops/venv/bin/python panoramax/service_account.py | npx wrangler secret put PANORAMAX_TOKEN
+```
+
+O JWT não expira. Para o **revogar**, apaga-se a linha do token
+(`DELETE FROM tokens WHERE id = '…'`; o id sai no stderr do script): a API
+passa a responder 403. Trocar o `FLASK_SECRET_KEY` invalida todos os tokens
+de uma vez.
+
+O crédito por foto continua a ser o ponto 5 do ensaio: as fotos ficam todas
+em nome de `pictures`, e o autor vai na etiqueta `pictures|author=`.
 
 ---
 
@@ -304,8 +344,8 @@ configuração. Em cada um, o que já sei e como se testa.
 | 4 | `owner-only` e passar a `anyone` ao aprovar | Visibilidade por omissão configurável | Ver que a foto não aparece sem token; mudar a visibilidade; ver que aparece |
 | 5 | Crédito por foto (autor ≠ conta de serviço) | — | Etiqueta `pictures\|author=` e o que o visualizador e o STAC mostram |
 | 6 | Custo dentro dos 10 € | ~3,7 $/mês em repouso (secção 2) | Consumo real na GUI ao fim do dia, com ~100 fotos enviadas |
-| 7 | O pip instala o `geovisio` no `ubuntu/python@3.12` | Sem teste ainda (não pude instalar o pacote aqui) | Log do *prepare* |
-| 8 | `run.base: ubuntu/python@3.12` é aceite | A documentação mostra a forma `ubuntu/nodejs@22`; o CEME usa `alpine/nodejs@24` | O primeiro deploy |
+| 7 | O pip instala o `geovisio` no `ubuntu/python@3.14` | As wheels `cp314` existem; a instalação não foi testada | Log do *prepare* |
+| 8 | `run.base: ubuntu/python@3.14` é aceite | A documentação mostra a forma `ubuntu/nodejs@22`; o CEME usa `alpine/nodejs@24` | O primeiro deploy |
 | 9 | `INFRA_NB_PROXIES` | — | `curl …/api/collections` e ver se os `href` saem `https://panoramax.ocarroeletrico.com/…`, primeiro no subdomínio e depois atrás da Cloudflare |
 | 10 | RAM do processamento | — | Enviar 20 fotos seguidas e ver o pico de RAM do `pano` |
 
@@ -314,7 +354,7 @@ Comandos úteis no container (`zcli vpn up <project-id>`, depois
 
 ```bash
 cd /var/www
-/home/zerops/venv/bin/panoramax_backend default-account-tokens get   # token da conta de serviço
+/home/zerops/venv/bin/python panoramax/service_account.py           # conta `pictures` + token (secção 4)
 /home/zerops/venv/bin/panoramax_backend db upgrade                  # migrações à mão
 ```
 
@@ -336,10 +376,7 @@ cd /var/www
 ## 11. Questões em aberto
 
 - [ ] ID do projeto Zerops (o Fernando cria amanhã).
-- [ ] Sem OAuth, com a conta por omissão como `pictures` (secção 4)?
-- [ ] O email no `API_SUMMARY` (`voltframe@ocarroeletrico.com` é um
-  marcador meu: existe, ou qual usar?). Aparece publicamente no
-  `/api/configuration`.
+- [ ] Sem OAuth (secção 4)? Se sim, atualizar o `plan.md`.
 - [ ] `API_PICTURES_LICENSE_URL`: hoje aponta para a CC BY-SA 4.0. Quando
   houver uma página do VoltFrame com a autorização ODbL, passa para lá (como
   faz o Panoramax da OSM França).

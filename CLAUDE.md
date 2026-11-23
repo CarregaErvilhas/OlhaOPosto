@@ -14,7 +14,7 @@ Estado: fase de design. Existem mockups, o plano técnico e a configuração do 
 
 ## Stack prevista
 
-- Servidor Panoramax próprio (só postos), no Zerops, com armazenamento no R2: guarda as fotos. Sem logins; o VoltFrame envia com uma conta de serviço.
+- Servidor Panoramax próprio (só postos), no Zerops (Python 3.14 em Ubuntu, PostgreSQL 18 gerido), com armazenamento no R2: guarda as fotos. Sem logins; o VoltFrame envia com a conta de serviço `pictures`, que não é admin.
 - Cloudflare Worker (`voltframe.ocarroeletrico.com`) + D1: postos, seleções, moderação, ranking, API, MCP.
 - R2 `pictures` em `pictures.ocarroeletrico.com`, sem Worker: links estáticos.
 - Cron diário lê o `ohmigo_chargers.json` do NAP dashboard.

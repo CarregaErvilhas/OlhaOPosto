@@ -14,7 +14,10 @@ zerops:
       # Não há nada a compilar: o Panoramax vem do PyPI (`geovisio`) e é
       # instalado no runtime (prepareCommands), que fica em cache enquanto o
       # requirements.txt não mudar.
-      base: python@3.12
+      # 3.14: a mais recente no Zerops (só existe em Ubuntu). O Panoramax
+      # anuncia suporte ao 3.14 no changelog e as dependências binárias têm
+      # wheels cp314 para glibc (verificado no PyPI para a 2.17.0).
+      base: python@3.14
       os: ubuntu
       deployFiles:
         - panoramax
@@ -33,8 +36,8 @@ zerops:
         retryPeriod: "10s"
     run:
       # Ubuntu e não Alpine: o pyexiv2 (dependência do geopic-tag-reader) só
-      # tem wheels para glibc.
-      base: ubuntu/python@3.12
+      # tem wheels para glibc, e o Python 3.14 do Zerops só existe em Ubuntu.
+      base: ubuntu/python@3.14
       prepareCommands:
         # venv: o pip do sistema no Ubuntu 24.04 recusa instalar fora de um
         # venv (PEP 668).
@@ -94,8 +97,8 @@ zerops:
         API_WEBSITE_URL: "false"
         API_PICTURES_LICENSE_SPDX_ID: CC-BY-SA-4.0
         API_PICTURES_LICENSE_URL: https://creativecommons.org/licenses/by-sa/4.0/
-        # --- Contas e envio: sem OAuth. Só a conta por omissão (admin), com o
-        # token JWT dela, envia; é a conta de serviço `pictures`. ---
+        # --- Contas e envio: sem OAuth. O VoltFrame envia com a conta
+        # `pictures` (papel `user`), criada por panoramax/service_account.py. ---
         API_REGISTRATION_IS_OPEN: "false"
         API_FORCE_AUTH_ON_UPLOAD: "true"
         # Fica gravado na BD no primeiro arranque; mudar aqui depois não tem

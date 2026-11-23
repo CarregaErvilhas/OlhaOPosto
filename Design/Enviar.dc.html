@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Enviar fotos</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F7F5}
+a{color:#0B6B58}a:hover{color:#08513F}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #15201C; background: #F6F7F5; min-height: 100vh">
+  <header style="background: #FFFFFF; border-bottom: 1px solid #DDE3DF">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px">
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #15201C">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B6B58" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"></rect><circle cx="12" cy="13" r="3.5"></circle><path d="M8 6l1.5-2h5L16 6"></path></svg>
+        <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 19px">Fotos dos Postos</span>
+      </a>
+      <nav aria-label="Principal" style="display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 15px; flex: 1 1 auto">
+        <a href="Galeria.dc.html" style="color: #3F4B46; text-decoration: none; padding: 10px 0">Galeria</a>
+        <a href="#" style="color: #3F4B46; text-decoration: none; padding: 10px 0">Postos sem foto</a>
+        <a href="#" style="color: #3F4B46; text-decoration: none; padding: 10px 0">API e agentes</a>
+      </nav>
+      <span style="font-size: 14px; color: #3F4B46">Sessão: [utilizador OSM] · contribuidor</span>
+    </div>
+  </header>
+
+  <main style="max-width: 1200px; margin: 0 auto; padding: 28px 24px 64px">
+    <h1 style="margin: 0 0 6px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 32px">Enviar fotos</h1>
+    <p style="margin: 0 0 20px; font-size: 15px; color: #5A6661">A foto é lida, desfocada e limpa no teu dispositivo. O original nunca é enviado.</p>
+
+    <ol style="list-style: none; margin: 0 0 24px; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; font-size: 14px">
+      <li style="border-top: 3px solid #0B6B58; padding-top: 8px; color: #08513F; font-weight: 600">1 · Fotos</li>
+      <li style="border-top: 3px solid #0B6B58; padding-top: 8px; color: #08513F; font-weight: 600">2 · Posto</li>
+      <li aria-current="step" style="border-top: 3px solid #0B6B58; padding-top: 8px; color: #15201C; font-weight: 600">3 · Privacidade</li>
+      <li style="border-top: 3px solid #C9D2CD; padding-top: 8px; color: #5A6661">4 · Enviar</li>
+    </ol>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+      <section aria-label="Desfocagem" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+        <div style="position: relative; aspect-ratio: 4 / 3; background: #D9E0DC; border-radius: 12px; overflow: hidden">
+          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #4A5651">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"></rect><circle cx="12" cy="13" r="3.5"></circle><path d="M8 6l1.5-2h5L16 6"></path></svg>
+            <span style="font-size: 15px; font-weight: 500">Foto 1 de 3 (pré-visualização)</span>
+          </div>
+          <sc-for list="{{ zones }}" as="z" hint-placeholder-count="2">
+            <button type="button" onClick="{{ z.toggle }}" aria-pressed="{{ z.pressed }}" aria-label="{{ z.aria }}" style="{{ z.style }}"><span style="{{ z.tagStyle }}">{{ z.label }}</span></button>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+          <button type="button" style="font: inherit; font-size: 14px; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #C9D2CD; background: #FFFFFF; color: #15201C">+ Desenhar zona</button>
+          <span style="font-size: 14px; color: #3F4B46">{{ zoneSummary }}</span>
+        </div>
+        <p style="margin: 0; font-size: 14px; color: #5A6661">Deteção automática no telemóvel. Toca numa zona para a ligar ou desligar; desenha outra se faltar alguma.</p>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <button type="button" aria-label="Foto 1, a editar" style="aspect-ratio: 4 / 3; border: 2px solid #0B6B58; border-radius: 8px; background: #D9E0DC; padding: 0; font: inherit; font-size: 12px; color: #08513F; font-weight: 600">A editar</button>
+          <button type="button" aria-label="Foto 2" style="aspect-ratio: 4 / 3; border: 1px solid #C9D2CD; border-radius: 8px; background: #E1E7E3; padding: 0; font: inherit; font-size: 12px; color: #3F4B46">0 zonas</button>
+          <button type="button" aria-label="Foto 3" style="aspect-ratio: 4 / 3; border: 1px solid #C9D2CD; border-radius: 8px; background: #E1E7E3; padding: 0; font: inherit; font-size: 12px; color: #3F4B46">1 zona</button>
+        </div>
+      </section>
+
+      <aside style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+        <section style="background: #FFFFFF; border: 1px solid #DDE3DF; border-radius: 12px; padding: 20px">
+          <h2 style="margin: 0 0 4px; font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600">Posto</h2>
+          <p style="margin: 0 0 12px; font-size: 14px; color: #5A6661">GPS lido do EXIF da foto. Postos num raio de 500 m:</p>
+          <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+            <legend style="position: absolute; left: -9999px">Escolher posto</legend>
+            <sc-for list="{{ stations }}" as="st" hint-placeholder-count="2">
+              <label style="{{ st.style }}">
+                <input type="radio" name="posto" checked="{{ st.checked }}" onChange="{{ st.pick }}" style="width: 18px; height: 18px; accent-color: #0B6B58">
+                <span style="flex: 1 1 auto"><span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">{{ st.code }}</span><br><span style="font-size: 13px; color: #5A6661">{{ st.meta }}</span></span>
+                <span style="font-size: 13px; font-weight: 600; color: #3F4B46">{{ st.dist }}</span>
+              </label>
+            </sc-for>
+          </fieldset>
+          <a href="#" style="display: inline-block; margin-top: 10px; font-size: 14px">O posto não está na lista? Propor posto novo</a>
+        </section>
+
+        <section style="background: #FFFFFF; border: 1px solid #DDE3DF; border-radius: 12px; padding: 20px">
+          <h2 style="margin: 0 0 12px; font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600">Esta foto mostra</h2>
+          <div role="radiogroup" aria-label="Alvo da foto" style="display: flex; flex-wrap: wrap; gap: 8px">
+            <sc-for list="{{ targets }}" as="t" hint-placeholder-count="3">
+              <button type="button" role="radio" aria-checked="{{ t.checked }}" onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }}</button>
+            </sc-for>
+          </div>
+          <p style="margin: 12px 0 0; font-size: 13px; color: #5A6661">Link: <span style="font-family: 'JetBrains Mono', monospace">{{ targetLink }}</span></p>
+        </section>
+
+        <section style="background: #FFFFFF; border: 1px solid #DDE3DF; border-radius: 12px; padding: 20px">
+          <h2 style="margin: 0 0 8px; font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600">Antes de enviar</h2>
+          <ul style="margin: 0 0 14px; padding-left: 18px; font-size: 14px; color: #3F4B46; line-height: 1.6">
+            <li>Removidos da imagem: GPS, modelo e número de série da câmara</li>
+            <li>Guardados só para moderação: data e distância ao posto</li>
+            <li>Tamanhos gerados: 2048, 1024 e 400 px</li>
+          </ul>
+          <label style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; margin-bottom: 10px; min-height: 44px">
+            <input type="checkbox" checked="{{ okPrivacy }}" onChange="{{ togglePrivacy }}" style="width: 18px; height: 18px; margin-top: 2px; accent-color: #0B6B58">
+            <span>Confirmo que não há caras nem matrículas legíveis.</span>
+          </label>
+          <label style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; min-height: 44px">
+            <input type="checkbox" checked="{{ okLicense }}" onChange="{{ toggleLicense }}" style="width: 18px; height: 18px; margin-top: 2px; accent-color: #0B6B58">
+            <span>Tirei esta foto e publico-a sob <a href="#">CC BY-SA 4.0</a>, com autorização para dados derivados em ODbL.</span>
+          </label>
+          <button type="button" disabled="{{ cantSend }}" style="{{ sendStyle }}">{{ sendLabel }}</button>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { off: {}, station: 'TRK-VNT-00005', target: 'geral', okPrivacy: false, okLicense: false };
+  }
+  renderVals() {
+    const s = this.state;
+    const zoneDefs = [
+      { id: 'plate', label: 'Matrícula', left: 14, top: 64, w: 18, h: 9 },
+      { id: 'face', label: 'Cara', left: 72, top: 22, w: 10, h: 15 }
+    ];
+    const zones = zoneDefs.map((z) => {
+      const active = !s.off[z.id];
+      return {
+        label: active ? z.label + ' · desfocada' : z.label + ' · desligada',
+        aria: z.label + (active ? ', desfocagem ligada' : ', desfocagem desligada'),
+        pressed: active ? 'true' : 'false',
+        style: 'position: absolute; left: ' + z.left + '%; top: ' + z.top + '%; width: ' + z.w + '%; height: ' + z.h + '%; min-width: 44px; min-height: 44px; padding: 0; border-radius: 6px; cursor: pointer; ' + (active ? 'background: rgba(60,70,66,0.55); border: 2px solid #FFFFFF; outline: 2px solid #0B6B58;' : 'background: transparent; border: 2px dashed #9A3F00;'),
+        tagStyle: 'position: absolute; left: 0; top: -26px; white-space: nowrap; font-size: 12px; font-weight: 600; padding: 3px 7px; border-radius: 4px; ' + (active ? 'background: #0B6B58; color: #FFFFFF' : 'background: #FFF1E6; color: #8A3A00'),
+        toggle: () => this.setState({ off: Object.assign({}, s.off, { [z.id]: active }) })
+      };
+    });
+    const activeCount = zoneDefs.filter((z) => !s.off[z.id]).length;
+    const zoneSummary = activeCount + ' de ' + zoneDefs.length + ' zonas desfocadas';
+    const stationDefs = [
+      { code: 'TRK-VNT-00005', meta: '[Nome] · 2 tomadas · sugerido', dist: '42 m' },
+      { code: 'TRK-VNT-00004', meta: '[Nome] · 4 tomadas', dist: '310 m' }
+    ];
+    const stations = stationDefs.map((st) => ({
+      ...st,
+      checked: s.station === st.code,
+      style: 'display: flex; gap: 10px; align-items: center; padding: 10px 12px; min-height: 44px; border-radius: 8px; cursor: pointer; ' + (s.station === st.code ? 'border: 1px solid #0B6B58; background: #EEF7F3' : 'border: 1px solid #DDE3DF; background: #FFFFFF'),
+      pick: () => this.setState({ station: st.code })
+    }));
+    const code = s.station;
+    const evBase = 'PT' + code.replace(/-/g, '').replace(/^TRK/, 'TRKE');
+    const targetDefs = [
+      { id: 'geral', label: 'Posto em geral', link: code + '.jpg' },
+      { id: '01', label: 'Tomada 01', link: evBase + '01.jpg' },
+      { id: '02', label: 'Tomada 02', link: evBase + '02.jpg' }
+    ];
+    const targets = targetDefs.map((t) => ({
+      label: t.label,
+      checked: s.target === t.id ? 'true' : 'false',
+      style: 'font: inherit; font-size: 14px; min-height: 44px; padding: 0 14px; border-radius: 8px; cursor: pointer; ' + (s.target === t.id ? 'border: 1px solid #0B6B58; background: #E3F1EC; color: #08513F; font-weight: 600' : 'border: 1px solid #C9D2CD; background: #FFFFFF; color: #3F4B46'),
+      pick: () => this.setState({ target: t.id })
+    }));
+    const targetLink = '/' + targetDefs.find((t) => t.id === s.target).link;
+    const can = s.okPrivacy && s.okLicense;
+    return {
+      zones, zoneSummary, stations, targets, targetLink,
+      okPrivacy: s.okPrivacy, okLicense: s.okLicense,
+      togglePrivacy: () => this.setState({ okPrivacy: !s.okPrivacy }),
+      toggleLicense: () => this.setState({ okLicense: !s.okLicense }),
+      cantSend: !can,
+      sendLabel: can ? 'Enviar 3 fotos' : 'Confirma as duas caixas para enviar',
+      sendStyle: 'margin-top: 16px; width: 100%; min-height: 48px; font: inherit; font-size: 15px; font-weight: 600; border-radius: 8px; border: 0; ' + (can ? 'background: #0B6B58; color: #FFFFFF; cursor: pointer' : 'background: #DDE3DF; color: #4A5651; cursor: not-allowed')
+    };
+  }
+}
+</script>
+</body>
+</html>

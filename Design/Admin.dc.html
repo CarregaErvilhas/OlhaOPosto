@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Admin: fila de revisão</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F7F5}
+a{color:#0B6B58}a:hover{color:#08513F}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #15201C; background: #F6F7F5; min-height: 100vh">
+  <header style="background: #15201C; color: #FFFFFF">
+    <div style="padding: 12px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px">
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #FFFFFF">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7FD3BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"></rect><circle cx="12" cy="13" r="3.5"></circle><path d="M8 6l1.5-2h5L16 6"></path></svg>
+        <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 18px">Fotos dos Postos · Admin</span>
+      </a>
+      <span style="flex: 1 1 auto"></span>
+      <span style="font-size: 14px; color: #C8D3CE">[moderador] · moderator · protegido por Cloudflare Access</span>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; align-items: flex-start">
+    <nav aria-label="Admin" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; padding: 20px 14px; display: flex; flex-direction: column; gap: 2px; font-size: 15px">
+      <a href="#" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; background: #E3F1EC; color: #08513F; font-weight: 600; text-decoration: none">Fila de revisão <span style="font-size: 13px">{{ pendingCount }}</span></a>
+      <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #3F4B46; text-decoration: none">Postos novos</a>
+      <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #3F4B46; text-decoration: none">Pedidos de remoção</a>
+      <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #3F4B46; text-decoration: none">Fotos publicadas</a>
+      <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #3F4B46; text-decoration: none">Utilizadores e papéis</a>
+      <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #3F4B46; text-decoration: none">Importações NAP / OSM</a>
+      <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #3F4B46; text-decoration: none">Tokens e agentes</a>
+      <div style="margin: 16px 12px 0; padding-top: 14px; border-top: 1px solid #DDE3DF; font-size: 13px; color: #5A6661; line-height: 1.6">Última importação do NAP: [data]<br>8 862 locais · 19 693 pontos</div>
+    </nav>
+
+    <main style="flex: 999 1 760px; min-width: 0; padding: 20px 24px 48px; box-sizing: border-box">
+      <h1 style="margin: 0 0 4px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 28px">Fila de revisão</h1>
+      <p style="margin: 0 0 18px; font-size: 15px; color: #5A6661">Fotos, postos novos e pedidos de remoção que precisam de um humano. Dados de exemplo.</p>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+        <section aria-label="Itens na fila" style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+          <sc-for list="{{ queue }}" as="q" hint-placeholder-count="5">
+            <button type="button" onClick="{{ q.pick }}" aria-pressed="{{ q.pressed }}" style="{{ q.style }}">
+              <span style="display: flex; justify-content: space-between; gap: 8px; align-items: center">
+                <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #3F4B46">{{ q.type }}</span>
+                <span style="{{ q.statusStyle }}">{{ q.statusLabel }}</span>
+              </span>
+              <span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ q.target }}</span>
+              <span style="display: block; font-size: 13px; color: #5A6661; margin-top: 4px">{{ q.reason }}</span>
+            </button>
+          </sc-for>
+        </section>
+
+        <section aria-label="Detalhe" style="flex: 2 1 440px; min-width: 0; background: #FFFFFF; border: 1px solid #DDE3DF; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: flex-start">
+            <div>
+              <div style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #3F4B46">{{ sel.type }}</div>
+              <h2 style="margin: 4px 0 0; font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 500; word-break: break-all">{{ sel.target }}</h2>
+            </div>
+            <span style="{{ sel.statusStyle }}">{{ sel.statusLabel }}</span>
+          </div>
+
+          <div style="position: relative; aspect-ratio: 16 / 9; background: {{ sel.previewBg }}; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #4A5651; font-size: 15px; font-weight: 500">
+            {{ sel.preview }}
+            <sc-if value="{{ sel.showZone }}" hint-placeholder-val="{{ true }}">
+              <span style="position: absolute; left: 16%; top: 62%; width: 16%; height: 12%; border: 2px solid #FFFFFF; outline: 2px solid #0B6B58; background: rgba(60,70,66,0.55); border-radius: 6px"></span>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ sel.warn }}" hint-placeholder-val="{{ true }}">
+            <p style="margin: 0; padding: 10px 12px; border-radius: 8px; background: #FFF1E6; color: #7A3300; font-size: 14px">{{ sel.warn }}</p>
+          </sc-if>
+
+          <dl style="margin: 0; display: grid; grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); gap: 8px 16px; font-size: 14px">
+            <sc-for list="{{ sel.rows }}" as="r" hint-placeholder-count="5">
+              <dt style="color: #5A6661">{{ r.k }}</dt>
+              <dd style="margin: 0">{{ r.v }}</dd>
+            </sc-for>
+          </dl>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding-top: 14px; border-top: 1px solid #DDE3DF">
+            <button type="button" onClick="{{ approve }}" style="font: inherit; font-size: 15px; font-weight: 600; min-height: 44px; padding: 0 18px; border-radius: 8px; border: 0; background: #0B6B58; color: #FFFFFF; cursor: pointer">{{ sel.approveLabel }}</button>
+            <label for="motivo" style="position: absolute; left: -9999px">Motivo da rejeição</label>
+            <select id="motivo" style="font: inherit; font-size: 14px; min-height: 44px; padding: 0 10px; border: 1px solid #C9D2CD; border-radius: 8px; background: #FFFFFF; color: #15201C">
+              <option>Posto errado</option><option>Privacidade (cara ou matrícula)</option><option>Qualidade</option><option>Duplicada</option><option>Publicidade</option>
+            </select>
+            <button type="button" onClick="{{ reject }}" style="font: inherit; font-size: 15px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #B4472A; background: #FFFFFF; color: #9A3218; cursor: pointer">{{ sel.rejectLabel }}</button>
+            <button type="button" style="font: inherit; font-size: 15px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #C9D2CD; background: #FFFFFF; color: #15201C">Mover para outro posto</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { sel: 0, status: {} }; }
+  renderVals() {
+    const s = this.state;
+    const items = [
+      { type: 'Foto', target: 'TRK-VNT-00005', reason: 'GPS a 1,2 km do posto', preview: 'Foto enviada (desfocada)', previewBg: '#D9E0DC', showZone: true,
+        warn: 'A foto foi tirada a 1,2 km das coordenadas do NAP. Pode ser o posto errado, ou as coordenadas do NAP estarem erradas.',
+        rows: [['Enviada por', '[utilizador OSM] · contribuidor · 3 fotos aprovadas'], ['Alvo', 'Foto geral do posto'], ['Data (EXIF)', '[data]'], ['Distância ao posto', '1,2 km'], ['Desfocagem', 'No browser · 1 zona (matrícula)'], ['Postos mais perto da foto', 'TRK-VNT-00004 a 80 m']],
+        approveLabel: 'Aprovar e publicar', rejectLabel: 'Rejeitar' },
+      { type: 'Foto', target: 'PTIOYE473772', reason: 'Sem GPS no EXIF', preview: 'Foto enviada (desfocada)', previewBg: '#DDD9E2', showZone: false,
+        warn: 'A foto não tinha GPS. Confirma pela imagem que é esta tomada.',
+        rows: [['Enviada por', '[utilizador GitHub] · contribuidor'], ['Alvo', 'Tomada PT*IOY*E473772'], ['Data (EXIF)', '[data]'], ['Distância ao posto', 'desconhecida'], ['Desfocagem', 'No browser · 0 zonas']],
+        approveLabel: 'Aprovar e publicar', rejectLabel: 'Rejeitar' },
+      { type: 'Posto novo', target: '[nome proposto]', reason: 'Não está no NAP nem no OSM', preview: 'Mapa com a localização proposta', previewBg: '#E3E8E4', showZone: false,
+        warn: '',
+        rows: [['Proposto por', '[utilizador OSM] · trusted'], ['Operador', '[operador]'], ['Código', 'desconhecido'], ['Coordenadas', 'do GPS da foto'], ['Fotos à espera', '2'], ['No OSM', 'construction:amenity=charging_station a 25 m']],
+        approveLabel: 'Aceitar posto', rejectLabel: 'Rejeitar' },
+      { type: 'Remoção', target: 'CNT-0379PR0002 · foto 2', reason: 'Pedido público: matrícula legível', preview: 'Foto ocultada', previewBg: '#E8E1DC', showZone: false,
+        warn: 'A foto foi ocultada logo que o pedido chegou. Decide se fica removida ou se volta a publicar depois de desfocada.',
+        rows: [['Pedido', 'Formulário público (sem login)'], ['Motivo', 'Matrícula legível'], ['Autor da foto', '[utilizador OSM]'], ['Foto principal?', 'Não']],
+        approveLabel: 'Remover de vez', rejectLabel: 'Republicar' },
+      { type: 'Foto', target: 'PTCNTE0379PR00023', reason: 'Primeiro envio deste utilizador', preview: 'Foto enviada (desfocada)', previewBg: '#D6DDE1', showZone: false,
+        warn: '',
+        rows: [['Enviada por', '[utilizador OSM] · contribuidor · novo'], ['Alvo', 'Tomada PT*CNT*E0379PR0002*3'], ['Distância ao posto', '18 m'], ['Desfocagem', 'No browser · 0 zonas']],
+        approveLabel: 'Aprovar e publicar', rejectLabel: 'Rejeitar' }
+    ];
+    const pill = (st) => {
+      if (st === 'ok') return { label: 'Aprovado', style: 'font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #E3F1EC; color: #08513F' };
+      if (st === 'no') return { label: 'Rejeitado', style: 'font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #FBE7E2; color: #8C2C14' };
+      return { label: 'Pendente', style: 'font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #FFF1E6; color: #7A3300' };
+    };
+    const queue = items.map((it, i) => {
+      const p = pill(s.status[i]);
+      const on = i === s.sel;
+      return {
+        type: it.type, target: it.target, reason: it.reason,
+        statusLabel: p.label, statusStyle: p.style,
+        pressed: on ? 'true' : 'false',
+        style: 'text-align: left; font: inherit; color: #15201C; padding: 12px 14px; border-radius: 10px; cursor: pointer; ' + (on ? 'border: 2px solid #0B6B58; background: #FFFFFF' : 'border: 1px solid #DDE3DF; background: #FFFFFF'),
+        pick: () => this.setState({ sel: i })
+      };
+    });
+    const it = items[s.sel];
+    const p = pill(s.status[s.sel]);
+    const sel = {
+      type: it.type, target: it.target, preview: it.preview, previewBg: it.previewBg, showZone: it.showZone, warn: it.warn,
+      rows: it.rows.map(([k, v]) => ({ k, v })),
+      approveLabel: it.approveLabel, rejectLabel: it.rejectLabel,
+      statusLabel: p.label, statusStyle: p.style
+    };
+    const setSt = (v) => () => {
+      const status = Object.assign({}, s.status, { [s.sel]: v });
+      const next = items.findIndex((_, i) => !status[i]);
+      this.setState({ status, sel: next === -1 ? s.sel : next });
+    };
+    const pendingCount = items.filter((_, i) => !s.status[i]).length;
+    return { queue, sel, approve: setSt('ok'), reject: setSt('no'), pendingCount };
+  }
+}
+</script>
+</body>
+</html>

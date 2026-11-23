@@ -109,7 +109,7 @@ O que falta no `ohmigo_chargers.json` acrescenta-se lá, no NAP dashboard:
 
 **Chave dos links.** O posto usa o `id` do local (`EZC-AMD-00051`: prefixo do operador + código), que é único e é o formato `OPC-XXXXXXXXXX` do Alexandre. A tomada usa o código EVSE do NAP sem os `*`.
 
-**Fotos que já existem.** As fotos que a comunidade já pôs no OSM (`panoramax=`, `wikimedia_commons=`, `mapillary=`, `image=`; o MapComplete grava-as no Panoramax dele) e que o `charger_photos.py` do NAP dashboard já recolhe **ficam só referenciadas**, com o autor e a licença de origem. Aparecem como candidatas e podem ser escolhidas como foto principal.
+**Fotos que já existem.** As fotos que a comunidade já pôs no OSM (`panoramax=`, `wikimedia_commons=`, `mapillary=`, `image=`; o MapComplete grava-as no Panoramax dele) e que o `charger_photos.py` do NAP dashboard já recolhe **ficam só referenciadas**, com o autor e a licença de origem. Aparecem na galeria do posto e na API, com o link para a origem, mas **não podem ser a foto principal** (ver *Fotos externas e links estáticos*).
 
 **Armadilhas de IDs** (do [gotchas.md](https://github.com/CarregaErvilhas/nap-dashboard/blob/main/references/gotchas.md) do NAP dashboard):
 
@@ -191,7 +191,28 @@ Notas:
 - **Re-keys:** o `301` do código antigo é uma regra de redirect da Cloudflare gerada a partir de `station_aliases`.
 - **Cache:** `Cache-Control: public, max-age=86400` em cada objeto; Edge TTL longo na Cache Rule; *purge* ao mudar a principal. No pior caso, um browser mostra a foto antiga durante 24 h.
 - **Atribuição:** o R2 não devolve cabeçalhos próprios, por isso o autor e a licença vão no **XMP/IPTC** da cópia pública (sem GPS), escritos pelo Worker ao publicar. O crédito completo fica em `voltframe.ocarroeletrico.com/p/{photo_id}`, que a CC BY-SA exige.
-- **Fotos externas** (MapComplete, Commons): **por decidir.** Foi decidido só as referenciar, mas o `pictures.*` não faz redirects, por isso uma foto externa só pode alimentar um link estático se for copiada (a licença permite-o com o crédito no XMP). Alternativa: as externas aparecem na galeria mas nunca são a principal.
+- **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
+
+### Fotos externas e links estáticos
+
+**Caso de uso.** Um posto tem uma foto que alguém pôs no OSM (pelo MapComplete, guardada no Panoramax deles) ou no Commons, mas ninguém a enviou pelo VoltFrame. O NAP dashboard já a mostra. O link estático `pictures.ocarroeletrico.com/<id>.jpg`, porém, só serve ficheiros que estejam no bucket: o `pictures.*` não tem Worker e não faz redirects.
+
+**Em comum às duas opções.** O cron diário lê as fotos que o `charger_photos.py` do NAP dashboard já recolhe do OSM (com autor, licença e miniatura) e guarda-as em `photos` com `origin=osm_panoramax` ou `commons`, só como referência. A API mostra-as com o link para a origem. As do Mapillary ficam de fora (a API deles pede uma chave).
+
+**B — só na galeria (decidido, 2026-11-23).**
+
+- As externas aparecem na página do posto e na API, mas nunca são a principal.
+- O link estático só existe para fotos enviadas pelo VoltFrame.
+- A favor: sem cópias de fotos de terceiros, sem sincronizar remoções.
+- Contra: no início, muitos postos que já têm foto noutro lado dão `404` no link estático.
+
+**A — copiar quando é escolhida como principal (para discutir mais tarde).**
+
+- O Worker vai buscar a imagem à origem (2048 px do Panoramax, ou a miniatura do Commons) e grava as três chaves em `pictures`, com o crédito do autor original no XMP.
+- A favor: o link estático cobre logo todos os postos que já têm foto.
+- Contra: guardamos cópias de fotos de outras pessoas (a licença permite-o com crédito). Se a foto sair da origem (o autor apaga-a ou há um pedido de remoção lá), o cron diário tem de o detetar e apagar a cópia.
+
+Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto pelo VoltFrame, ou um host separado com Worker que faça redirect para a origem (sem cópia, mas com o custo de pedidos dos Workers).
 
 ## OSM
 
@@ -376,4 +397,4 @@ Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
 - [ ] Resposta da OSM Portugal e da equipa do Panoramax (federação, nome, bot).
 - [ ] Convenção do MapComplete para várias fotos no mesmo elemento (`panoramax:1=`?).
 - [ ] Os seis pontos do ensaio do Panoramax no Zerops.
-- [ ] Fotos externas como principal: copiar para `pictures` ou só na galeria?
+- [ ] Fotos externas e links estáticos: rever a opção B (em uso) contra a A ou outras alternativas.

@@ -1,6 +1,6 @@
 # Fotos dos postos de carregamento — design técnico
 
-2026-11-23 · Fernando · revisto depois de uma sessão de perguntas e respostas ao plano de 2026-11-22 (versão anterior: https://claude.ai/artifact/MUBnnd1mgtC66Sje56oFqN)
+2026-11-23 · Fernando · revisto depois de uma sessão de perguntas e respostas ao plano de 2026-11-22. Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`.
 
 ## Resumo e objetivos
 
@@ -157,7 +157,7 @@ Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-s
 8. **Rodar, redimensionar e limpar.** Aplica-se a `Orientation` e re-codifica-se num `<canvas>` para 2048 px (mestre), 1024 px e 400 px, JPEG qualidade ~0,85. A re-codificação descarta todo o EXIF.
 9. **Enviar.** `POST /api/v1/photos` com as três imagens e um JSON: alvo, `taken_at`, `exif_lat`/`exif_lon`.
 10. **Validar no Worker.** Sessão, limite de envios (50 fotos/dia para `contributor`), Turnstile, alvo existente, nenhum segmento APP1/EXIF nos bytes, `distance_m` ao posto.
-11. **Enviar para o Panoramax** com a conta de serviço: `POST /api/upload_sets`, depois `.../files` com a mestre de 2048 px, as coordenadas (ver *Por decidir* abaixo) e a data, `isBlurred=true` e as etiquetas (`osm|ref:EU:EVSE=…`, `pictures|site=…`, `pictures|author=…`), e `.../complete`. Visibilidade `owner-only` até ser aprovada. As versões de 1024 e 400 px ficam num bucket R2 privado (`pictures-staging`) até à aprovação.
+11. **Enviar para o Panoramax** com a conta de serviço: `POST /api/upload_sets`, depois `.../files` com a mestre de 2048 px, as coordenadas do posto, a data do EXIF, `isBlurred=true` e as etiquetas (`osm|ref:EU:EVSE=…`, `pictures|site=…`, `pictures|author=…`), e `.../complete`. Visibilidade `owner-only` até ser aprovada. As versões de 1024 e 400 px ficam num bucket R2 privado (`pictures-staging`) até à aprovação.
 12. **Publicar ou rever.**
     - Conta `trusted` (promovida à mão), posto `active` e dentro de 300 m → aprovada logo.
     - Conta `contributor` → sempre `pending`, à espera de um moderador. Todas as contas novas começam aqui.
@@ -170,7 +170,7 @@ Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-s
 - Sinaliza discrepâncias: uma foto a 2 km do posto vai para revisão.
 - Ajuda a corrigir coordenadas: se várias fotos de pessoas diferentes concordam entre si e divergem do NAP, gera-se uma pista para reportar ao OPC ou corrigir no OSM.
 - Fica só na D1, visível para moderadores; a API pública mostra a data, nunca as coordenadas de quem tirou a foto.
-- **Por decidir:** o Panoramax é um mapa de fotos e pede coordenadas. A proposta é enviar as coordenadas do posto (não as do EXIF), para manter a regra de nunca publicar o GPS de quem tirou a foto.
+- O Panoramax é um mapa de fotos e pede coordenadas: recebe as **coordenadas do posto**, nunca as do EXIF, para manter a regra de nunca publicar o GPS de quem tirou a foto.
 
 ## Links estáticos
 
@@ -376,5 +376,4 @@ Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
 - [ ] Resposta da OSM Portugal e da equipa do Panoramax (federação, nome, bot).
 - [ ] Convenção do MapComplete para várias fotos no mesmo elemento (`panoramax:1=`?).
 - [ ] Os seis pontos do ensaio do Panoramax no Zerops.
-- [ ] Coordenadas enviadas ao Panoramax: as do posto (proposta) ou as do EXIF?
 - [ ] Fotos externas como principal: copiar para `pictures` ou só na galeria?

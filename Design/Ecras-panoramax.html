@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ecrãs VoltFrame e Panoramax</title>
+<style>
+body{margin:0;background:#F6F7F5;font-family:Inter,system-ui,sans-serif;color:#15201C}
+main{max-width:1000px;margin:0 auto;padding:24px 16px}
+h1{font-size:20px;font-weight:600;margin:0 0 4px}
+.lead{font-size:14px;color:#4A5751;margin:0 0 16px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.cd{background:#fff;border:1px solid #DDE3DF;border-radius:12px;padding:12px 14px;font-size:13px;min-width:0}
+.hd{display:flex;justify-content:space-between;font-size:12px;color:#4A5751;border-bottom:1px solid #DDE3DF;padding-bottom:8px;margin-bottom:10px}
+.ph{position:relative;height:120px;border-radius:8px;background:#EEF1EF}
+.bx{position:absolute;border:1.5px dashed #A32D2D;background:#FCEBEB;border-radius:4px;font-size:11px;color:#791F1F;padding:1px 4px}
+.pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:8px;background:#EEF1EF;color:#4A5751;margin:2px 4px 2px 0}
+.on{background:#E1F5EE;color:#08513F}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #DDE3DF}
+.m{color:#4A5751;font-size:12px}
+.w{color:#854F0B}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:#4A5751;word-break:break-all}
+b{font-weight:600}
+button{font:inherit;font-size:12px;border:1px solid #8A9690;background:#fff;border-radius:8px;padding:4px 10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Ecrãs e fluxo com o Panoramax</h1>
+<p class="lead">Envio, moderação, página do posto, a mesma foto no Panoramax e o ranking. Dados de exemplo.</p>
+<div class="g">
+
+<section class="cd"><div class="hd"><span>VoltFrame · Enviar</span><span>joao_osm · contribuidor</span></div>
+<div class="ph"><div class="bx" style="left:18px;top:62px;width:70px;height:22px">matrícula</div><div class="bx" style="left:200px;top:20px;width:36px;height:40px">cara</div><div class="m" style="position:absolute;right:8px;bottom:6px">desfocado no telemóvel</div></div>
+<p style="margin:10px 0 4px">Posto sugerido pelo GPS</p>
+<div class="row"><span><b>TRK-VNT-00005</b> <span class="m">· Continente Vila Nova</span></span><span class="m">40 m</span></div>
+<p style="margin:8px 0 4px">Foto de</p>
+<span class="pill on">Posto (geral)</span><span class="pill">Tomada 01 · CCS 150 kW</span><span class="pill">Tomada 02 · T2 22 kW</span>
+<p class="m" style="margin:8px 0">☑ Sem caras nem matrículas legíveis · CC BY-SA 4.0</p>
+<button>Enviar para revisão</button></section>
+
+<section class="cd"><div class="hd"><span>VoltFrame · Moderação</span><span>3 pendentes</span></div>
+<div class="row"><div><b>TRK-VNT-00005</b> · tomada 01<div class="m">joao_osm · 40 m · hoje</div></div><span><button>Aprovar</button> <button>Rejeitar</button></span></div>
+<div class="row"><div><b>Posto novo</b> · Lidl Fafe<div class="m">ana_m · sem GPS</div></div><span><button>Rever</button></span></div>
+<div class="row"><div><b>EZC-AMD-00051</b> · geral<div class="m w">rui_ev · 2,1 km do posto</div></div><span><button>Rever</button></span></div>
+<p class="m" style="margin:8px 0 0">Aprovar: no Panoramax, owner-only → anyone; publica em pictures.</p>
+<p class="m" style="margin:4px 0 0">Promover a trusted · Remoções (0) · Postos fora do NAP (2)</p></section>
+
+<section class="cd"><div class="hd"><span>VoltFrame · Posto</span><span>No NAP · 2 tomadas</span></div>
+<div class="ph"><div class="m" style="position:absolute;left:8px;bottom:6px">Foto principal</div></div>
+<p class="m" style="margin:6px 0">por joao_osm · CC BY-SA 4.0 · 2026-11-20 · Ver no Panoramax ↗</p>
+<p style="margin:6px 0 2px">Links estáticos</p>
+<div class="mono">pictures.ocarroeletrico.com/TRK-VNT-00005.jpg</div>
+<div class="mono">pictures.ocarroeletrico.com/PTTRKEVNT0000501.jpg</div>
+<p style="margin:8px 0 2px">Tomadas</p>
+<div class="row"><span>01 · CCS 150 kW</span><span class="m">1 foto</span></div>
+<div class="row" style="border:0"><span>02 · T2 22 kW</span><span class="m">Sem foto · enviar</span></div></section>
+
+<section class="cd"><div class="hd"><span>panoramax.ocarroeletrico.com</span><span>sem login</span></div>
+<div class="ph"><div class="m" style="position:absolute;left:8px;bottom:6px">Visualizador Panoramax (público)</div></div>
+<p class="m" style="margin:8px 0 2px">Produtor: pictures · CC BY-SA 4.0 · coordenadas do posto</p>
+<div class="mono">osm|ref:EU:EVSE=PT*TRK*E*VNT*00005*01</div>
+<div class="mono">pictures|site=TRK-VNT-00005</div>
+<div class="mono">pictures|author=joao_osm</div>
+<p class="m" style="margin:8px 0 0">Na federação: aparece no mapa geral do Panoramax.</p></section>
+
+<section class="cd"><div class="hd"><span>VoltFrame · Ranking</span><span>novembro</span></div>
+<div class="row"><span>1 · joao_osm</span><span class="m">38 pts · 12 postos novos</span></div>
+<div class="row"><span>2 · ana_m</span><span class="m">31 pts · 4 renovadas</span></div>
+<div class="row"><span>3 · rui_ev</span><span class="m">22 pts</span></div>
+<div class="row"><span>4 · carla.pt</span><span class="m">15 pts</span></div>
+<div class="row" style="border:0"><span>5 · nuno_v</span><span class="m">9 pts</span></div>
+<p class="m" style="margin:8px 0 0">Só fotos aprovadas contam · Desde sempre ↗</p></section>
+
+</div>
+</main>
+</body>
+</html>

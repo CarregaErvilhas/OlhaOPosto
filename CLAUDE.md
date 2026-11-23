@@ -8,6 +8,7 @@ Estado: fase de design. Só existem mockups e o plano técnico, ainda sem códig
 
 - `Docs/plan.md`: design técnico (arquitetura, fontes de dados, fases). É a fonte de verdade.
 - `Design/*.dc.html`: mockups das páginas (Main, Galeria, Enviar, Admin) e `canvas.json`.
+- `Design/marca/`: mascote Pic (versão âmbar) em SVG e PNG, favicon, ícones de app e `site.webmanifest`; cores e `<head>` no `LEIA-ME.md`.
 - `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`: fluxo VoltFrame ↔ Panoramax e ecrãs do plano revisto (envio, moderação, posto, Panoramax, ranking).
 
 ## Stack prevista

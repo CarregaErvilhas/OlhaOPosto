@@ -1,10 +1,10 @@
 # Licenças
 
-O VoltFrame tem duas licenças: uma para o código e outra para as fotos.
+O VoltFrame tem duas licenças: uma para o código e outra para as fotos. O nome e a mascote ficam fora das duas.
 
 ## Código: MIT
 
-O código deste repositório está sob a [licença MIT](../LICENSE). Qualquer pessoa pode usá-lo, alterá-lo e montar uma cópia do serviço, desde que mantenha o aviso de copyright e a licença.
+O código deste repositório está sob a [licença MIT](../LICENSE), exceto a marca (ver abaixo). Qualquer pessoa pode usá-lo, alterá-lo e montar uma cópia do serviço, desde que mantenha o aviso de copyright e a licença.
 
 Porquê a MIT: é a mesma licença do Panoramax (GeoVisio), o servidor onde ficam as fotos, por isso não há conflito entre as duas peças, e é a licença com menos atrito para quem quiser reutilizar o código (outras comunidades, operadores, o NAP dashboard).
 
@@ -20,6 +20,16 @@ Quem envia uma foto aceita estas condições uma vez, ao entrar, e declara que �
 **Atribuição.** O autor e a licença vão nos metadados (XMP/IPTC) da cópia pública e o crédito completo fica em `https://voltframe.ocarroeletrico.com/p/{photo_id}`.
 
 **Fotos de outras origens.** As fotos referenciadas a partir do OSM, do Wikimedia Commons ou de outro servidor Panoramax mantêm a licença e o autor de origem.
+
+## O nome e a imagem ficam de fora
+
+As licenças cobrem o código e as fotos, não a marca. Não estão licenciados:
+
+- os nomes **VoltFrame** e **pIcŧU/Re**, e os domínios em `ocarroeletrico.com`;
+- a mascote **Pic** (a ficha Type 2 que fotografa), o ícone, o favicon e as imagens feitas com eles, em `Design/marca/` e nos desenhos dos mockups em `Design/`;
+- as mascotes dos outros sites do grupo do O Carro Elétrico, se aparecerem aqui, que são de cada um desses sites.
+
+Podes, e deves, usar o nome para dizer de onde vêm as fotos ou o código. Um fork ou uma obra derivada precisa de nome e de imagem próprios.
 
 ---
 

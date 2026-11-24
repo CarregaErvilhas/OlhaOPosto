@@ -142,11 +142,15 @@ Em local (sem login na Cloudflare):
 ```bash
 cd worker
 npm ci
-npm test                  # testes do import
+npm test                  # testes do import e das páginas
 npm run db:local          # migrações na D1 local
 npm run import:local      # importa o feed real para a D1 local
 npm run dev               # http://localhost:8787/api/v1/stations/EZC-AMD-00051
 ```
+
+Cada PR para `main` corre o workflow `checks.yml` (`npm run check`, `npm test`
+e um `wrangler deploy --dry-run`, sem credenciais). O job `worker` é um check
+obrigatório no ruleset `main`: sem ele verde, a PR não entra.
 
 Em produção, depois de `npx wrangler login`:
 

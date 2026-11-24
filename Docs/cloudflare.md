@@ -15,6 +15,7 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 | Cache Rule do `pictures.*` | Aplicada e testada |
 | D1 `pictures` | Criada, jurisdição EU; migração aplicada e primeiro import feito (8 876 postos, 19 737 pontos) |
 | Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado (páginas dos postos em pt-PT e inglês, API só de leitura, `sitemap.xml`) |
+| Início de sessão com o OSM | Feito e desligado: faltam a política de privacidade, a aplicação no OSM e os segredos (secção 4) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos |
 
 ## 2. R2
@@ -92,6 +93,10 @@ desligados). Por agora tem:
 | `GET /en/`, `/en/stations/{id}`, `/en/sockets/{evse}`, `/en/search` | As mesmas páginas em inglês. `/en/sockets/{evse}` faz `302` para `/en/stations/{id}#t-{evse}` |
 | `GET /sitemap.xml` | Página inicial e todos os postos públicos, nas duas línguas, com `lastmod` (a última alteração do posto ou de uma tomada). Fica um dia na Cache API: cada geração lê os postos e as tomadas (cerca de 28 mil linhas), uma vez por dia e por centro de dados |
 | `GET /robots.txt`, `/llms.txt` | Ficheiros estáticos em `worker/public/`. O `robots.txt` deixa entrar todos os robôs, incluindo os de IA, e aponta para o *sitemap*. O `llms.txt` descreve as páginas, a API, os links estáticos e as licenças |
+| `GET /conta`, `/en/account` | A conta de quem tem sessão (nome, papel, botão para terminar) ou o botão para iniciar sessão. A única página que lê a sessão: `no-store` e `noindex` |
+| `GET /auth/osm/login?next=` | `302` para o OpenStreetMap, com `state` e PKCE num *cookie* de 10 minutos. `503` enquanto não houver os segredos do OSM |
+| `GET /auth/osm/callback` | Volta do OpenStreetMap: troca o código, lê o utilizador, cria a sessão e faz `302` para o `next`. Qualquer falha volta à conta com `?erro=` |
+| `POST /auth/logout?next=` | Apaga a sessão e faz `303` para o `next`. `403` se o pedido vier de outro site. É o único `POST`; tudo o resto responde `405` |
 
 As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os
 ficheiros de `worker/public/` (CSS, `site.js`, fontes, ícones) são *static
@@ -126,6 +131,40 @@ páginas levam também HSTS, `nosniff`, `referrer-policy` e COOP; a API leva
 `x-robots-tag: noindex`, porque é para apps e agentes, não para resultados de
 pesquisa.
 
+**Início de sessão com o OpenStreetMap** (`src/auth.ts`, migração `0004`).
+OAuth2 com PKCE (S256), só o âmbito `read_prefs`: chega para ler o número e
+o nome da conta, não dá o email nem deixa editar o mapa. O *token* do OSM
+serve uma vez, para ler `user/details`, e é revogado logo a seguir. A sessão
+é do VoltFrame: um *cookie* `__Host-vf_session` (`HttpOnly`, `Secure`,
+`SameSite=Lax`, 30 dias) com um valor aleatório, e na tabela `sessions` só o
+SHA-256 dele. As sessões expiradas saem no login seguinte. A tabela `users`
+guarda o número e o nome no OSM (o nome atualiza-se em cada login), o papel
+(`contributor` por omissão) e, para depois, pseudónimo, promoção e licença.
+As páginas dos postos e da pesquisa não leem a sessão, por isso continuam em
+cache e sem ida à D1; só `/conta` e `/en/account` a leem.
+
+Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e
+`OSM_CLIENT_SECRET`: até lá, `/conta` diz que ainda não está disponível e
+`/auth/osm/*` responde `503`. Para ligar (só o Fernando):
+
+1. Publicar a política de privacidade (o plano, *RGPD e moderação*, pede-a
+   antes de guardar dados de quem entra).
+2. Registar a aplicação em `openstreetmap.org/oauth2/applications`: nome
+   "pIcŧU/Re", confidencial, só "Ler as preferências do utilizador"
+   (`read_prefs`), *redirect* `https://voltframe.ocarroeletrico.com/auth/osm/callback`.
+3. `npm run remote -- secret put OSM_CLIENT_ID` e o mesmo para
+   `OSM_CLIENT_SECRET` (pedem o valor; nunca num ficheiro do repositório).
+
+O `secret put` publica logo uma versão nova do Worker: não é preciso outro
+deploy. Para desligar outra vez, `npm run remote -- secret delete OSM_CLIENT_ID`.
+
+Em local, o `worker/.dev.vars` (ignorado pelo git) pode apontar `OSM_URL`
+para o servidor de testes do OSM (`https://master.apis.dev.openstreetmap.org`,
+com conta e aplicação próprias, *redirect* `http://127.0.0.1:8787/auth/osm/callback`)
+ou para um servidor falso. O `wrangler dev` mostra ao Worker o domínio de
+produção como *host*; com `--local-upstream 127.0.0.1:8787` o
+`redirect_uri` fica local.
+
 **A D1 `pictures` está na jurisdição EU**: vai guardar dados de
 utilizadores (RGPD), e a jurisdição só se escolhe ao criar a base.
 
@@ -144,7 +183,7 @@ Em local (sem login na Cloudflare):
 ```bash
 cd worker
 npm ci
-npm test                  # testes do import e das páginas
+npm test                  # testes do import, das páginas e do login
 npm run db:local          # migrações na D1 local
 npm run import:local      # importa o feed real para a D1 local
 npm run dev               # http://localhost:8787/api/v1/stations/EZC-AMD-00051

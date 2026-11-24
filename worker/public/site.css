@@ -214,12 +214,14 @@ main { flex: 1 0 auto; padding: 24px 0 64px; }
   flex: 1 1 14rem; min-width: 0; min-height: 48px; padding: 10px 14px; font: inherit;
   color: var(--text); background: var(--surface); border: 1px solid var(--control); border-radius: 10px;
 }
-.search button {
+/* The search button, the sign-in link and the sign-out button look the same. */
+.search button, .button {
   flex: none; min-height: 48px; padding: 10px 20px; font: inherit; font-weight: 600; cursor: pointer;
   color: var(--on-accent); background: var(--accent); border: 1px solid var(--accent); border-radius: 10px;
 }
-.search button:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
-@media (forced-colors: active) { .search button { border-color: ButtonText; } }
+a.button { display: inline-flex; align-items: center; text-decoration: none; }
+.search button:hover, .button:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--on-accent); }
+@media (forced-colors: active) { .search button, .button { border-color: ButtonText; } }
 .search .hint { margin-top: 6px; }
 .results { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .result { padding: 10px 0; border-bottom: 1px solid var(--line); }

@@ -139,11 +139,14 @@ com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem
   confirmar).
 - **A D1 fica indisponível uns segundos** enquanto o `--file` remoto importa
   (API de importação da D1): um pequeno soluço na API por volta das 05:23 UTC.
-- **Pontos sem código EVSE.** O feed ainda não traz o código EVSE do NAP
-  (`PT*EDP*E*LSB*90050*01`), por isso a chave de `evses` é
-  (`station_id`, `point_id`) e o `evse_id` fica vazio. Sem ele não há link
-  estático de tomada; o campo tem de ser acrescentado no NAP dashboard
-  (`plan.md`, *Fontes de postos existentes*).
+- **Código EVSE de cada tomada.** O feed traz em cada ponto o `evse`, o
+  código EVSE do NAP tal como publicado (`PT*EDP*E*LSB*90050*01`). Fica em
+  `evse_id` e, sem os `*`, em `evse_compact` (`PTEDPELSB9005001`), a forma dos
+  links de tomada. A chave de `evses` continua a ser (`station_id`,
+  `point_id`): o código não é único, há operadores que publicam o mesmo em
+  dois postos (`PT*KLS*E281*1`). Ainda não há índice nem rota por EVSE.
+  O primeiro import depois de o campo aparecer reescreve todos os pontos
+  (cerca de 20 mil linhas, dentro do limite diário da D1 Free).
 
 **Segredos do repositório** (*Settings → Secrets and variables → Actions*):
 
@@ -154,7 +157,8 @@ com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem
 
 ## 6. Questões em aberto
 
-- [ ] Código EVSE do NAP no `ohmigo_chargers.json` (campo `evse` em cada ponto), para os links de tomada.
+- [x] Código EVSE do NAP no `ohmigo_chargers.json` (campo `evse` em cada ponto), para os links de tomada.
+- [ ] Rota `GET /api/v1/evses/{evse}` e índice (não único) em `evse_compact`.
 - [ ] Publicar o Worker pelo CI em vez de à mão (precisa de um token com permissões de Workers).
 - [ ] Regra de ciclo de vida no `pictures-staging` como rede de segurança
   para fotos rejeitadas ou abandonadas (por exemplo 90 dias). O risco é

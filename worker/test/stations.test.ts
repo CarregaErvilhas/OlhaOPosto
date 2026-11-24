@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  checkMissing, diff, sqlValue, toRows, toSql, validateFeed,
+  checkMissing, compactEvse, diff, sqlValue, toRows, toSql, validateFeed,
   type CurrentEvse, type CurrentStation, type Feed,
 } from '../scripts/lib/stations.ts';
 
@@ -40,7 +40,32 @@ test('toRows maps the feed and skips sites without id or coordinates', () => {
     address: 'Estrada Santo Eloi, 25', municipality: 'Amadora', region: 'CONT',
     lat: 38.78791, lon: -9.226767, osm_ref: 'node/1',
   });
-  assert.deepEqual(r.evses, [{ station_id: 'EZC-AMD-00051', point_id: 'AMD-00051-1', connector: 'T2', max_kw: 11, dc: 0 }]);
+  assert.deepEqual(r.evses, [{
+    station_id: 'EZC-AMD-00051', point_id: 'AMD-00051-1', evse_id: null, evse_compact: null,
+    connector: 'T2', max_kw: 11, dc: 0,
+  }]);
+});
+
+test('the NAP EVSE code is kept as published, plus a form without the `*`', () => {
+  const r = toRows(feed(site('EZC-AMD-00051', { points: [
+    { id: 'AMD-00051-1', evse: ' PT*EZC*E*AMD*00051*01 ' },
+    { id: 'AMD-00051-2', evse: 'PT*VIA*EMOBI-CSC-00189-3' },
+    { id: 'AMD-00051-3', evse: '' },
+  ] })));
+  assert.deepEqual(r.evses.map((e) => [e.evse_id, e.evse_compact]), [
+    ['PT*EZC*E*AMD*00051*01', 'PTEZCEAMD0005101'],
+    ['PT*VIA*EMOBI-CSC-00189-3', 'PTVIAEMOBI-CSC-00189-3'],
+    [null, null],
+  ]);
+  assert.equal(compactEvse('***'), null);
+});
+
+test('an EVSE code showing up on an existing point is an update', () => {
+  const before = feed(site('EZC-AMD-00051'));
+  const after = feed(site('EZC-AMD-00051', { points: [{ id: 'AMD-00051-1', kw: 11, connector: 'T2', evse: 'PT*EZC*E*AMD*00051*1' }] }));
+  const d = diff(toRows(after), asCurrent(before));
+  assert.deepEqual(d.updateEvses.map((e) => e.evse_compact), ['PTEZCEAMD000511']);
+  assert.match(toSql(d, after.generatedAt)[0], /evse_compact = excluded\.evse_compact/);
 });
 
 test('point ids may repeat across stations', () => {

@@ -270,6 +270,67 @@ a.button { display: inline-flex; align-items: center; text-decoration: none; }
 .prose li { margin: 6px 0; }
 .prose code { overflow-wrap: anywhere; }
 
+/* Upload: one column of cards, one per step. */
+.upload-page { max-width: 48rem; }
+.upload-page h1 { font-size: 1.875rem; margin: 0 0 8px; }
+.upload { display: flex; flex-direction: column; gap: 16px; accent-color: var(--accent); }
+.upload h3 { font-size: 1rem; margin: 16px 0 4px; }
+label[for="photo"], .station-search label { font-weight: 600; }
+.upload input[type="file"] { display: block; margin: 6px 0; font: inherit; font-size: max(1rem, 1em); max-width: 100%; }
+.upload fieldset { border: 0; margin: 12px 0 0; padding: 0; min-width: 0; }
+.upload legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
+.status:empty { display: none; }
+.status { margin: 8px 0 0; font-size: 0.9375rem; }
+.station-search { margin-top: 16px; }
+.station-search label { display: block; margin-bottom: 6px; }
+.station-search input {
+  flex: 1 1 14rem; min-width: 0; min-height: 48px; padding: 10px 14px; font: inherit; font-size: max(1rem, 1em);
+  color: var(--text); background: var(--surface); border: 1px solid var(--control); border-radius: 10px;
+}
+.station-search .hint { margin-top: 6px; }
+.choices { display: flex; flex-direction: column; gap: 6px; }
+.choice {
+  display: flex; gap: 10px; align-items: center; min-height: 48px; padding: 8px 12px; cursor: pointer;
+  border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface);
+}
+.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.choice input { flex: none; width: 1.25rem; height: 1.25rem; margin: 0; }
+.choice-text { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 8px; overflow-wrap: anywhere; }
+.choice .meta, .choice .dist { font-size: 0.875rem; color: var(--muted); }
+.choice .dist { flex: none; font-variant-numeric: tabular-nums; }
+#target-link { overflow-wrap: anywhere; }
+.button.secondary { color: var(--accent-strong); background: var(--surface); border-color: var(--control); }
+.button.secondary:hover { color: var(--accent-strong); background: var(--accent-soft); border-color: var(--accent); }
+.button.secondary[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.zone-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+/* The canvas is the photo that will be sent; the areas sit on top of it. */
+/* The stage shrinks to the canvas, so the areas line up with the photo even
+   when a portrait photo is capped at 70% of the screen height. */
+.stage { position: relative; margin-top: 8px; line-height: 0; width: fit-content; max-width: 100%; }
+.stage canvas { display: block; max-width: 100%; max-height: 70vh; width: auto; height: auto; border-radius: 8px; background: var(--empty); }
+.zones { position: absolute; inset: 0; }
+.zones.drawing { cursor: crosshair; touch-action: none; }
+.zones.drawing .zone { pointer-events: none; }
+.zone {
+  position: absolute; padding: 0; margin: 0; cursor: pointer; border-radius: 4px;
+  background: transparent; border: 2px solid #FFFFFF; outline: 2px solid #0B6B58;
+}
+.zone[aria-pressed="false"] { border: 2px dashed #FFFFFF; outline: 2px dashed #9A3F00; }
+.zone:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.zone .tag {
+  position: absolute; left: -2px; bottom: 100%; margin-bottom: 4px; white-space: nowrap; line-height: 1.3;
+  font: 600 0.75rem/1.3 var(--sans); padding: 3px 7px; border-radius: 4px; background: #0B6B58; color: #FFFFFF;
+}
+.zone[aria-pressed="false"] .tag { background: #FFF1E6; color: #8A3A00; }
+.zone.ghost { pointer-events: none; border-style: dashed; }
+.check { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0; }
+.check input { flex: none; width: 1.25rem; height: 1.25rem; margin: 2px 0 0; }
+.upload button[type="submit"] { margin-top: 8px; width: 100%; }
+.upload button:disabled { opacity: 0.6; cursor: progress; }
+.result-photo { margin-top: 16px; }
+.result-photo img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
+.result-photo .plain-list { margin-top: 8px; font-size: 0.875rem; }
+
 /* em, not px: the layout switches when the text no longer fits, whatever its size. */
 @media (max-width: 37.5em) {
   .wrap { padding: 0 16px; }
@@ -284,6 +345,8 @@ a.button { display: inline-flex; align-items: center; text-decoration: none; }
 }
 
 @media (forced-colors: active) {
+  .zone, .zone[aria-pressed="false"] { border-color: CanvasText; outline-color: Highlight; }
+  .choice:has(input:checked) { border: 2px solid Highlight; }
   /* The inset shadow is dropped here: mark the pressed size with a thicker system-colour border. */
   .sizes button[aria-pressed="true"] { border: 3px solid Highlight; }
   .socket:target { outline-color: Highlight; }

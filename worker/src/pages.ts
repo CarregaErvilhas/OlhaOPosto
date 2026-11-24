@@ -24,6 +24,7 @@ export const socketPath = (lang: Lang, evse: string) =>
 export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/search');
 export const privacyPath = (lang: Lang) => (lang === 'pt' ? '/privacidade' : '/en/privacy');
 export const accountPath = (lang: Lang) => (lang === 'pt' ? '/conta' : '/en/account');
+export const uploadPath = (lang: Lang) => (lang === 'pt' ? '/enviar' : '/en/upload');
 export const socketAnchor =(compact: string) => `#t-${encodeURIComponent(compact)}`;
 
 export function esc(v: unknown): string {
@@ -126,6 +127,7 @@ const T = {
       admin: 'administrador',
     } as Record<string, string>,
     logout: 'Terminar sessão',
+    uploadLink: 'Enviar fotos',
     loginErrors: {
       denied: 'O início de sessão foi cancelado no OpenStreetMap.',
       expired: 'O pedido expirou ou foi aberto noutro separador. Tenta outra vez.',
@@ -222,6 +224,7 @@ const T = {
       admin: 'administrator',
     } as Record<string, string>,
     logout: 'Sign out',
+    uploadLink: 'Upload photos',
     loginErrors: {
       denied: 'Signing in was cancelled on OpenStreetMap.',
       expired: 'The request expired or was opened in another tab. Try again.',
@@ -286,6 +289,8 @@ interface Layout {
   noindex?: boolean;
   body: string;
   script?: boolean;
+  // A page-specific ES module from public/.
+  module?: string;
 }
 
 export function layout(p: Layout): string {
@@ -328,7 +333,7 @@ ${head.join('\n')}
 <link rel="manifest" href="/site.webmanifest">
 <meta name="theme-color" content="#F2B33D">
 <script src="/theme.js"></script>
-${p.script ? '<script src="/site.js" defer></script>\n' : ''}</head>
+${p.script ? '<script src="/site.js" defer></script>\n' : ''}${p.module ? `<script type="module" src="${esc(p.module)}"></script>\n` : ''}</head>
 <body>
 <header class="site-header">
   <div class="wrap">
@@ -531,6 +536,7 @@ export function accountPage(
     parts.push(
       `<p>${t.signedIn} <strong lang="">${esc(p.user.name)}</strong>.</p>`,
       `<p>${t.roleLabel} ${esc(t.roles[p.user.role] ?? p.user.role)}</p>`,
+      `<p><a class="button" href="${uploadPath(lang)}">${t.uploadLink}</a></p>`,
       `<form method="post" action="/auth/logout?next=${encodeURIComponent(here)}">` +
         `<button type="submit" class="button">${t.logout}</button></form>`,
     );

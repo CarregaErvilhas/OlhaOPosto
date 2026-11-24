@@ -7,6 +7,7 @@
 // route here answers "not available yet", so this can ship before the OSM
 // application is registered.
 import { accountPage, accountPath, type Lang } from './pages.ts';
+import { uploadPage } from './upload.ts';
 
 // The slices of D1 and ExecutionContext used here, so the tests typecheck
 // under Node without the Workers types. The real ones fit these shapes.
@@ -141,6 +142,14 @@ export async function currentUser(request: Request, env: AuthEnv): Promise<Sessi
 }
 
 // --- routes ---
+
+// Same session rules as the account page: no session is "please sign in", a
+// D1 error is signed out, and the answer is never cached.
+export async function uploadHtml(lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>) {
+  const enabled = loginEnabled(env);
+  const user = enabled ? await currentUser(request, env).catch(() => null) : null;
+  return page(lang, uploadPage(lang, { user, enabled }), 200, headers);
+}
 
 export async function accountHtml(lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>) {
   const enabled = loginEnabled(env);

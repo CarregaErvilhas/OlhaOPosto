@@ -16,3 +16,7 @@
 /llms.txt
   Cache-Control: public, max-age=86400
   Content-Type: text/plain; charset=utf-8
+/upload.js
+  Cache-Control: public, no-cache
+/jpeg.js
+  Cache-Control: public, no-cache

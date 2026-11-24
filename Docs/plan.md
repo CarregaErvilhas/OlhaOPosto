@@ -15,8 +15,8 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
    - medir o custo mensal no Zerops (ponto 6 do ensaio, [`infra.md`](infra.md), secção 9);
    - começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Falta:
-   - ligar o login OSM, que já está feito mas desligado ([`cloudflare.md`](cloudflare.md), secção 4): falta registar a aplicação no OSM e pôr os segredos; e a ligação para a conta no cabeçalho, com a página de envio;
-   - página de envio com desfocagem no browser;
+   - ligar o login OSM, que já está feito mas desligado ([`cloudflare.md`](cloudflare.md), secção 4): falta registar a aplicação no OSM e pôr os segredos; depois, uma ligação para `/enviar` no cabeçalho (hoje chega-se lá pela conta);
+   - envio de fotos: a página `/enviar` já prepara a foto no browser com a desfocagem à mão; o que falta está no *Fluxo de upload*;
    - fila de moderação com promoção manual;
    - foto principal e publicação em `pictures.*`;
    - aliases de postos;
@@ -65,22 +65,21 @@ Regras:
 
 Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-se e re-codifica-se antes do envio. O servidor nunca recebe o original nem os metadados.
 
-1. **Entrar com OSM.** Na primeira vez, aceitar os termos e a licença (`license_accepted_at`).
-2. **Escolher fotos.** Aceita JPEG e HEIC. O Safari descodifica HEIC nativamente; nos outros browsers usa-se `heic2any` (libheif em WebAssembly).
-3. **Ler o EXIF antes de mexer na imagem** com a biblioteca [`exifr`](https://github.com/MikeKovarik/exifr): `GPSLatitude`/`GPSLongitude`, `DateTimeOriginal` e `Orientation`.
-4. **Sugerir o posto.** Com GPS, a página arredonda as coordenadas a 3 casas decimais (cerca de 100 m, porque os registos do Worker guardam o URL) e pede `GET /api/v1/stations?lat=&lon=&radius=500`, que já existe; pré-seleciona o mais próximo. Sem GPS, pesquisa por código, morada ou mapa.
-5. **Associar a posto ou tomada.** "Foto geral do posto" ou uma tomada concreta da lista de EVSE desse posto.
-6. **Posto não existe?** Formulário "novo posto": nome, operador, coordenadas (pré-preenchidas pelo GPS) e código se for conhecido. Cria `stations.status=pending_review` e uma entrada em `review_queue`.
-7. **Desfocar caras e matrículas** no browser, com revisão manual das caixas e a confirmação "Não há caras nem matrículas legíveis".
-8. **Rodar, redimensionar e limpar.** Aplica-se a `Orientation` e re-codifica-se num `<canvas>` para 2048 px (mestre), 1024 px e 400 px, JPEG qualidade ~0,85. A re-codificação descarta todo o EXIF. Não é opcional: o Panoramax guarda o ficheiro recebido tal como vem e serve-o como `hd.jpg`.
-9. **Enviar.** `POST /api/v1/photos` com as três imagens e um JSON: alvo, `taken_at`, `exif_lat`/`exif_lon`.
-10. **Validar no Worker.** Sessão, limite de envios (50 fotos/dia para `contributor`), Turnstile, alvo existente, nenhum segmento APP1/EXIF nos bytes, `distance_m` ao posto.
-11. **Enviar para o Panoramax** com a conta de serviço: `POST /api/upload_sets`, depois `.../files` com a mestre de 2048 px, as coordenadas do posto, a data do EXIF, `isBlurred=true` e as etiquetas (`osm|ref:EU:EVSE=…`, `pictures|site=…`, `pictures|author=…`), e `.../complete`. Visibilidade `owner-only` até ser aprovada. As versões de 1024 e 400 px ficam num bucket R2 privado (`pictures-staging`) até à aprovação.
-12. **Publicar ou rever.**
+A página `/enviar` já faz a parte do browser: abre um JPEG, lê o EXIF, sugere o posto, deixa marcar zonas à mão, desfoca-as e gera os três tamanhos sem metadados ([`cloudflare.md`](cloudflare.md), secção 4, *Página de envio*). Falta, por ordem do fluxo:
+
+1. **Termos e licença.** Na primeira vez, aceitar e guardar `license_accepted_at`. Hoje a página pede as duas confirmações em cada foto, mas não guarda nada.
+2. **HEIC e várias fotos.** A página aceita um JPEG de cada vez. No iPhone, o seletor converte HEIC para JPEG (falta confirmar num iPhone que o GPS sobrevive à conversão). Nos outros browsers, `heic2any` (libheif em WebAssembly, ver a licença) e um leitor do EXIF dentro do HEIC.
+3. **Mapa** para escolher o posto quando a foto não tem GPS; hoje só há a pesquisa por texto.
+4. **Posto não existe?** Formulário "novo posto": nome, operador, coordenadas (pré-preenchidas pelo GPS) e código se for conhecido. Cria `stations.status=pending_review` e uma entrada em `review_queue`.
+5. **Deteção automática** de caras e matrículas, que pré-desenha as zonas (ver *Desfocagem*).
+6. **Enviar.** `POST /api/v1/photos` com as três imagens e um JSON: alvo, `taken_at`, `exif_lat`/`exif_lon`.
+7. **Validar no Worker.** Sessão, limite de envios (50 fotos/dia para `contributor`), Turnstile, alvo existente, nenhum segmento de metadados nos bytes (o `isCleanJpeg` de `worker/public/jpeg.js`, que a página já usa), `distance_m` ao posto.
+8. **Enviar para o Panoramax** com a conta de serviço: `POST /api/upload_sets`, depois `.../files` com a mestre de 2048 px, as coordenadas do posto, a data do EXIF, `isBlurred=true` e as etiquetas (`osm|ref:EU:EVSE=…`, `pictures|site=…`, `pictures|author=…`), e `.../complete`. Visibilidade `owner-only` até ser aprovada. As versões de 1024 e 400 px ficam num bucket R2 privado (`pictures-staging`) até à aprovação.
+9. **Publicar ou rever.**
     - Conta `trusted` (promovida à mão), posto `active` e dentro de 300 m → aprovada logo.
     - Conta `contributor` → sempre `pending`, à espera de um moderador. Todas as contas novas começam aqui.
     - Sem GPS, a mais de 300 m ou com posto novo → `pending` mesmo para `trusted`. Estes sinais também ordenam a fila e aparecem como avisos.
-13. **Ao aprovar.** O Worker passa o upload set a `anyone` no Panoramax (`PATCH /api/upload_sets/<id>` com `{"visibility": "anyone"}`; a visibilidade da foto sozinha não chega, porque vale a mais restritiva entre foto e coleção), marca-a `published`, atribui os pontos e, se o alvo não tinha principal, publica-a em `pictures` (ver *Publicação dos links estáticos*).
+10. **Ao aprovar.** O Worker passa o upload set a `anyone` no Panoramax (`PATCH /api/upload_sets/<id>` com `{"visibility": "anyone"}`; a visibilidade da foto sozinha não chega, porque vale a mais restritiva entre foto e coleção), marca-a `published`, atribui os pontos e, se o alvo não tinha principal, publica-a em `pictures` (ver *Publicação dos links estáticos*).
 
 **O que se faz com a localização do EXIF**
 
@@ -209,7 +208,7 @@ O início de sessão já está feito e desligado: como funciona e como se liga e
 
 ## Desfocagem de caras e matrículas
 
-**No browser, para já.** ONNX Runtime Web ou MediaPipe corre um detetor de caras e matrículas no telemóvel e desfoca no `<canvas>`. Há sempre um editor de retângulos: o utilizador confirma, acrescenta ou remove zonas antes de enviar. O original nunca sai do telemóvel, e o envio para o Panoramax vai com `isBlurred=true`.
+**No browser, para já.** O editor de zonas já existe em `/enviar`: a pessoa desenha um retângulo por cima de cada cara ou matrícula e a página cobre-o com um mosaico grosso. Falta o detetor: ONNX Runtime Web ou MediaPipe no telemóvel, que pré-desenha as zonas para a pessoa confirmar, acrescentar ou remover (o WebAssembly vai pedir `'wasm-unsafe-eval'` na CSP dessa página). O original nunca sai do telemóvel, e o envio para o Panoramax vai com `isBlurred=true`.
 
 - **Caras:** MediaPipe Face Detector (Apache 2.0).
 - **Matrículas:** modelo por escolher, com pesos de licença permissiva. Os YOLO da Ultralytics são AGPL-3.0, por isso não servem para distribuir no browser. Matrículas de carros a carregar são o caso comum; vale a pena dar prioridade a este detetor.

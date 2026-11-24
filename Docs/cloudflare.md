@@ -83,7 +83,7 @@ desligados). Por agora tem:
 
 | Pedido | Devolve |
 | --- | --- |
-| `GET /api/v1/stations/{id}` | Posto e pontos, com CORS e `max-age=300`. `404` para ids que não existem e para propostas ou postos rejeitados |
+| `GET /api/v1/stations/{id}` | Posto e pontos (cada um com o `evse` e o `compact`, o código sem `*` que dá o nome ao link estático), com CORS e `max-age=300`. `404` para ids que não existem e para propostas ou postos rejeitados |
 | `GET /api/v1/evses/{evse}` | Tomada pelo código EVSE, com ou sem os `*` (`PT*EZC*E*AMD*00051*1` ou `PTEZCEAMD000511`), e o posto a que pertence. `300` com a lista `candidates` se o código estiver em mais de um posto |
 | `GET /postos/{id}` | Página do posto: tomadas com o código EVSE, links estáticos de cada tamanho para copiar, ligação ao OSM. `404` em HTML como na API |
 | `GET /tomadas/{evse}` | `302` para `/postos/{id}#t-{evse}`, com a tomada marcada; uma página com a lista se o código estiver em mais de um posto. `302` e não `301`, porque um código pode mudar de posto |
@@ -95,7 +95,8 @@ desligados). Por agora tem:
 | `GET /sitemap.xml` | Página inicial e todos os postos públicos, nas duas línguas, com `lastmod` (a última alteração do posto ou de uma tomada). Fica um dia na Cache API: cada geração lê os postos e as tomadas (cerca de 28 mil linhas), uma vez por dia e por centro de dados |
 | `GET /robots.txt`, `/llms.txt` | Ficheiros estáticos em `worker/public/`. O `robots.txt` deixa entrar todos os robôs, incluindo os de IA, e aponta para o *sitemap*. O `llms.txt` descreve as páginas, a API, os links estáticos e as licenças |
 | `GET /privacidade`, `/en/privacy` | Política de privacidade (`src/privacy.ts`), com ligação no rodapé de todas as páginas e no *sitemap*. Muda no mesmo PR que mudar o que o Worker guarda |
-| `GET /conta`, `/en/account` | A conta de quem tem sessão (nome, papel, botão para terminar) ou o botão para iniciar sessão. A única página que lê a sessão: `no-store` e `noindex` |
+| `GET /conta`, `/en/account` | A conta de quem tem sessão (nome, papel, ligação para o envio, botão para terminar) ou o botão para iniciar sessão. Lê a sessão: `no-store` e `noindex` |
+| `GET /enviar`, `/en/upload` | Página de envio (`src/upload.ts` e `public/upload.js`), só com sessão; sem ela, o botão para iniciar sessão. Prepara a foto no browser e ainda não envia nada. Lê a sessão: `no-store`, `noindex`, fora do *sitemap*. A CSP desta página acrescenta `connect-src 'self'` (pede postos à API) e `blob:` em `img-src` (mostra a foto preparada) |
 | `GET /auth/osm/login?next=` | `302` para o OpenStreetMap, com `state` e PKCE num *cookie* de 10 minutos. `503` enquanto não houver os segredos do OSM |
 | `GET /auth/osm/callback` | Volta do OpenStreetMap: troca o código, lê o utilizador, cria a sessão e faz `302` para o `next`. Qualquer falha volta à conta com `?erro=` |
 | `POST /auth/logout?next=` | Apaga a sessão e faz `303` para o `next`. `403` se o pedido vier de outro site. É o único `POST`; tudo o resto responde `405` |
@@ -150,10 +151,11 @@ SHA-256 dele. As sessões expiradas saem no login seguinte. A tabela `users`
 guarda o número e o nome no OSM (o nome atualiza-se em cada login), o papel
 (`contributor` por omissão) e, para depois, pseudónimo, promoção e licença.
 As páginas dos postos e da pesquisa não leem a sessão, por isso continuam em
-cache e sem ida à D1; só `/conta` e `/en/account` a leem.
+cache e sem ida à D1; só a conta e o envio (`/conta`, `/enviar` e as versões
+em inglês) a leem.
 
 Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e
-`OSM_CLIENT_SECRET`: até lá, `/conta` diz que ainda não está disponível e
+`OSM_CLIENT_SECRET`: até lá, `/conta` e `/enviar` dizem que ainda não está disponível e
 `/auth/osm/*` responde `503`. Para ligar (só o Fernando):
 
 1. Confirmar que a política de privacidade (`/privacidade`) está publicada
@@ -174,6 +176,29 @@ ou para um servidor falso. O `wrangler dev` mostra ao Worker o domínio de
 produção como *host*; com `--local-upstream 127.0.0.1:8787` o
 `redirect_uri` fica local.
 
+**Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js` e
+`public/jpeg.js`). Tudo corre no browser e ainda não envia nada:
+
+1. Abre um JPEG (até 40 MB) com `createImageBitmap`, que aplica a rotação
+   do EXIF, e reduz o lado maior a 2048 px.
+2. Lê o GPS, a `DateTimeOriginal` e a `Orientation` com o leitor próprio de
+   `jpeg.js` (só esses campos; nunca lança erro com um ficheiro mau).
+3. Com GPS, arredonda a 3 casas decimais (cerca de 100 m) e pede os postos
+   a 500 m; mostra a distância calculada com o GPS exato, que não sai do
+   dispositivo. Sem GPS, pesquisa por texto. Depois pede o posto para listar
+   as tomadas com código EVSE.
+4. A pessoa desenha zonas por cima de caras e matrículas (rato, toque ou
+   teclado). Cada zona leva um mosaico de cerca de 8 blocos no lado maior.
+   A pré-visualização é a própria imagem que vai ser enviada.
+5. Gera 2048, 1024 e 400 px em JPEG 0,85 a partir dessa imagem, tira com o
+   `stripMetadata` todos os segmentos de metadados (fica o JFIF, o perfil de
+   cor e o Adobe) e confirma com o `isCleanJpeg`. O Chrome só escreve JFIF e
+   o perfil de cor; os outros browsers não foram testados.
+
+As duas confirmações (sem caras nem matrículas, licença) são campos
+obrigatórios do formulário. O `jpeg.js` é JavaScript simples para o browser
+o carregar sem *build* e o Worker o importar quando validar os envios.
+
 **A D1 `pictures` está na jurisdição EU**: vai guardar dados de
 utilizadores (RGPD), e a jurisdição só se escolhe ao criar a base.
 
@@ -192,7 +217,7 @@ Em local (sem login na Cloudflare):
 ```bash
 cd worker
 npm ci
-npm test                  # testes do import, das páginas e do login
+npm test                  # testes do import, das páginas, do login e do JPEG
 npm run db:local          # migrações na D1 local
 npm run import:local      # importa o feed real para a D1 local
 npm run dev               # http://localhost:8787/api/v1/stations/EZC-AMD-00051

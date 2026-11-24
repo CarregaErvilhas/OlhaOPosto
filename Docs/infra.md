@@ -141,7 +141,9 @@ secção 8.
   metadados e corre o cron diário de estatísticas. Por isso a API tem
   `PICTURE_PROCESS_THREADS_LIMIT=0`: não processa fotos dentro do pedido.
 
-Os `startCommands` correm sem shell: nada de aspas, `&&` ou `cd`.
+Os `startCommands` correm em bash (visto no primeiro deploy, 2026-11-24):
+o `geovisio:create_api()` sem aspas dava `syntax error near unexpected
+token '('`. Caracteres especiais do shell vão entre aspas simples.
 
 **Verificações:** `readinessCheck` e `healthCheck` em
 `/api/configuration`, sem autenticação.

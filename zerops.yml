@@ -60,7 +60,8 @@ zerops:
         - /opt/venv/bin/python /var/www/panoramax/bootstrap_db.py
         - env -u PANO_DB_SUPERUSER_URL /opt/venv/bin/panoramax_backend db upgrade
       startCommands:
-        # API (gunicorn). Corre sem shell: nada de aspas nem `&&`.
+        # API (gunicorn). O Zerops corre o comando em bash: os `()` do
+        # factory têm de ir entre aspas, senão é erro de sintaxe.
         # `env -u`: o superuser não chega aos processos.
         - name: api
           user: pano
@@ -68,7 +69,7 @@ zerops:
             env -u PANO_DB_SUPERUSER_URL HOME=/tmp
             /opt/venv/bin/gunicorn
             --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 120
-            --access-logfile - geovisio:create_api()
+            --access-logfile - 'geovisio:create_api()'
         # Processamento das fotos (tamanhos, metadados) e o cron de
         # estatísticas. Separado da API: PICTURE_PROCESS_THREADS_LIMIT=0.
         - name: worker

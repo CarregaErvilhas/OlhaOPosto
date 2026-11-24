@@ -11,8 +11,9 @@
 const SOS = 0xda;
 
 /**
- * Walks the segments before the image data. Calls fn with each marker, where
- * its segment starts (at the 0xFF) and its total length.
+ * Walks the segments before the image data, which is where EXIF lives. Calls
+ * fn with each marker, where its segment starts (at the 0xFF) and its total
+ * length. Header only, so a file cut short after its header still reads.
  * @param {Uint8Array} b
  * @param {(marker: number, start: number, length: number) => void} fn
  * @returns {number} where the scan data (SOS) starts, or -1 when b is not a well-formed JPEG
@@ -56,36 +57,74 @@ function keep(b, marker, start) {
 }
 
 /**
- * A copy of the JPEG without metadata segments, or null when it is not a well-formed JPEG.
+ * Splits a whole JPEG into its pieces, up to the first EOI: every marker
+ * segment (including those between progressive scans) and, after each SOS,
+ * the entropy-coded data as a piece with marker -1.
+ * @param {Uint8Array} b
+ * @returns {{ pieces: Array<{ m: number, start: number, end: number }>, end: number } | null}
+ *   null when b is not a well-formed JPEG ending in EOI
+ */
+function pieces(b) {
+  if (b.length < 4 || b[0] !== 0xff || b[1] !== 0xd8) return null;
+  /** @type {Array<{ m: number, start: number, end: number }>} */
+  const out = [];
+  let i = 2;
+  while (i + 1 < b.length) {
+    if (b[i] !== 0xff) return null;
+    const m = b[i + 1];
+    if (m === 0xff) { i++; continue; }
+    if (m === 0xd9) {
+      out.push({ m, start: i, end: i + 2 });
+      return { pieces: out, end: i + 2 };
+    }
+    if (m === 0x00 || m === 0x01 || m === 0xd8 || (m >= 0xd0 && m <= 0xd7)) return null;
+    if (i + 4 > b.length) return null;
+    const len = (b[i + 2] << 8) | b[i + 3];
+    if (len < 2 || i + 2 + len > b.length) return null;
+    out.push({ m, start: i, end: i + 2 + len });
+    i += 2 + len;
+    if (m === SOS) {
+      // Scan data runs to the next marker that is not a stuffed 0xFF00 or a restart.
+      let j = i;
+      while (j + 1 < b.length && !(b[j] === 0xff && b[j + 1] !== 0x00 && (b[j + 1] < 0xd0 || b[j + 1] > 0xd7))) j++;
+      if (j + 1 >= b.length) return null;
+      out.push({ m: -1, start: i, end: j });
+      i = j;
+    }
+  }
+  return null;
+}
+
+/**
+ * A copy of the JPEG without metadata segments and without anything after
+ * its end (a Motion Photo's video, an embedded second image), or null when it
+ * is not a well-formed JPEG.
  * @param {Uint8Array} b
  * @returns {Uint8Array | null}
  */
 export function stripMetadata(b) {
-  /** @type {Array<[number, number]>} */
-  const kept = [];
-  const sos = walk(b, (m, start, length) => { if (keep(b, m, start)) kept.push([start, length]); });
-  if (sos < 0) return null;
-  const size = 2 + kept.reduce((n, [, l]) => n + l, 0) + (b.length - sos);
-  const out = new Uint8Array(size);
+  const p = pieces(b);
+  if (!p) return null;
+  const kept = p.pieces.filter((x) => x.m === -1 || keep(b, x.m, x.start));
+  const out = new Uint8Array(2 + kept.reduce((n, x) => n + x.end - x.start, 0));
   out[0] = 0xff;
   out[1] = 0xd8;
   let o = 2;
-  for (const [start, length] of kept) {
-    out.set(b.subarray(start, start + length), o);
-    o += length;
+  for (const x of kept) {
+    out.set(b.subarray(x.start, x.end), o);
+    o += x.end - x.start;
   }
-  out.set(b.subarray(sos), o);
   return out;
 }
 
 /**
- * True when b is a well-formed JPEG with no metadata segment left.
+ * True when b is a well-formed JPEG with no metadata segment anywhere and
+ * nothing after its EOI.
  * @param {Uint8Array} b
  */
 export function isCleanJpeg(b) {
-  let clean = true;
-  const sos = walk(b, (m, start) => { if (!keep(b, m, start)) clean = false; });
-  return sos >= 0 && clean;
+  const p = pieces(b);
+  return p !== null && p.end === b.length && p.pieces.every((x) => x.m === -1 || keep(b, x.m, x.start));
 }
 
 const TYPE_SIZE = /** @type {Record<number, number>} */ ({ 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 });

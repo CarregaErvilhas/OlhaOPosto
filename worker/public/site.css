@@ -279,7 +279,8 @@ label[for="photo"], .station-search label { font-weight: 600; }
 .upload input[type="file"] { display: block; margin: 6px 0; font: inherit; font-size: max(1rem, 1em); max-width: 100%; }
 .upload fieldset { border: 0; margin: 12px 0 0; padding: 0; min-width: 0; }
 .upload legend { font-weight: 600; margin-bottom: 6px; padding: 0; }
-.status:empty { display: none; }
+/* Live regions stay in the page when empty, or a screen reader may miss the first message. */
+.status:empty { margin: 0; }
 .status { margin: 8px 0 0; font-size: 0.9375rem; }
 .station-search { margin-top: 16px; }
 .station-search label { display: block; margin-bottom: 6px; }

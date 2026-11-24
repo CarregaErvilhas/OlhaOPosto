@@ -42,6 +42,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2>Envio de fotos</h2>
 <p>Ainda não está aberto. Antes de abrir, esta página passa a explicar o que acontece às fotos: desfocagem de caras e matrículas, localização, licença e remoção.</p>
+<p>Com sessão iniciada, a página de envio já prepara uma foto, mas não a envia: abre-a, lê-a e desfoca-a no teu dispositivo. Se a foto tiver GPS, a página arredonda-o a cerca de 100 metros e pede-nos os postos à volta desse ponto. Esse pedido fica no registo técnico como qualquer outro, com as coordenadas arredondadas. Nada mais da foto sai do teu dispositivo.</p>
 
 <h2>Onde ficam os dados</h2>
 <p>A Cloudflare, Inc. trata os dados por nossa conta: alojamento, base de dados e registos técnicos. A base de dados fica na União Europeia. A Cloudflare é uma empresa dos Estados Unidos: os pedidos passam pelo centro de dados dela mais próximo de ti, e os registos técnicos podem ficar fora da União Europeia, com as garantias do <a href="${LINKS.cfDpa}">acordo de tratamento de dados da Cloudflare</a>. Ver também a <a href="${LINKS.cfPrivacy}">política de privacidade da Cloudflare</a>.</p>
@@ -82,6 +83,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2>Photo uploads</h2>
 <p>Not open yet. Before they open, this page will explain what happens to photos: blurring of faces and number plates, location, licence and removal.</p>
+<p>When you are signed in, the upload page already prepares a photo, but does not send it: it opens, reads and blurs it on your device. If the photo has GPS, the page rounds it to about 100 metres and asks us for the stations around that point. That request goes into the technical log like any other, with the rounded coordinates. Nothing else from the photo leaves your device.</p>
 
 <h2>Where the data lives</h2>
 <p>Cloudflare, Inc. processes the data on our behalf: hosting, database and technical logs. The database is in the European Union. Cloudflare is a United States company: requests go through its data centre nearest to you, and technical logs may be kept outside the European Union, under the safeguards of the <a href="${LINKS.cfDpa}">Cloudflare data processing agreement</a>. See also the <a href="${LINKS.cfPrivacy}">Cloudflare privacy policy</a>.</p>

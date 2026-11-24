@@ -159,7 +159,7 @@ Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e
 `/auth/osm/*` responde `503`. Para ligar (só o Fernando):
 
 1. Confirmar que a política de privacidade (`/privacidade`) está publicada
-   e certa.
+   e certa, incluindo o parágrafo sobre a página de envio.
 2. Registar a aplicação em `openstreetmap.org/oauth2/applications`: nome
    "pIcŧU/Re", confidencial, só "Ler as preferências do utilizador"
    (`read_prefs`), *redirect* `https://voltframe.ocarroeletrico.com/auth/osm/callback`.
@@ -167,7 +167,9 @@ Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e
    `OSM_CLIENT_SECRET` (pedem o valor; nunca num ficheiro do repositório).
 
 O `secret put` publica logo uma versão nova do Worker: não é preciso outro
-deploy. Para desligar outra vez, `npm run remote -- secret delete OSM_CLIENT_ID`.
+deploy. Ligar o login também abre `/enviar` a quem iniciar sessão: a página
+só prepara a foto, mas pede à API os postos à volta do GPS arredondado, e
+esse URL fica nos registos (a política já o diz). Para desligar outra vez, `npm run remote -- secret delete OSM_CLIENT_ID`.
 
 Em local, o `worker/.dev.vars` (ignorado pelo git) pode apontar `OSM_URL`
 para o servidor de testes do OSM (`https://master.apis.dev.openstreetmap.org`,
@@ -192,8 +194,10 @@ produção como *host*; com `--local-upstream 127.0.0.1:8787` o
    A pré-visualização é a própria imagem que vai ser enviada.
 5. Gera 2048, 1024 e 400 px em JPEG 0,85 a partir dessa imagem, tira com o
    `stripMetadata` todos os segmentos de metadados (fica o JFIF, o perfil de
-   cor e o Adobe) e confirma com o `isCleanJpeg`. O Chrome só escreve JFIF e
-   o perfil de cor; os outros browsers não foram testados.
+   cor e o Adobe) e tudo o que vem depois do fim da imagem, e confirma com o
+   `isCleanJpeg`, que percorre o ficheiro todo, incluindo entre as passagens
+   de um JPEG progressivo. O Chrome só escreve JFIF e o perfil de cor; os
+   outros browsers não foram testados.
 
 As duas confirmações (sem caras nem matrículas, licença) são campos
 obrigatórios do formulário. O `jpeg.js` é JavaScript simples para o browser

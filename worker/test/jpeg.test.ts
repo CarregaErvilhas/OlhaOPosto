@@ -146,6 +146,25 @@ test('stripMetadata drops EXIF, XMP, IPTC, MPF and comments, keeps the image', (
   assert.deepEqual(stripMetadata(clean), clean);
 });
 
+test('isCleanJpeg looks past the first scan: trailing data and segments between scans', () => {
+  const clean = concat(SOI, JFIF, DQT, SCAN);
+  assert.equal(isCleanJpeg(clean), true);
+  // A Motion Photo appends a video after EOI; a second image can follow too.
+  const trailing = concat(clean, Uint8Array.from([0, 0, 0, 0x18, ...ascii('ftypmp42')]));
+  assert.equal(isCleanJpeg(trailing), false);
+  assert.deepEqual(stripMetadata(trailing), clean);
+  // Progressive: a second scan, with a comment and an EXIF block hidden between the scans.
+  const scan1 = SCAN.subarray(0, SCAN.length - 2);
+  const hidden = concat(SOI, JFIF, DQT, scan1, seg(0xfe, ascii('hi')), exifSeg(tiff(true, [], EXIF, GPS)), SCAN);
+  assert.equal(isCleanJpeg(hidden), false);
+  assert.deepEqual(stripMetadata(hidden), concat(SOI, JFIF, DQT, scan1, SCAN));
+  assert.equal(isCleanJpeg(stripMetadata(hidden)!), true);
+  // Restart markers and stuffed bytes inside scan data are part of the data.
+  const restarts = concat(SOI, JFIF, DQT, Uint8Array.from([0xff, 0xda, 0x00, 0x08, 1, 1, 0, 0, 0x3f, 0, 0x01, 0xff, 0xd0, 0x02, 0xff, 0x00, 0xff, 0xd1, 0x03, 0xff, 0xd9]));
+  assert.equal(isCleanJpeg(restarts), true);
+  assert.deepEqual(stripMetadata(restarts), restarts);
+});
+
 test('stripMetadata and isCleanJpeg refuse what is not a well-formed JPEG', () => {
   for (const b of [
     new Uint8Array(0),
@@ -154,6 +173,7 @@ test('stripMetadata and isCleanJpeg refuse what is not a well-formed JPEG', () =
     concat(SOI, Uint8Array.from([0xff, 0xe1, 0x40, 0x00, 1])), // length past the end
     concat(SOI, Uint8Array.from([0x00]), JFIF, SCAN),          // junk between segments
     concat(Uint8Array.from([0x89, 0x50]), JFIF, SCAN),         // not a JPEG at all
+    concat(SOI, JFIF, DQT, SCAN.subarray(0, SCAN.length - 2)), // cut before EOI
   ]) {
     assert.equal(stripMetadata(b), null);
     assert.equal(isCleanJpeg(b), false);

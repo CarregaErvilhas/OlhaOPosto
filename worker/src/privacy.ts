@@ -27,7 +27,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <h2>Ao visitar o site</h2>
 <p>O site é servido pela Cloudflare. Cada pedido fica num registo técnico com o teu endereço IP, o que a Cloudflare deduz dele (por exemplo, país, região, cidade, código postal aproximado e operador de rede), o navegador, a hora e a página pedida, incluindo o texto de uma pesquisa. Os <i>cookies</i> não ficam no registo.</p>
 <p>Usamos estes registos só para encontrar erros e abusos (interesse legítimo, artigo 6.º, n.º 1, alínea f) do RGPD). Apagam-se sozinhos ao fim de 7 dias, no máximo.</p>
-<p>Para ver o site não guardamos nada no teu navegador: sem <i>cookies</i> e, no armazenamento local, só o tema, se escolheres um no seletor (claro ou escuro). Fica no teu navegador e não nos é enviado. As fontes, os estilos e os <i>scripts</i> vêm deste site; as fotos vêm de <code>pictures.ocarroeletrico.com</code>, que também é nosso.</p>
+<p>Para ver o site não usamos <i>cookies</i>. Se escolheres um tema no seletor (claro ou escuro), o navegador guarda essa escolha no armazenamento local: fica só no teu navegador e nunca nos é enviada. As fontes, os estilos e os <i>scripts</i> vêm deste site; as fotos vêm de <code>pictures.ocarroeletrico.com</code>, que também é nosso.</p>
 
 <h2>Ao iniciar sessão</h2>
 <p>A conta é a do OpenStreetMap. No OpenStreetMap autorizas o pIcŧU/Re a ler as preferências da conta, e recebemos só o número e o nome da conta. Não recebemos o teu email nem a tua palavra-passe, e não podemos editar o mapa em teu nome. Essa autorização serve uma vez e é revogada logo a seguir.</p>
@@ -42,6 +42,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2>Envio de fotos</h2>
 <p>Ainda não está aberto. Antes de abrir, esta página passa a explicar o que acontece às fotos: desfocagem de caras e matrículas, localização, licença e remoção.</p>
+<p>Com sessão iniciada, a página de envio já prepara uma foto, mas não a envia: abre-a, lê-a e desfoca-a no teu dispositivo. Se a foto tiver GPS, a página arredonda-o a cerca de 100 metros e pede-nos os postos à volta desse ponto. Esse pedido fica no registo técnico como qualquer outro, com as coordenadas arredondadas. Nada mais da foto sai do teu dispositivo.</p>
 
 <h2>Onde ficam os dados</h2>
 <p>A Cloudflare, Inc. trata os dados por nossa conta: alojamento, base de dados e registos técnicos. A base de dados fica na União Europeia. A Cloudflare é uma empresa dos Estados Unidos: os pedidos passam pelo centro de dados dela mais próximo de ti, e os registos técnicos podem ficar fora da União Europeia, com as garantias do <a href="${LINKS.cfDpa}">acordo de tratamento de dados da Cloudflare</a>. Ver também a <a href="${LINKS.cfPrivacy}">política de privacidade da Cloudflare</a>.</p>
@@ -67,7 +68,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <h2>When you visit the site</h2>
 <p>The site is served by Cloudflare. Each request is kept in a technical log with your IP address, what Cloudflare derives from it (for example, country, region, city, approximate postcode and network operator), your browser, the time and the page requested, including the text of a search. Cookies are not kept in the log.</p>
 <p>We use these logs only to find errors and abuse (legitimate interest, GDPR Article 6(1)(f)). They are deleted automatically after 7 days at most.</p>
-<p>To browse the site we store nothing in your browser: no cookies, and in local storage only the theme, if you pick one in the picker (light or dark). It stays in your browser and is never sent to us. Fonts, styles and scripts come from this site; photos come from <code>pictures.ocarroeletrico.com</code>, which is also ours.</p>
+<p>To browse the site we use no cookies. If you pick a theme in the picker (light or dark), your browser keeps that choice in local storage: it stays in your browser and is never sent to us. Fonts, styles and scripts come from this site; photos come from <code>pictures.ocarroeletrico.com</code>, which is also ours.</p>
 
 <h2>When you sign in</h2>
 <p>The account is your OpenStreetMap account. On OpenStreetMap you allow pIcŧU/Re to read your account preferences, and we receive only the account number and name. We do not receive your email or your password, and we cannot edit the map on your behalf. That permission is used once and revoked straight away.</p>
@@ -82,6 +83,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2>Photo uploads</h2>
 <p>Not open yet. Before they open, this page will explain what happens to photos: blurring of faces and number plates, location, licence and removal.</p>
+<p>When you are signed in, the upload page already prepares a photo, but does not send it: it opens, reads and blurs it on your device. If the photo has GPS, the page rounds it to about 100 metres and asks us for the stations around that point. That request goes into the technical log like any other, with the rounded coordinates. Nothing else from the photo leaves your device.</p>
 
 <h2>Where the data lives</h2>
 <p>Cloudflare, Inc. processes the data on our behalf: hosting, database and technical logs. The database is in the European Union. Cloudflare is a United States company: requests go through its data centre nearest to you, and technical logs may be kept outside the European Union, under the safeguards of the <a href="${LINKS.cfDpa}">Cloudflare data processing agreement</a>. See also the <a href="${LINKS.cfPrivacy}">Cloudflare privacy policy</a>.</p>

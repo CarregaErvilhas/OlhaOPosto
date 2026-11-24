@@ -44,8 +44,9 @@ Ficheiros:
 Próximos passos:
 
 - [ ] Ponto 6 do ensaio: ler o consumo na GUI do Zerops e fazer a conta mensal (secção 9).
-- [ ] Ao criar o Worker: emitir um token novo da `pictures` e guardá-lo com
-  `wrangler secret put` (secção 4).
+- [ ] Quando o Worker passar a enviar fotos: emitir um token novo da
+  `pictures` e guardá-lo com `npm run remote -- secret put PANORAMAX_TOKEN`
+  (secção 4). O Worker já existe, mas ainda não fala com o Panoramax.
 
 ---
 
@@ -235,9 +236,10 @@ assim que a transação termina.
 cd /var/www && /opt/venv/bin/python panoramax/service_account.py
 ```
 
-O JWT sai na última linha. Vai direto para o `wrangler secret put
-PANORAMAX_TOKEN` do Worker (o container não tem `wrangler`), ou, até haver
-Worker, para o gestor de passwords. Nunca para um chat, um ficheiro ou um
+O JWT sai na última linha. Vai direto para o `npm run remote -- secret put
+PANORAMAX_TOKEN` do Worker (o container não tem `wrangler`; ver
+[`cloudflare.md`](cloudflare.md), secção 4), ou, enquanto o Worker não
+enviar fotos, para o gestor de passwords. Nunca para um chat, um ficheiro ou um
 log: quem o tiver controla todas as fotos.
 
 O JWT não expira. Para o **revogar** sem criar outro, apagam-se todos os

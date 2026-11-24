@@ -2,7 +2,7 @@
 // read-only API and sign-in with OpenStreetMap (auth.ts). Fonts, CSS and icons in public/ are Workers static assets,
 // served before this code runs. Static photo links are served by the R2
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
-import { accountHtml, callback, login, logout, type AuthEnv } from './auth.ts';
+import { accountHtml, callback, login, logout, uploadHtml, type AuthEnv } from './auth.ts';
 import { findEvse, getStation, listStations, nearStations, searchStations, type Env } from './data.ts';
 import {
   evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
@@ -32,6 +32,15 @@ const HTML_HEADERS = {
   'referrer-policy': 'strict-origin-when-cross-origin',
   'cross-origin-opener-policy': 'same-origin',
   'strict-transport-security': 'max-age=31536000',
+};
+
+// The upload page also asks our API for stations (connect-src) and shows the
+// prepared photo from a blob: URL. Only that page gets these.
+const UPLOAD_HEADERS = {
+  ...HTML_HEADERS,
+  'content-security-policy': HTML_HEADERS['content-security-policy']
+    .replace("img-src 'self'", "img-src 'self' blob:")
+    .replace("default-src 'none';", "default-src 'none'; connect-src 'self';"),
 };
 
 function json(body: unknown, status = 200, cache = 'public, max-age=300'): Response {
@@ -75,6 +84,7 @@ async function stationJson(env: Env, id: string): Promise<Response> {
     points: points.map((p) => ({
       id: p.point_id,
       evse: p.evse_id,
+      compact: p.evse_compact,
       connector: p.connector,
       kw: p.max_kw,
       dc: p.dc === 1,
@@ -245,6 +255,8 @@ export default {
     if (pathname === '/en/privacy') return html('en', privacyPage('en'));
     if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS);
+    if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
+    if (pathname === '/en/upload') return uploadHtml('en', request, env, UPLOAD_HEADERS);
     if (pathname === '/auth/osm/login') return login(request, env, HTML_HEADERS);
     if (pathname === '/auth/osm/callback') return callback(request, env, ctx, HTML_HEADERS);
     if (pathname === '/sitemap.xml') return sitemap(request, env, ctx);

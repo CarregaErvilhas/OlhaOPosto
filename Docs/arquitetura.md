@@ -40,7 +40,7 @@ Responsável (RGPD): O Carro Elétrico. Passar para uma associação fica como s
 
 | Host | O que serve hoje | Como |
 | --- | --- | --- |
-| `voltframe.ocarroeletrico.com` | Páginas dos postos (pt-PT e inglês), API `/api/v1` só de leitura, `sitemap.xml`, `robots.txt`, `llms.txt` | Worker `pictures` + D1 ([`cloudflare.md`](cloudflare.md), secção 4) |
+| `voltframe.ocarroeletrico.com` | Páginas dos postos e pesquisa (pt-PT e inglês), API `/api/v1` só de leitura, política de privacidade, conta e página de envio (desligadas até ao login OSM), `sitemap.xml`, `robots.txt`, `llms.txt` | Worker `pictures` + D1 ([`cloudflare.md`](cloudflare.md), secção 4) |
 | `pictures.ocarroeletrico.com` | Links estáticos (`/<id>.jpg` e tamanhos); por agora todos dão `404` | Custom domain do bucket R2 `pictures`, servido pela CDN **sem Worker** ([`cloudflare.md`](cloudflare.md), secção 3) |
 | `panoramax.ocarroeletrico.com` | Servidor Panoramax (API, visualizador, imagens), fora da federação | Zerops, com o bucket R2 `panoramax` como armazenamento ([`infra.md`](infra.md)) |
 
@@ -56,9 +56,11 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
               |
    Worker VoltFrame (voltframe.*)          R2 "pictures" (pictures.*)
    páginas, API só de leitura,             links estáticos pela CDN
-   sitemap, llms.txt                       (vazio até haver fotos)
+   login OSM (desligado), envio no         (vazio até haver fotos)
+   browser (ainda sem enviar), sitemap
               |
-   D1 "pictures": stations, evses
+   D1 "pictures": stations, evses,
+   users, sessions
               ^
    GitHub Actions, todos os dias:
    ohmigo_chargers.json (NAP dashboard) --> D1
@@ -135,8 +137,10 @@ link de tomada.
 | `evses` | `station_id` (FK) + `point_id` (PK), `evse_id` (forma original com `*`), `evse_compact` (sem `*`, índice simples), `connector`, `max_kw`, `dc`, `status` | Uma linha por ponto/tomada. O `point_id` do MOBI.Data repete-se entre postos |
 | `stations_fts` | Índice FTS5 de `id`, `code`, `name`, `address`, `municipality`, `operator`, `opc` | Para a pesquisa. Só o índice: o texto fica em `stations`, e três *triggers* mantêm-no a par, por isso o import não muda |
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
+| `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `pseudonym`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. Hoje só se escrevem o OSM, o papel `contributor` e as datas; o resto fica para o envio e a moderação |
+| `sessions` | `token_hash` (PK, SHA-256 do *cookie*), `user_id` (FK), `created_at`, `expires_at` | Uma cópia da tabela não abre sessões. As expiradas saem no login seguinte |
 
-As tabelas das fotos, dos utilizadores e da moderação estão em [`plan.md`](plan.md), *Modelo de dados*.
+As tabelas das fotos e da moderação estão em [`plan.md`](plan.md), *Modelo de dados*.
 
 ## Site e API
 
@@ -145,10 +149,14 @@ O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês
 (`/tomadas/{evse}`, `/en/sockets/{evse}`), a pesquisa de postos (`/pesquisa`,
 `/en/search`, também no formulário da página inicial), a API só de leitura
 (`/api/v1/stations?q=`, `/api/v1/stations?lat=&lon=`, `/api/v1/stations/{id}`,
-`/api/v1/evses/{evse}`), o
-`sitemap.xml`, o
-`robots.txt` e o `llms.txt`. Rotas, cabeçalhos, acessibilidade e cache em
-[`cloudflare.md`](cloudflare.md), secção 4.
+`/api/v1/evses/{evse}`), a política de privacidade (`/privacidade`), o
+`sitemap.xml`, o `robots.txt` e o `llms.txt`.
+
+Tem também o início de sessão com o OpenStreetMap, a conta (`/conta`) e a
+página de envio (`/enviar`), que prepara a foto no browser (EXIF, posto,
+desfocagem à mão, três tamanhos sem metadados) mas ainda não a envia. Estas
+três ficam desligadas até existirem os segredos do OSM. Rotas, cabeçalhos,
+acessibilidade e cache em [`cloudflare.md`](cloudflare.md), secção 4.
 
 ## Links estáticos
 

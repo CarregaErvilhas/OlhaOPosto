@@ -51,17 +51,23 @@ const notFound = () => json({ error: 'not_found' }, 404, 'public, max-age=60');
 
 async function station(env: Env, id: string): Promise<Response> {
   if (!STATION_ID.test(id)) return notFound();
-  const s = await env.DB.prepare(
-    `SELECT id, code, opc, operator, name, address, municipality, region, lat, lon,
-            status, osm_ref, updated_at
-       FROM stations WHERE id = ?`,
-  ).bind(id).first<StationRow>();
+  // One round trip for both queries: the D1 primary is in the EU jurisdiction
+  // (Eastern Europe), so every extra query is another trip from the edge.
+  const [station, points] = await env.DB.batch([
+    env.DB.prepare(
+      `SELECT id, code, opc, operator, name, address, municipality, region, lat, lon,
+              status, osm_ref, updated_at
+         FROM stations WHERE id = ?`,
+    ).bind(id),
+    env.DB.prepare(
+      `SELECT point_id, evse_id, connector, max_kw, dc, status
+         FROM evses WHERE station_id = ? ORDER BY point_id`,
+    ).bind(id),
+  ]);
+  const s = (station.results as StationRow[])[0];
   // Proposals and rejected stations are not public.
   if (!s || (s.status !== 'active' && s.status !== 'missing_from_nap')) return notFound();
-  const { results } = await env.DB.prepare(
-    `SELECT point_id, evse_id, connector, max_kw, dc, status
-       FROM evses WHERE station_id = ? ORDER BY point_id`,
-  ).bind(id).all<EvseRow>();
+  const results = points.results as EvseRow[];
   return json({
     id: s.id,
     code: s.code,

@@ -2,7 +2,7 @@
 
 VoltFrame: serviço comunitário de fotos de postos e tomadas de carregamento em Portugal. Guarda as fotos e serve links estáticos pelo ID oficial (`OPC-XXXXXXXXXX` para postos, `PTOPCEYYYYYYYYY` para tomadas), para qualquer app ou mapa (OSM, NAP dashboard).
 
-Estado: fase 1 quase feita. O servidor Panoramax está em produção em `panoramax.ocarroeletrico.com` (Zerops, atrás da Cloudflare, fora da federação), com o ensaio feito (falta o custo). Existem mockups e o plano técnico. Fase 2 começada: o Worker em `worker/` tem a API de postos só de leitura e o import diário dos postos (GitHub Actions para a D1), ainda por publicar.
+Estado: fase 1 quase feita. O servidor Panoramax está em produção em `panoramax.ocarroeletrico.com` (Zerops, atrás da Cloudflare, fora da federação), com o ensaio feito (falta o custo). Existem mockups e o plano técnico. Fase 2 começada: o Worker em `worker/` tem a API de postos só de leitura e o import diário dos postos (GitHub Actions para a D1), já publicados.
 
 ## Onde está o quê
 

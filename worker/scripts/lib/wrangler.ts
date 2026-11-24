@@ -65,14 +65,16 @@ export function d1<T>(target: Target, fn: (db: {
         return (out[0]?.results ?? []) as R[];
       },
       // Rows written, summed over the statements (D1's meta).
-      // The write already happened once wrangler exits 0, so an output shape
-      // we do not know (the remote import API differs from local) is not an
-      // error: rows_written is then just unknown. The local D1 never reports it.
+      // The write already happened once wrangler exits 0, so an output we
+      // cannot read is not an error: rows_written is then just unknown. Remote
+      // runs print upload progress on stdout before the JSON, so parse from the
+      // first line that opens it. The local D1 never reports rows_written.
       executeFile: (path: string) => {
         const raw = wrangler([...base, '--json', '--yes', '--file', path], true);
+        const start = raw.search(/^\[/m);
         let out: unknown;
         try {
-          out = JSON.parse(raw);
+          out = JSON.parse(start < 0 ? raw : raw.slice(start));
         } catch {
           return null;
         }

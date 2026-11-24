@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.scripts.json",
-    "test": "node --test test/",
+    "test": "node --test \"test/**/*.test.ts\"",
     "db:local": "wrangler d1 migrations apply DB --local",
     "import:local": "node scripts/import-stations.ts --local",
     "remote": "node scripts/remote.ts"

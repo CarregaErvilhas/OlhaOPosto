@@ -1,0 +1,52 @@
+# Checks for every pull request into main. The `worker` job is a required
+# status check in the `main` ruleset.
+#
+# No `paths` filter on purpose: a required check that never runs leaves the PR
+# waiting forever, and the whole job takes well under a minute.
+
+name: Checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - run: npm ci --no-fund --no-audit
+
+      - name: Typecheck
+        run: npm run check
+
+      - name: Test
+        run: npm test
+
+      # Bundles the Worker the way a deploy would, without credentials.
+      - name: Build
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker-dist"

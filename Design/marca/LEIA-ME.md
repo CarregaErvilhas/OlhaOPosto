@@ -13,6 +13,8 @@ Ficha Type 2 com os 7 pinos, a objetiva no pino de terra, o obturador e o flash 
 | Olhos, janela do flash | `#FFFFFF` |
 | Fundo dos ícones de app | `#FBF3E2` |
 
+Em tema escuro, o `favicon.svg` e o `svg/pic-icon.svg` mudam o obturador para `#5CC9AC` (o verde do tema escuro do site): o `#0B6B58` desaparece contra um fundo escuro. A objetiva fica igual, porque está sobre a face e não sobre o fundo. O `.ico` e os PNG não mudam.
+
 ## Ficheiros
 
 - `svg/pic.svg`: mascote completa, com os raios do flash. Para o site, apresentações e autocolantes.

@@ -136,7 +136,8 @@ secção 8.
 
 **Processos (`startCommands`, como `pano`, sem a variável do superuser):**
 
-- `api`: `gunicorn geovisio:create_api()` com 2 workers × 4 threads.
+- `api`: `gunicorn wsgi:app` (`panoramax/wsgi.py`, que embrulha o
+  `geovisio:create_api()`) com 2 workers × 4 threads.
 - `worker`: `panoramax_backend picture-worker`. Gera os tamanhos, lê os
   metadados e corre o cron diário de estatísticas. Por isso a API tem
   `PICTURE_PROCESS_THREADS_LIMIT=0`: não processa fotos dentro do pedido.
@@ -172,7 +173,7 @@ nomes no código da 2.17.0 (`geovisio/config_app.py`).
 | `API_DEFAULT_PICTURE_VISIBILITY` | `owner-only` | A foto só fica pública quando o VoltFrame a aprova |
 | `PICTURE_PROCESS_THREADS_LIMIT` | `0` | O processamento é do `worker` |
 | `PICTURE_PROCESS_DERIVATES_STRATEGY` | `PREPROCESS` | Gera os tamanhos logo ao receber (são poucas fotos e evita latência na primeira visualização) |
-| `INFRA_NB_PROXIES` | `1` no subdomínio, `2` com a Cloudflare | Secção 7 |
+| `INFRA_NB_PROXIES` | Não definida | A confiança nos proxies é do `panoramax/wsgi.py` (secção 7, «Proxies») |
 
 ### Configuração gravada na BD
 
@@ -306,7 +307,9 @@ Por ordem:
 2. **Cloudflare:** `panoramax  AAAA  <IPv6 do projeto>  proxy: ON`. SSL
    *Full (strict)*.
 3. **Zerops:** validar o DNS. O certificado Let's Encrypt é emitido.
-4. Mudar `INFRA_NB_PROXIES` para `2` e fazer deploy.
+4. Repetir o teste dos `href` (ponto 9 do ensaio) no domínio. Não muda
+   nada na configuração: o `wsgi.py` só confia no balanceador, que é sempre
+   o último proxy.
 5. `accessPolicy` do balanceador: só aceitar as gamas da Cloudflare
    (`https://www.cloudflare.com/ips-v4` e `ips-v6`).
 6. Desligar o subdomínio `zerops.app`, que fica fora da Cloudflare.
@@ -315,10 +318,24 @@ Por ordem:
 50 MB e o domínio próprio acima de 512 MB. As fotos chegam com 2048 px
 (menos de 2 MB), por isso nenhum dos limites conta.
 
-**Proxies.** Com `INFRA_NB_PROXIES=N`, o Panoramax confia nas últimas N
-entradas dos `X-Forwarded-*` para montar os URLs absolutos (`https://…`)
-das respostas STAC. Se o valor estiver errado, os links saem `http://` ou
-com o host interno. É um dos pontos do ensaio.
+**Proxies.** O Panoramax monta os URLs absolutos das respostas STAC a
+partir dos `X-Forwarded-*`. O `INFRA_NB_PROXIES` dele aplica a mesma
+contagem aos cinco cabeçalhos, e isso não serve aqui (visto a 2026-11-24 no
+subdomínio, com `INFRA_NB_PROXIES=1`):
+
+- O balanceador do Zerops define `Host`, `Proto` e `Port`, mas deixa passar
+  o `X-Forwarded-Prefix` do cliente. Um pedido com `X-Forwarded-Prefix: /zz`
+  devolvia links `…/zz/api/`: qualquer cliente reescrevia os links.
+- O balanceador manda `X-Forwarded-Port: 80` mesmo em HTTPS. Os links saíam
+  `https://…zerops.app:80/api/`.
+- A Cloudflare não acrescenta `X-Forwarded-Host`. Com `2`, o Panoramax lia
+  o penúltimo valor, que só existe se o cliente o mandar.
+
+Por isso o `INFRA_NB_PROXIES` fica por definir e o gunicorn arranca o
+`panoramax/wsgi.py`, que confia só no último proxy (o balanceador) para
+`For`, `Proto` e `Host`, e ignora `Port` e `Prefix`. Serve igual no
+subdomínio e atrás da Cloudflare. Atrás da Cloudflare o `For` é o IP da
+Cloudflare e não o do cliente; o Panoramax não precisa dele.
 
 ---
 
@@ -366,7 +383,7 @@ configuração. Em cada um, o que já sei e como se testa.
 | 6 | Consumo de recursos dentro do orçamento | — | Consumo real na GUI ao fim do dia, com ~100 fotos enviadas |
 | 7 | O pip instala o `geovisio` no `ubuntu/python@3.14` | As wheels `cp314` existem; a instalação não foi testada | Log do *prepare* |
 | 8 | `run.base: ubuntu/python@3.14` é aceite | A documentação mostra a forma `ubuntu/nodejs@22`; o CEME usa `alpine/nodejs@24` | O primeiro deploy |
-| 9 | `INFRA_NB_PROXIES` | — | `curl …/api/collections` e ver se os `href` saem `https://panoramax.ocarroeletrico.com/…`, primeiro no subdomínio e depois atrás da Cloudflare |
+| 9 | `X-Forwarded-*` (era `INFRA_NB_PROXIES`) | — | `curl …/api/collections` e ver se os `href` saem `https://panoramax.ocarroeletrico.com/…`, primeiro no subdomínio e depois atrás da Cloudflare |
 | 10 | RAM do processamento | — | Enviar 20 fotos seguidas e ver o pico de RAM do `pano` |
 
 Comandos úteis no container (`zcli vpn up <project-id>`, depois

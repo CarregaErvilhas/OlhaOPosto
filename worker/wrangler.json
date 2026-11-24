@@ -2,6 +2,9 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pictures",
   "main": "src/index.ts",
+  "assets": {
+    "directory": "./public"
+  },
   "compatibility_date": "2026-11-09",
   "workers_dev": false,
   "preview_urls": false,

@@ -21,12 +21,17 @@ Quem envia uma foto aceita estas condições uma vez, ao entrar, e declara que �
 
 **Fotos de outras origens.** As fotos referenciadas a partir do OSM, do Wikimedia Commons ou de outro servidor Panoramax mantêm a licença e o autor de origem.
 
+## Fontes: SIL Open Font License 1.1
+
+O site usa a Inter, a Space Grotesk e a JetBrains Mono, alojadas no próprio Worker (`worker/public/fonts/`). Estão sob a [SIL Open Font License 1.1](https://openfontlicense.org/), e o texto da licença de cada uma vai ao lado dos ficheiros (`OFL-*.txt`), como a licença pede.
+
 ## O nome e a imagem ficam de fora
 
 As licenças cobrem o código e as fotos, não a marca. Não estão licenciados:
 
 - os nomes **VoltFrame** e **pIcŧU/Re**, e os domínios em `ocarroeletrico.com`;
 - a mascote **Pic** (a ficha Type 2 que fotografa), o ícone, o favicon e as imagens feitas com eles, em `Design/marca/` e nos desenhos dos mockups em `Design/`;
+- as cópias desses ficheiros que o site serve (`worker/public/`: `pic-icon.svg`, favicons, ícones de app e `site.webmanifest`);
 - as mascotes dos outros sites do grupo do O Carro Elétrico, se aparecerem aqui, que são de cada um desses sites.
 
 Podes, e deves, usar o nome para dizer de onde vêm as fotos ou o código. Um fork ou uma obra derivada precisa de nome e de imagem próprios.

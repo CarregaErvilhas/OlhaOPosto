@@ -77,13 +77,26 @@ No `cf`, os comandos que apagam ou substituem (`r2 objects delete`,
 
 O código está em `worker/`. O Worker chama-se `pictures` e responde em
 `voltframe.ocarroeletrico.com` (custom domain; `workers.dev` e *preview URLs*
-desligados). Por agora só tem:
+desligados). Por agora tem:
 
 | Pedido | Devolve |
 | --- | --- |
 | `GET /api/v1/stations/{id}` | Posto e pontos, com CORS e `max-age=300`. `404` para ids que não existem e para propostas ou postos rejeitados |
 | `GET /api/v1/evses/{evse}` | Tomada pelo código EVSE, com ou sem os `*` (`PT*EZC*E*AMD*00051*1` ou `PTEZCEAMD000511`), e o posto a que pertence. `300` com a lista `candidates` se o código estiver em mais de um posto |
-| `GET /` | Texto «em construção» |
+| `GET /postos/{id}` | Página do posto: tomadas com o código EVSE, links estáticos de cada tamanho para copiar, ligação ao OSM. `404` em HTML como na API |
+| `GET /tomadas/{evse}` | `302` para `/postos/{id}#t-{evse}`, com a tomada marcada; uma página com a lista se o código estiver em mais de um posto. `302` e não `301`, porque um código pode mudar de posto |
+| `GET /` | Página inicial provisória |
+
+As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os
+ficheiros de `worker/public/` (CSS, `site.js`, fontes, ícones) são *static
+assets* do Worker: a Cloudflare serve-os antes de o código correr e não contam
+para o limite de pedidos. O `public/_headers` dá às fontes um ano de cache
+(`immutable`): uma fonte nova leva um nome de ficheiro novo.
+
+**Nada de terceiros nas páginas.** As fontes (Inter, Space Grotesk, JetBrains
+Mono) estão alojadas em `public/fonts/`, não no Google Fonts. A CSP só deixa
+carregar ficheiros do próprio site e imagens de `pictures.*`, e não permite
+*scripts* nem estilos *inline*: tudo vai em `site.css` e `site.js`.
 
 **A D1 `pictures` está na jurisdição EU**: vai guardar dados de
 utilizadores (RGPD), e a jurisdição só se escolhe ao criar a base.

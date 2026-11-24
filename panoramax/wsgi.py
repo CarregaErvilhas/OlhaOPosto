@@ -1,7 +1,7 @@
 """WSGI entry point for gunicorn: the Panoramax API with our own proxy trust.
 
 Panoramax's INFRA_NB_PROXIES applies one count to all five X-Forwarded-*
-headers, which is wrong for us (seen on 2026-11-24, Docs/infra.md section 7):
+headers, which is wrong for us (seen on the zerops.app subdomain, Docs/infra.md section 7):
 
 - The Zerops balancer sets Host, Proto and Port, but passes a client's
   X-Forwarded-Prefix through untouched. Trusting Prefix lets any client

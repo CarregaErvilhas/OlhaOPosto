@@ -36,8 +36,9 @@ services:
     # O primeiro deploy não fica à espera de código: os containers sobem e o
     # webhook (ou `zcli push pano`) entrega a app.
     startWithoutCode: true
-    # Subdomínio zerops.app para o ensaio, antes do domínio próprio.
-    enableSubdomainAccess: true
+    # Sem subdomínio zerops.app: fica fora da Cloudflare e da Access Policy
+    # (Docs/infra.md, secção 7). Foi ligado só durante o ensaio.
+    enableSubdomainAccess: false
     # 1 container. O 2.º só existe durante o rolling deploy.
     minContainers: 1
     maxContainers: 2

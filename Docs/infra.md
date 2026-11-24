@@ -1,10 +1,10 @@
 # Infra — Panoramax do VoltFrame no Zerops
 
-2026-11-23 · em preparação: os ficheiros estão escritos, o projeto Zerops
-ainda não existe. Este é o sítio onde fica documentada a infraestrutura do
-servidor Panoramax (`panoramax.ocarroeletrico.com`). O resto do VoltFrame
-(Worker, D1, R2 `pictures`) é Cloudflare e fica para quando houver código.
-O design está em [`plan.md`](plan.md), secção *Servidor Panoramax*.
+**Em produção** em `https://panoramax.ocarroeletrico.com`,
+atrás da Cloudflare, fora da federação. Este é o sítio onde fica documentada
+a infraestrutura do servidor Panoramax. O resto do VoltFrame (Worker, D1, R2
+`pictures`) é Cloudflare e está em [`cloudflare.md`](cloudflare.md). O design está em
+[`plan.md`](plan.md), secção *Servidor Panoramax*.
 
 ```
 VoltFrame (Worker) ──HTTPS + token──► Cloudflare (proxy) ──► balanceador L7 do Zerops ──► `pano`
@@ -25,21 +25,28 @@ Ficheiros:
 | `panoramax/requirements.txt` | Lock gerado do `.in`: todas as dependências, com hashes |
 | `panoramax/bootstrap_db.py` | Extensões, permissões e fuso da BD, com o superuser |
 | `panoramax/service_account.py` | Cria a conta de serviço `pictures` (não admin) e roda o token |
+| `panoramax/wsgi.py` | Ponto de entrada do gunicorn: a API com a confiança nos proxies que serve aqui (secção 7) |
+| `panoramax/trial_upload.sh`, `trial_batch.sh` | Envios de teste pela API, usados no ensaio (secção 9) |
 
 ---
 
-## 1. Próximos passos
+## 1. Estado
 
-- [ ] Criar o projeto no Zerops (core *Lightweight*) e passar o ID.
-- [ ] Importar os serviços: `zcli project service-import zerops-import.yaml -P <project-id>`.
-- [ ] Criar o bucket R2 `panoramax` e um token R2 só para ele
-  (secção 5).
-- [ ] Pôr o `FS_URL` como variável secreta do `pano` (secção 6).
-- [ ] Ligar o webhook do GitHub ao `pano` (secção 8) ou fazer o primeiro
-  deploy à mão: `zcli push pano --setup pano`.
-- [ ] Ensaio de um dia (secção 9), no subdomínio `zerops.app`.
-- [ ] Domínio `panoramax.ocarroeletrico.com` na Cloudflare (secção 7).
-- [ ] Atualizar o `plan.md` com o resultado do ensaio.
+| O quê | Onde |
+| --- | --- |
+| Projeto Zerops | `Panoramax`, org Cocofree, core *Lightweight*, região `prg1` |
+| Serviços | `pano` (Panoramax 2.17.0) e `db` (PostgreSQL 18, PostGIS 3.6.4) |
+| Imagens | Bucket R2 `panoramax`, privado |
+| Domínio | `panoramax.ocarroeletrico.com`: `AAAA` com proxy da Cloudflare, certificado do Zerops, *Access Policy* só para a Cloudflare |
+| Deploy | Webhook do GitHub: cada push para `main` faz build e deploy |
+| Contas | Conta `pictures` criada, com token; sem OAuth |
+
+Próximos passos:
+
+- [ ] Ponto 6 do ensaio: ler o consumo na GUI do Zerops e fazer a conta
+  mensal (secção 9).
+- [ ] Ao criar o Worker: emitir um token novo da `pictures` e guardá-lo com
+  `wrangler secret put` (secção 4).
 
 ---
 
@@ -142,7 +149,7 @@ secção 8.
   metadados e corre o cron diário de estatísticas. Por isso a API tem
   `PICTURE_PROCESS_THREADS_LIMIT=0`: não processa fotos dentro do pedido.
 
-Os `startCommands` correm em bash (visto no primeiro deploy, 2026-11-24):
+Os `startCommands` correm em bash (visto no primeiro deploy):
 o `geovisio:create_api()` sem aspas dava `syntax error near unexpected
 token '('`. Caracteres especiais do shell vão entre aspas simples.
 
@@ -184,10 +191,11 @@ disso, **mudar a variável não tem efeito**: só um aviso no log. Para mudar,
 
 ### Contas: sem OAuth, e a conta de serviço não é admin
 
-O `plan.md` previa `OAUTH_PROVIDER=osm` só para a conta de serviço e o
-admin. **Proposta: não ligar OAuth nenhum** (por decidir, ver secção 11): as rotas `/api/auth/*` respondem 501 e
-ninguém consegue entrar, nem por engano. Não há app OAuth no OSM para
-manter.
+**Sem OAuth nenhum.** O `/api/configuration` mostra `auth.enabled: false`,
+e as rotas `/api/auth/*` respondem 501: ninguém entra pela web, nem por
+engano. Não há app OAuth no OSM para manter. Por isso também não há
+interface de admin web do Panoramax: a moderação é a do VoltFrame, e a
+manutenção faz-se pela API e pela CLI (ver *Acesso de admin*, abaixo).
 
 Há duas contas:
 
@@ -215,13 +223,17 @@ Porquê apagar todos: qualquer token de uma conta lista os outros
 disso, o trigger `generate_default_token_trg` do Panoramax cria um
 `default token` em cada conta nova, que nunca é mostrado. Cada execução do
 script é por isso uma rotação: o token antigo do Worker deixa de funcionar
-assim que a transação termina, e o novo vai direto para o `wrangler secret put`.
+assim que a transação termina.
 
 ```bash
-# no container (zcli vpn up <project-id>; ssh pano)
-cd /var/www
-/opt/venv/bin/python panoramax/service_account.py | npx wrangler secret put PANORAMAX_TOKEN
+# no container (secção 9, «Acesso ao container»)
+cd /var/www && /opt/venv/bin/python panoramax/service_account.py
 ```
+
+O JWT sai na última linha. Vai direto para o `wrangler secret put
+PANORAMAX_TOKEN` do Worker (o container não tem `wrangler`), ou, até haver
+Worker, para o gestor de passwords. Nunca para um chat, um ficheiro ou um
+log: quem o tiver controla todas as fotos.
 
 O JWT não expira. Para o **revogar** sem criar outro, apagam-se todos os
 tokens da conta, nunca só uma linha:
@@ -233,8 +245,26 @@ DELETE FROM tokens WHERE account_id = (SELECT id FROM accounts WHERE name = 'pic
 Para revogar e emitir um novo, basta voltar a correr o script. Trocar o
 `FLASK_SECRET_KEY` invalida todos os tokens do servidor de uma vez.
 
-O crédito por foto continua a ser o ponto 5 do ensaio: as fotos ficam todas
-em nome de `pictures`, e o autor vai na etiqueta `pictures|author=`.
+**Crédito por foto (ponto 5 do ensaio):** o STAC mostra sempre
+`providers: pictures` e `geovisio:producer: pictures`. O autor só fica na
+etiqueta `pictures|author=`. Por isso o crédito é dado pelo VoltFrame e pelo
+XMP das cópias em `pictures.*` (alternativa do `plan.md`).
+
+### Acesso de admin
+
+A conta por omissão é `admin`. O token dela tira-se no container e usa-se
+**só pela VPN**, para não andar pela internet:
+
+```bash
+/opt/venv/bin/panoramax_backend default-account-token get
+```
+
+Com ele, o Swagger em `http://pano.zerops:5000/api/docs/swagger`
+(*Authorize*, Bearer) dá a API toda: denúncias (`/api/reports`), áreas
+excluídas, visibilidade, apagar fotos e coleções. Na CLI há ainda `user`,
+`cleanup`, `db refresh` e `sequences reorder`. O token de admin não expira;
+se vazar, o único corte é trocar o `FLASK_SECRET_KEY`, que invalida todos
+os tokens do servidor, incluindo o da `pictures`.
 
 ---
 
@@ -272,6 +302,17 @@ são os do `pictures.*`, que não passam por aqui.
 há dois containers, e um envio recebido num pode ser processado pelo
 *worker* do outro. Num disco local, o ficheiro não estaria lá.
 
+**O que se viu no ensaio:**
+
+- O original fica em `data/permanent/<xx>/<xx>/<xx>/<xx>/<resto do uuid>.jpg`
+  **tal como foi enviado, com o EXIF todo**. Os tamanhos ficam em
+  `data/derivatives/…/<uuid>/` e são só `sd.jpg` e `thumb.jpg`: o `hd.jpg`
+  da API é o próprio original. Por isso o Worker tem de tirar o EXIF e
+  reduzir para 2048 px **antes** de enviar (`plan.md`, passo 8).
+- Uma foto de 4,4 MB deu `sd` de 400 kB e `thumb` de 29 kB.
+- Apagar um upload set pela API apaga também os ficheiros no R2, em
+  segundo plano, pelo *worker* (o bucket ficou vazio em menos de um minuto).
+
 ---
 
 ## 6. Segredos
@@ -282,7 +323,7 @@ há dois containers, e um envio recebido num pode ser processado pelo
 | Variável | Origem |
 | --- | --- |
 | `FLASK_SECRET_KEY` | Gerada no import (`<@generateRandomString(<64>)>`) |
-| `FS_URL` | À mão, depois do import, com o token R2 da secção 5 |
+| `FS_URL` | À mão, com o token R2 da secção 5 |
 
 As credenciais do `db` não são copiadas: o `zerops.yml` refere-as
 (`${db_connectionString}`, `${db_superUser}`, …), e o Zerops resolve-as
@@ -299,29 +340,39 @@ domínio, e com o proxy da Cloudflare esse `AAAA` é da Cloudflare, por isso
 um `A` partilhado com proxy não funciona. A Cloudflare traduz os clientes
 IPv4.
 
-Por ordem:
+Como está:
 
-1. **Zerops:** registar `panoramax.ocarroeletrico.com` no balanceador
-   (*public HTTP routing*), porta 5000 do `pano`, SSL ligado. Sem isto o
-   balanceador responde 404.
-2. **Cloudflare:** `panoramax  AAAA  <IPv6 do projeto>  proxy: ON`. SSL
-   *Full (strict)*.
-3. **Zerops:** validar o DNS. O certificado Let's Encrypt é emitido.
-4. Repetir o teste dos `href` (ponto 9 do ensaio) no domínio. Não muda
-   nada na configuração: o `wsgi.py` só confia no balanceador, que é sempre
-   o último proxy.
-5. `accessPolicy` do balanceador: só aceitar as gamas da Cloudflare
-   (`https://www.cloudflare.com/ips-v4` e `ips-v6`).
-6. Desligar o subdomínio `zerops.app`, que fica fora da Cloudflare.
+| Onde | O quê |
+| --- | --- |
+| Zerops, *Public access* do `pano` | `panoramax.ocarroeletrico.com` → `pano:5000`, SSL (Let's Encrypt emitido pelo Zerops) |
+| Cloudflare, zona `ocarroeletrico.com` | `panoramax  AAAA  <IPv6 dedicado do projeto>`, proxy ON (o IPv6 está no Zerops, *Public access* do `pano`). A zona já estava em SSL *Full (strict)* |
+| Zerops, roda dentada do domínio → *Access Policy* | *Default Policy* `deny`; *CIDR Blocks* = as gamas da Cloudflare, uma por linha |
+| Zerops, subdomínio `zerops.app` | Desligado: ficava fora da Cloudflare |
 
-**Limite de envio.** O subdomínio `zerops.app` corta os pedidos acima de
-50 MB e o domínio próprio acima de 512 MB. As fotos chegam com 2048 px
-(menos de 2 MB), por isso nenhum dos limites conta.
+O `A` partilhado do Zerops não se usa, e o CNAME que o Zerops
+também propõe não traz nada: com o IPv4 partilhado excluído, aponta para o
+mesmo IPv6, e esse interruptor vale para o projeto todo.
+
+**Access Policy.** O Zerops só a configura na GUI (sem chave no
+`zerops.yml`, sem zcli). A verificação usa o IP de quem liga, por isso
+funciona atrás da Cloudflare. As gamas vêm de
+`https://www.cloudflare.com/ips-v4` e `ips-v6`; quando a
+Cloudflare as mudar, atualizam-se à mão. Para confirmar:
+
+```bash
+# direto à origem, sem Cloudflare: tem de dar 403
+curl -s -o /dev/null -w '%{http_code}\n' --resolve "panoramax.ocarroeletrico.com:443:[$PANO_IPV6]" https://panoramax.ocarroeletrico.com/api/configuration
+# pela Cloudflare: tem de dar 200
+curl -s -o /dev/null -w '%{http_code}\n' https://panoramax.ocarroeletrico.com/api/configuration
+```
+
+**Limite de envio.** O domínio próprio corta os pedidos acima de 512 MB.
+As fotos chegam com 2048 px (menos de 2 MB), por isso o limite não conta.
 
 **Proxies.** O Panoramax monta os URLs absolutos das respostas STAC a
 partir dos `X-Forwarded-*`. O `INFRA_NB_PROXIES` dele aplica a mesma
-contagem aos cinco cabeçalhos, e isso não serve aqui (visto a 2026-11-24 no
-subdomínio, com `INFRA_NB_PROXIES=1`):
+contagem aos cinco cabeçalhos, e isso não serve aqui (visto no subdomínio,
+com `INFRA_NB_PROXIES=1`):
 
 - O balanceador do Zerops define `Host`, `Proto` e `Port`, mas deixa passar
   o `X-Forwarded-Prefix` do cliente. Um pedido com `X-Forwarded-Prefix: /zz`
@@ -337,6 +388,10 @@ Por isso o `INFRA_NB_PROXIES` fica por definir e o gunicorn arranca o
 subdomínio e atrás da Cloudflare. Atrás da Cloudflare o `For` é o IP da
 Cloudflare e não o do cliente; o Panoramax não precisa dele.
 
+Verificado no subdomínio e depois no domínio: com e sem `X-Forwarded-Host`,
+`-Proto`, `-Port` e `-Prefix` forjados, os links saem sempre
+`https://panoramax.ocarroeletrico.com/api/`.
+
 ---
 
 ## 8. Deploy
@@ -348,8 +403,20 @@ guarda credenciais do Zerops.
 > with a GitHub repository** → `CarregaErvilhas/VoltFrame`, trigger
 > **Push to branch: `main`**, setup `pano`.
 
-À mão, em último recurso: `zcli push pano --setup pano` na raiz do repo
-(usa `git archive`: faz commit antes).
+À mão, em último recurso, na raiz do repo (faz commit antes):
+
+```bash
+# IDs fora do repo: zcli project list / zcli service list -P <project-id>
+zcli push -P <project-id> --service-id <id-do-pano> --setup pano
+```
+
+- **Num `git worktree` falha** com `exit status 128` (o `.git` é um
+  ficheiro): acrescentar `--no-git`, que envia a pasta tal como está.
+- **Um deploy à mão fica por cima de `main`.** O próximo push para `main`
+  repõe o que lá estiver, por isso a mudança tem de entrar em `main` logo
+  a seguir.
+- **Não lançar dois deploys seguidos:** no ensaio, um segundo push enviado
+  com o primeiro ainda a correr falhou no mesmo segundo que o primeiro.
 
 ### Atualizar o Panoramax
 
@@ -368,26 +435,52 @@ guarda credenciais do Zerops.
 
 ---
 
-## 9. Ensaio de um dia
+## 9. Ensaio
 
 Os seis pontos do `plan.md`, mais os que saíram ao preparar a
-configuração. Em cada um, o que já sei e como se testa.
+configuração. Feito no subdomínio `zerops.app` e pela VPN, e depois no
+domínio.
 
-| # | Verificar | O que já sei | Como testar |
-| --- | --- | --- | --- |
-| 1 | PostGIS 3.4+ no PostgreSQL gerido | A documentação do Zerops dá `CREATE EXTENSION postgis` como exemplo, com o superuser | O log do `bootstrap_db.py` mostra a versão; falha se for < 3.4 |
-| 2 | R2 como `FS_URL` | O OpenDAL só manda ACL com `acl=` no URL | Enviar uma foto; ver `permanent/` e `derivatives/` no bucket |
-| 3 | Foto isolada com etiquetas, pela API | — | `POST /api/upload_sets` → `/files` → `/complete`, com as etiquetas do `plan.md` |
-| 4 | `owner-only` e passar a `anyone` ao aprovar | Visibilidade por omissão configurável | Ver que a foto não aparece sem token; mudar a visibilidade; ver que aparece |
-| 5 | Crédito por foto (autor ≠ conta de serviço) | — | Etiqueta `pictures\|author=` e o que o visualizador e o STAC mostram |
-| 6 | Consumo de recursos dentro do orçamento | — | Consumo real na GUI ao fim do dia, com ~100 fotos enviadas |
-| 7 | O pip instala o `geovisio` no `ubuntu/python@3.14` | As wheels `cp314` existem; a instalação não foi testada | Log do *prepare* |
-| 8 | `run.base: ubuntu/python@3.14` é aceite | A documentação mostra a forma `ubuntu/nodejs@22`; o CEME usa `alpine/nodejs@24` | O primeiro deploy |
-| 9 | `X-Forwarded-*` (era `INFRA_NB_PROXIES`) | — | `curl …/api/collections` e ver se os `href` saem `https://panoramax.ocarroeletrico.com/…`, primeiro no subdomínio e depois atrás da Cloudflare |
-| 10 | RAM do processamento | — | Enviar 20 fotos seguidas e ver o pico de RAM do `pano` |
+| # | Verificar | Resultado |
+| --- | --- | --- |
+| 1 | PostGIS 3.4+ no PostgreSQL gerido | **Passa.** `bootstrap_db`: PostgreSQL 18, PostGIS 3.6.4 |
+| 2 | R2 como `FS_URL` | **Passa.** Original em `data/permanent/`, tamanhos em `data/derivatives/`; apagar limpa o bucket (secção 5) |
+| 3 | Foto isolada com etiquetas, pela API | **Passa.** Um upload set com `no_split` dá uma coleção com uma foto; as três etiquetas ficam na foto |
+| 4 | `owner-only` e passar a `anyone` ao aprovar | **Passa.** Sem token, 404 na coleção, no item e nas imagens, e o `/api/search` vem vazio. Um `PATCH /api/upload_sets/<id>` com `{"visibility": "anyone"}` passa tudo a 200. A foto em si fica `anyone`: quem esconde é a coleção (vale a mais restritiva) |
+| 5 | Crédito por foto (autor ≠ conta de serviço) | **Não passa.** O STAC mostra sempre `pictures` como produtor; o autor só na etiqueta. Fica a alternativa do `plan.md` (secção 4) |
+| 6 | Consumo de recursos dentro do orçamento | **Por medir.** Ler o consumo na GUI e fazer a conta mensal |
+| 7 | O pip instala o `geovisio` no `ubuntu/python@3.14` | **Passa.** Todas as dependências com hashes, sem compilar nada |
+| 8 | `run.base: ubuntu/python@3.14` é aceite | **Passa.** Python 3.14.6, Ubuntu 24.04 |
+| 9 | `X-Forwarded-*` (era `INFRA_NB_PROXIES`) | **Passa, com o `wsgi.py`** (secção 7, «Proxies»). Com o `INFRA_NB_PROXIES=1` os links saíam com `:80` e aceitavam um prefixo forjado |
+| 10 | RAM do processamento | **Passa.** 20 fotos de telemóvel (~4 MB) num só upload set: média de 0,40 GB usados, pico abaixo de 1 GB. Em repouso, 0,41 de 0,5 GB e 0,06 de 1 CPU |
 
-Comandos úteis no container (`zcli vpn up <project-id>`, depois
-`ssh pano`):
+Também se viu:
+
+- **Duplicados:** um ficheiro cujo MD5 já está na tabela `pictures` é
+  recusado com 409 («The same picture has already been sent in a past
+  upload»), mesmo noutro upload set. Uma foto re-codificada pelo Worker tem
+  outro MD5, por isso só conta para reenvios do mesmo ficheiro.
+- **Erros `yoyo_*` no log do PostgreSQL** a cada arranque
+  (`yoyo_tmp_… does not exist`, `yoyo_lock already exists`): são testes da
+  biblioteca de migrações e são normais.
+
+Os scripts do ensaio usam o token da `pictures` em `PANORAMAX_TOKEN` e
+falam com o `pano` pela VPN. O `DELETE /api/upload_sets/<id>` apaga um envio
+de teste.
+
+```bash
+panoramax/trial_upload.sh foto.jpg [lat lon]   # pontos 2 a 4
+panoramax/trial_batch.sh fotos/*.jpg           # ponto 10 (ficheiros diferentes)
+```
+
+### Acesso ao container
+
+```bash
+zcli vpn up -P <project-id>   # com -P: sem ele, o zcli pode escolher outro projeto
+ssh pano.zerops               # o nome curto `pano` não resolve no `dig`
+```
+
+A API responde pela VPN em `http://pano.zerops:5000`. No container:
 
 ```bash
 cd /var/www
@@ -412,8 +505,9 @@ cd /var/www
 
 ## 11. Questões em aberto
 
-- [ ] ID do projeto Zerops.
-- [ ] Sem OAuth (secção 4)? Se sim, atualizar o `plan.md`.
 - [ ] `API_PICTURES_LICENSE_URL`: hoje aponta para a CC BY-SA 4.0. Quando houver uma página do VoltFrame com a autorização ODbL, passa para lá (como faz o Panoramax da OSM França).
 - [ ] Cópia de segurança das fotos do R2 (outro bucket, outra conta, ou o Commons para as principais).
-- [ ] Os dez pontos do ensaio (secção 9).
+- [ ] Ponto 6 do ensaio: custo mensal (secção 9).
+- [ ] Um MD5 de uma foto apagada continua a bloquear reenvios? O 409 do
+  ensaio foi com um ficheiro que talvez fosse o da primeira foto de teste,
+  já apagada; não ficou confirmado.

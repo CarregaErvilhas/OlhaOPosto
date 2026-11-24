@@ -60,8 +60,9 @@ zerops:
         - /opt/venv/bin/python /var/www/panoramax/bootstrap_db.py
         - env -u PANO_DB_SUPERUSER_URL /opt/venv/bin/panoramax_backend db upgrade
       startCommands:
-        # API (gunicorn). O Zerops corre o comando em bash: os `()` do
-        # factory têm de ir entre aspas, senão é erro de sintaxe.
+        # API (gunicorn). O Zerops corre o comando em bash. `wsgi:app` é o
+        # panoramax/wsgi.py, que decide em que X-Forwarded-* confiar
+        # (Docs/infra.md, «Proxies»).
         # `env -u`: o superuser não chega aos processos.
         - name: api
           user: pano
@@ -69,7 +70,7 @@ zerops:
             env -u PANO_DB_SUPERUSER_URL HOME=/tmp
             /opt/venv/bin/gunicorn
             --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 120
-            --access-logfile - 'geovisio:create_api()'
+            --access-logfile - --pythonpath /var/www/panoramax wsgi:app
         # Processamento das fotos (tamanhos, metadados) e o cron de
         # estatísticas. Separado da API: PICTURE_PROCESS_THREADS_LIMIT=0.
         - name: worker
@@ -115,7 +116,7 @@ zerops:
         # --- Processamento ---
         PICTURE_PROCESS_THREADS_LIMIT: "0"
         PICTURE_PROCESS_DERIVATES_STRATEGY: PREPROCESS
-        # --- Rede: proxies à frente (subdomínio zerops.app: 1; com a
-        # Cloudflare: 2). Ver Docs/infra.md, «Proxies». ---
-        INFRA_NB_PROXIES: "1"
+        # --- Rede: sem INFRA_NB_PROXIES de propósito. Aplicava a mesma
+        # contagem aos cinco X-Forwarded-*; quem confia nos proxies é o
+        # panoramax/wsgi.py (Docs/infra.md, «Proxies»). ---
         API_LOG_LEVEL: info

@@ -30,12 +30,16 @@ for f in "$@"; do
   i=$((i + 1))
   # ~11 m apart along a north-south line in Lisbon, one second apart.
   lat=$(awk -v i="$i" 'BEGIN { printf "%.6f", 38.7369 + i * 0.0001 }')
-  api -X POST "$base/api/upload_sets/$set_id/files" \
+  # One rejected file (409 duplicate, 400 bad JPEG) must not stop the burst:
+  # print the server's message and go on.
+  out=$(api -X POST "$base/api/upload_sets/$set_id/files" \
     -F "file=@$f;type=image/jpeg" \
     -F "override_latitude=$lat" \
     -F "override_longitude=-9.1427" \
     -F "override_capture_time=$(date -u -r $((start + i)) +%Y-%m-%dT%H:%M:%SZ)" \
-    -F "isBlurred=true" | jq -c --arg f "$(basename "$f")" '{file: $f, picture_id, rejected}'
+    -F "isBlurred=true" 2>&1) || true
+  jq -c --arg f "$(basename "$f")" '{file: $f, picture_id, message}' <<<"$out" 2>/dev/null ||
+    echo "$(basename "$f"): $out"
 done
 api -X POST "$base/api/upload_sets/$set_id/complete" >/dev/null
 echo "sent $i files in $(($(date +%s) - start)) s, waiting for the worker"

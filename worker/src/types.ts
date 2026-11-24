@@ -57,3 +57,30 @@ export function compactCode(raw: string): string | null {
 
 // Proposals and rejected stations are not public.
 export const isPublic = (s: { status: string }) => s.status === 'active' || s.status === 'missing_from_nap';
+
+export interface SearchRow {
+  id: string;
+  name: string | null;
+  opc: string | null;
+  operator: string | null;
+  address: string | null;
+  municipality: string | null;
+  region: string | null;
+  lat: number;
+  lon: number;
+  status: string;
+}
+
+// What a person typed, as an FTS5 query: every word must match, each as a
+// prefix ("amad" finds Amadora). The input is split on anything that is not a
+// letter or digit, so quotes, `*`, `:` and FTS operators (NEAR, OR) never reach
+// MATCH as syntax; each word goes in double quotes. One-letter words are
+// dropped (they would match half the table), and the query is capped.
+export const MAX_QUERY = 100;
+const MAX_TERMS = 6;
+
+export function ftsQuery(raw: string): string | null {
+  const terms = raw.normalize('NFC').slice(0, MAX_QUERY).split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length >= 2).slice(0, MAX_TERMS);
+  return terms.length ? terms.map((t) => `"${t}"*`).join(' AND ') : null;
+}

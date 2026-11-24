@@ -1,6 +1,8 @@
 // The one data path for stations and sockets: the JSON API and the HTML pages
 // both read through here, so visibility rules live in one place.
-import { compactCode, isPublic, STATION_ID, type EvseMatch, type PointRow, type StationRow } from './types.ts';
+import {
+  compactCode, ftsQuery, isPublic, STATION_ID, type EvseMatch, type PointRow, type SearchRow, type StationRow,
+} from './types.ts';
 
 export interface Env {
   DB: D1Database;
@@ -52,4 +54,26 @@ export async function listStations(env: Env): Promise<{ id: string; lastmod: str
       ORDER BY s.id`,
   ).all<{ id: string; lastmod: string }>();
   return results;
+}
+
+// Public stations whose code, name, address, town or operator match every
+// word typed, best match first (FTS5 bm25). Reads the index entries that match
+// plus one stations row per result, not the whole table.
+export async function searchStations(env: Env, raw: string, limit: number): Promise<SearchRow[]> {
+  const match = ftsQuery(raw);
+  if (!match) return [];
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT s.id, s.name, s.opc, s.operator, s.address, s.municipality, s.region, s.lat, s.lon, s.status
+         FROM stations_fts f JOIN stations s ON s.rowid = f.rowid
+        WHERE stations_fts MATCH ?1 AND s.status IN ('active', 'missing_from_nap')
+        ORDER BY f.rank
+        LIMIT ?2`,
+    ).bind(match, limit).all<SearchRow>();
+    return results;
+  } catch {
+    // ftsQuery leaves no syntax for MATCH to choke on, but a search must never
+    // turn into a 500: no results is the honest answer.
+    return [];
+  }
 }

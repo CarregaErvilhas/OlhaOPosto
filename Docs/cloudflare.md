@@ -86,8 +86,10 @@ desligados). Por agora tem:
 | `GET /api/v1/evses/{evse}` | Tomada pelo código EVSE, com ou sem os `*` (`PT*EZC*E*AMD*00051*1` ou `PTEZCEAMD000511`), e o posto a que pertence. `300` com a lista `candidates` se o código estiver em mais de um posto |
 | `GET /postos/{id}` | Página do posto: tomadas com o código EVSE, links estáticos de cada tamanho para copiar, ligação ao OSM. `404` em HTML como na API |
 | `GET /tomadas/{evse}` | `302` para `/postos/{id}#t-{evse}`, com a tomada marcada; uma página com a lista se o código estiver em mais de um posto. `302` e não `301`, porque um código pode mudar de posto |
-| `GET /` | Página inicial provisória |
-| `GET /en/`, `/en/stations/{id}`, `/en/sockets/{evse}` | As mesmas páginas em inglês. `/en/sockets/{evse}` faz `302` para `/en/stations/{id}#t-{evse}` |
+| `GET /api/v1/stations?q=&limit=` | Pesquisa por texto em `stations_fts` (FTS5): cada palavra tem de aparecer, como prefixo, no código, nome, morada, localidade ou operador; sem acentos (`acores` encontra `Açores`). Postos públicos, os melhores primeiro, `limit` até 50 (20 por omissão). `400` sem uma palavra de pelo menos dois caracteres |
+| `GET /pesquisa?q=` | A mesma pesquisa em HTML, 20 resultados, `noindex` e fora do *sitemap*. Um código de posto ou de tomada escrito por inteiro faz `302` para a página dele |
+| `GET /` | Página inicial com a caixa de pesquisa |
+| `GET /en/`, `/en/stations/{id}`, `/en/sockets/{evse}`, `/en/search` | As mesmas páginas em inglês. `/en/sockets/{evse}` faz `302` para `/en/stations/{id}#t-{evse}` |
 | `GET /sitemap.xml` | Página inicial e todos os postos públicos, nas duas línguas, com `lastmod` (a última alteração do posto ou de uma tomada). Fica um dia na Cache API: cada geração lê os postos e as tomadas (cerca de 28 mil linhas), uma vez por dia e por centro de dados |
 | `GET /robots.txt`, `/llms.txt` | Ficheiros estáticos em `worker/public/`. O `robots.txt` deixa entrar todos os robôs, incluindo os de IA, e aponta para o *sitemap*. O `llms.txt` descreve as páginas, a API, os links estáticos e as licenças |
 
@@ -163,6 +165,14 @@ Uma migração nova aplica-se **antes** do deploy que a usa, a partir do
 tabela (cerca de 20 mil em `evses`), e isso conta para o limite diário da
 D1 Free (100 mil linhas escritas): não juntar no mesmo dia com um import que
 reescreva tudo.
+
+**A D1 tem uma tabela virtual** (`stations_fts`, FTS5, migração `0003`).
+Um `wrangler d1 export` normal falha por causa dela; com
+`--compatibility sqlite3_cli_only` funciona, mas esse ficheiro só serve para
+o SQLite e não volta a entrar na D1. Para uma cópia que volte a entrar:
+apagar a `stations_fts` e os *triggers*, exportar, e correr a `0003` outra
+vez. Se a tabela alguma vez se estragar, `INSERT INTO stations_fts
+(stations_fts) VALUES ('rebuild')` refaz o índice a partir de `stations`.
 
 ## 5. Importação dos postos
 

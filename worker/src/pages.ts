@@ -4,7 +4,7 @@
 // operators): it only reaches the markup through esc(). That text is
 // Portuguese whatever the page language, and English pages mark it as such
 // (lang="pt-PT") so screen readers read it with the right voice.
-import type { EvseMatch, PointRow, StationRow } from './types.ts';
+import { MAX_QUERY, type EvseMatch, type PointRow, type SearchRow, type StationRow } from './types.ts';
 
 export const SITE = 'https://voltframe.ocarroeletrico.com';
 export const PICTURES = 'https://pictures.ocarroeletrico.com';
@@ -21,6 +21,7 @@ export const stationPath = (lang: Lang, id: string) =>
   `${lang === 'pt' ? '/postos/' : '/en/stations/'}${encodeURIComponent(id)}`;
 export const socketPath = (lang: Lang, evse: string) =>
   `${lang === 'pt' ? '/tomadas/' : '/en/sockets/'}${encodeURIComponent(evse)}`;
+export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/search');
 export const socketAnchor = (compact: string) => `#t-${encodeURIComponent(compact)}`;
 
 export function esc(v: unknown): string {
@@ -86,11 +87,23 @@ const T = {
     homeTitle: 'pIcŧU/Re · fotos dos postos de carregamento',
     homeDesc: 'Fotos comunitárias de postos e tomadas de carregamento em Portugal, com links estáticos pelo código do posto ou da tomada.',
     homeH1: 'Fotos dos postos de carregamento',
-    homeText: 'Fotos comunitárias de postos e tomadas em Portugal, com um link estático por posto e por tomada. Ainda em construção: a pesquisa e o envio de fotos vêm a seguir.',
+    homeText: 'Fotos comunitárias de postos e tomadas em Portugal, com um link estático por posto e por tomada. Ainda em construção: o envio de fotos vem a seguir.',
     homeExample: 'Exemplo:',
     homeExampleLink: 'posto EZC-AMD-00051',
     homeApi: 'API:',
     and: 'e',
+    searchLabel: 'Procurar um posto',
+    searchHint: 'Código do posto ou da tomada, localidade, morada ou operador.',
+    searchButton: 'Procurar',
+    searchH1: 'Pesquisar postos',
+    searchTitle: (q: string) => `Pesquisa: ${q}`,
+    searchDesc: 'Pesquisa de postos de carregamento em Portugal por código, localidade, morada ou operador.',
+    results: (n: number, q: string) => (n === 1 ? `1 posto para «${q}»` : `${n} postos para «${q}»`),
+    resultsTop: (n: number, q: string) => `Primeiros ${n} postos para «${q}»`,
+    resultsCapped: () => `Há mais resultados. Acrescenta palavras para afinar.`,
+    noResults: (q: string) => `Nenhum posto encontrado para «${q}».`,
+    noResultsTip: 'Experimenta o código do posto (EZC-AMD-00051), a localidade ou o operador.',
+    tooShort: 'Escreve pelo menos duas letras ou dois números.',
   },
   en: {
     other: 'Português',
@@ -145,11 +158,23 @@ const T = {
     homeTitle: 'pIcŧU/Re · photos of charging stations',
     homeDesc: 'Community photos of EV charging stations and sockets in Portugal, with static links by station or socket code.',
     homeH1: 'Photos of charging stations',
-    homeText: 'Community photos of charging stations and sockets in Portugal, with one static link per station and per socket. Still being built: search and photo uploads come next.',
+    homeText: 'Community photos of charging stations and sockets in Portugal, with one static link per station and per socket. Still being built: photo uploads come next.',
     homeExample: 'Example:',
     homeExampleLink: 'station EZC-AMD-00051',
     homeApi: 'API:',
     and: 'and',
+    searchLabel: 'Find a station',
+    searchHint: 'Station or socket code, town, address or operator.',
+    searchButton: 'Search',
+    searchH1: 'Search stations',
+    searchTitle: (q: string) => `Search: ${q}`,
+    searchDesc: 'Search EV charging stations in Portugal by code, town, address or operator.',
+    results: (n: number, q: string) => (n === 1 ? `1 station for “${q}”` : `${n} stations for “${q}”`),
+    resultsTop: (n: number, q: string) => `First ${n} stations for “${q}”`,
+    resultsCapped: () => `There are more results. Add words to narrow it down.`,
+    noResults: (q: string) => `No stations found for “${q}”.`,
+    noResultsTip: 'Try the station code (EZC-AMD-00051), the town or the operator.',
+    tooShort: 'Type at least two letters or numbers.',
   },
 } satisfies Record<Lang, unknown>;
 
@@ -204,6 +229,8 @@ interface Layout {
   path?: string;
   // The same page in each language, for hreflang and the language link.
   alternates?: Record<Lang, string>;
+  // Where the language link goes when it is not an alternate (a search keeps its words).
+  switchTo?: Record<Lang, string>;
   noindex?: boolean;
   body: string;
   script?: boolean;
@@ -212,7 +239,7 @@ interface Layout {
 export function layout(p: Layout): string {
   const t = T[p.lang];
   const other: Lang = p.lang === 'pt' ? 'en' : 'pt';
-  const otherHref = p.alternates?.[other] ?? homePath(other);
+  const otherHref = p.switchTo?.[other] ?? p.alternates?.[other] ?? homePath(other);
   const head: string[] = [];
   if (p.noindex) head.push('<meta name="robots" content="noindex">');
   if (p.path) head.push(`<link rel="canonical" href="${esc(SITE + p.path)}">`);
@@ -421,6 +448,20 @@ export function notFoundPage(lang: Lang, what: string): string {
   });
 }
 
+// The search box: a plain GET form, so it works without JavaScript.
+function searchForm(lang: Lang, q = ''): string {
+  const t = T[lang];
+  return `<form class="search" action="${searchPath(lang)}" method="get" role="search">
+  <label for="q">${t.searchLabel}</label>
+  <div class="search-row">
+    <input id="q" name="q" type="search" value="${esc(q)}" required minlength="2" maxlength="${MAX_QUERY}"
+      autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-describedby="q-hint">
+    <button type="submit">${t.searchButton}</button>
+  </div>
+  <p id="q-hint" class="hint">${t.searchHint}</p>
+</form>`;
+}
+
 export function homePage(lang: Lang): string {
   const t = T[lang];
   return layout({
@@ -432,8 +473,51 @@ export function homePage(lang: Lang): string {
     body: `<div class="page-msg">
 <h1>${t.homeH1}</h1>
 <p>${t.homeText}</p>
+${searchForm(lang)}
 <p>${t.homeExample} <a href="${stationPath(lang, 'EZC-AMD-00051')}">${t.homeExampleLink}</a>.</p>
-<p>${t.homeApi} <code>/api/v1/stations/{id}</code> ${t.and} <code>/api/v1/evses/{evse}</code>.</p>
+<p>${t.homeApi} <code>/api/v1/stations?q=</code>, <code>/api/v1/stations/{id}</code> ${t.and} <code>/api/v1/evses/{evse}</code>.</p>
+</div>`,
+  });
+}
+
+function resultItem(lang: Lang, r: SearchRow): string {
+  const t = T[lang];
+  const place = [r.address, r.municipality].filter(Boolean).join(', ');
+  const line = [r.name, place].filter(Boolean).join(' · ');
+  return `<li class="result">
+    <a class="mono" href="${stationPath(lang, r.id)}">${esc(r.id)}</a>
+    ${line ? `<div>${nap(lang, line)}</div>` : ''}
+    <div class="meta">${r.operator ? nap(lang, r.operator) : t.unknownOperator}${r.status === 'missing_from_nap' ? ` · ${t.outNap}` : ''}</div>
+  </li>`;
+}
+
+// q is what the person typed (already trimmed); results is null when q had no
+// searchable word. Not indexed: a search page is a list of links to the real ones.
+export function searchPage(lang: Lang, q: string, results: SearchRow[] | null, limit: number): string {
+  const t = T[lang];
+  const query = (l: Lang) => (q ? `${searchPath(l)}?q=${encodeURIComponent(q)}` : searchPath(l));
+  let body: string;
+  if (results === null) {
+    body = q ? `<p>${t.tooShort}</p>` : '';
+  } else if (results.length === 0) {
+    body = `<p>${t.noResults(esc(q))}</p>\n<p>${t.noResultsTip}</p>`;
+  } else {
+    const capped = results.length >= limit;
+    body = `<p>${capped ? t.resultsTop(limit, esc(q)) : t.results(results.length, esc(q))}</p>
+<ul class="results" role="list">
+  ${results.map((r) => resultItem(lang, r)).join('\n  ')}
+</ul>${capped ? `\n<p class="hint">${t.resultsCapped()}</p>` : ''}`;
+  }
+  return layout({
+    lang,
+    title: `${q ? t.searchTitle(q) : t.searchH1} · pIcŧU/Re`,
+    description: t.searchDesc,
+    noindex: true,
+    switchTo: { pt: query('pt'), en: query('en') },
+    body: `<div class="page-msg">
+<h1>${t.searchH1}</h1>
+${searchForm(lang, q)}
+${body}
 </div>`,
   });
 }

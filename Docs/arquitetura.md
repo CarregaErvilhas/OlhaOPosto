@@ -133,6 +133,7 @@ link de tomada.
 | --- | --- | --- |
 | `stations` | `id` (PK, ex. `EZC-AMD-00051`), `code`, `opc`, `operator`, `name`, `address`, `municipality`, `region`, `lat`, `lon`, `source` (`nap`, `community`), `status` (`active`, `missing_from_nap`, `pending_review`, `rejected`), `osm_ref`, `updated_at` | `community` = proposto por utilizador (ainda não há envios) |
 | `evses` | `station_id` (FK) + `point_id` (PK), `evse_id` (forma original com `*`), `evse_compact` (sem `*`, índice simples), `connector`, `max_kw`, `dc`, `status` | Uma linha por ponto/tomada. O `point_id` do MOBI.Data repete-se entre postos |
+| `stations_fts` | Índice FTS5 de `id`, `code`, `name`, `address`, `municipality`, `operator`, `opc` | Para a pesquisa. Só o índice: o texto fica em `stations`, e três *triggers* mantêm-no a par, por isso o import não muda |
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
 
 As tabelas das fotos, dos utilizadores e da moderação estão em [`plan.md`](plan.md), *Modelo de dados*.
@@ -141,8 +142,10 @@ As tabelas das fotos, dos utilizadores e da moderação estão em [`plan.md`](pl
 
 O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês
 (`/en/stations/{id}`), a procura de uma tomada pelo código EVSE
-(`/tomadas/{evse}`, `/en/sockets/{evse}`), a API só de leitura
-(`/api/v1/stations/{id}`, `/api/v1/evses/{evse}`), o `sitemap.xml`, o
+(`/tomadas/{evse}`, `/en/sockets/{evse}`), a pesquisa de postos (`/pesquisa`,
+`/en/search`, também no formulário da página inicial), a API só de leitura
+(`/api/v1/stations?q=`, `/api/v1/stations/{id}`, `/api/v1/evses/{evse}`), o
+`sitemap.xml`, o
 `robots.txt` e o `llms.txt`. Rotas, cabeçalhos, acessibilidade e cache em
 [`cloudflare.md`](cloudflare.md), secção 4.
 

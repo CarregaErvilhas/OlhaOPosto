@@ -12,7 +12,8 @@ O link nunca muda. Muda só a foto para onde aponta.
 
 > **Estado:** o servidor Panoramax está em produção em
 > `panoramax.ocarroeletrico.com`, ainda fora da federação. Existem o plano
-> técnico e os mockups; o site (o Worker do VoltFrame) ainda não tem código.
+> técnico e os mockups. O Worker do VoltFrame (`worker/`) já tem a API de
+> postos só de leitura e o import diário dos postos, ainda por publicar.
 
 ## Como funciona
 
@@ -49,6 +50,7 @@ Detalhe completo em [`Docs/plan.md`](Docs/plan.md).
 | [`Docs/infra.md`](Docs/infra.md) | Infraestrutura do servidor Panoramax: serviços, segredos, R2, DNS, deploy, ensaio |
 | [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do VoltFrame: buckets R2 `pictures`, cache, CORS, Worker |
 | `zerops.yml`, `zerops-import.yaml` | Configuração dos serviços `pano` (Panoramax) e `db` no Zerops |
+| `worker/` | Worker do VoltFrame (TypeScript + D1): API, migrações e import diário dos postos |
 | `panoramax/` | Versão do Panoramax, ponto de entrada do gunicorn, scripts de preparação da BD e da conta de serviço, e scripts de envio de teste |
 | `Design/` | Mockups das páginas e do fluxo VoltFrame ↔ Panoramax |
 

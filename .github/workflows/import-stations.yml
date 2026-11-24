@@ -1,0 +1,56 @@
+# Daily import of stations and charge points into D1 (Docs/cloudflare.md,
+# "Importação dos postos"). It runs here and not in the Worker: parsing the
+# ~12 MB feed does not fit the 10 ms CPU limit of a Free-plan Cron Trigger.
+#
+# The NAP dashboard publishes the feed around 03:00 and 15:00 UTC. GitHub cron
+# is best effort, so this runs well after the early publish.
+
+name: Import stations
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rerun even if the feed's generatedAt has not changed"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: import-stations
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - run: npm ci --no-fund --no-audit
+
+      - name: Import
+        env:
+          # API token with D1 Edit on the account; both are repository secrets.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$FORCE" = "true" ]; then set -- --force; fi
+          node scripts/import-stations.ts --remote "$@"

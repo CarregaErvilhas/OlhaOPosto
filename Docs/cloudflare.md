@@ -177,6 +177,17 @@ o SQLite e não volta a entrar na D1. Para uma cópia que volte a entrar:
 apagar a `stations_fts` e os *triggers*, exportar, e correr a `0003` outra
 vez. Se a tabela alguma vez se estragar, `INSERT INTO stations_fts
 (stations_fts) VALUES ('rebuild')` refaz o índice a partir de `stations`.
+Para confirmar que o índice bate com a tabela: `INSERT INTO stations_fts
+(stations_fts, rank) VALUES ('integrity-check', 1)` dá erro se não bater.
+
+**Custo da pesquisa, medido na D1 de produção:** uma palavra comum
+(`edp`, com mais de 1600 postos) lê cerca de 40 linhas para os 20
+primeiros resultados; um código de posto completo lê 2. Um `LIKE` leria os
+cerca de 9 mil postos em cada pesquisa. Do lado das escritas, os *triggers*
+somam ao import duas linhas por posto alterado (a entrada antiga do índice
+sai, a nova entra) e uma por posto novo; um import que reescreva todos os
+postos escreve perto de 27 mil linhas só nos postos (mais as cerca de 20
+mil das tomadas), ainda dentro do limite diário.
 
 ## 5. Importação dos postos
 

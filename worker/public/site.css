@@ -74,8 +74,10 @@
   --display: "Space Grotesk", var(--sans);
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+/* Dark: the OS setting, unless the theme picker chose light; or the picker chose dark.
+   The two blocks hold the same values: change both. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0F1513;
     --surface: #161E1B;
     --line: #26302C;
@@ -96,9 +98,32 @@
     --warn-soft: #2E2613;
   }
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0F1513;
+  --surface: #161E1B;
+  --line: #26302C;
+  --line-strong: #36433D;
+  --control: #64726B;
+  --text: #E6ECE9;
+  --text-2: #C2CCC7;
+  --muted: #97A49E;
+  --accent: #5CC9AC;
+  --accent-strong: #86DCC4;
+  --on-accent: #0F1513;
+  --accent-soft: #15382F;
+  --chip: #222C28;
+  --code: #1B2421;
+  --empty: #1C2522;
+  --dashed: #4A5852;
+  --warn: #F2C46B;
+  --warn-soft: #2E2613;
+}
+:root[data-theme="light"] { color-scheme: light; }
 /* Users who ask for more contrast get the soft lines and grey text pushed up. */
 @media (prefers-contrast: more) {
-  :root { --line: var(--control); --line-strong: var(--control); --dashed: var(--control); --muted: var(--text-2); }
+  /* :root:root weighs as much as the dark blocks above and comes later, so it wins. */
+  :root:root { --line: var(--control); --line-strong: var(--control); --dashed: var(--control); --muted: var(--text-2); }
 }
 
 /* Font sizes in rem and no size on html: the browser's and the OS's text size win. */
@@ -129,12 +154,18 @@ code, .mono { font-family: var(--mono); font-size: 0.8125rem; }
 /* Header and footer */
 .site-header { background: var(--surface); border-bottom: 1px solid var(--line); }
 .site-header .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+.brand { margin-right: auto; display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
 .brand:hover { color: var(--text); }
 .brand img { width: 34px; height: 34px; }
 .brand-name { font-family: var(--display); font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em; }
 .brand-sub { font-size: 0.8125rem; color: var(--muted); border-left: 1px solid var(--line-strong); padding-left: 10px; }
-.lang-switch { margin-left: auto; font-size: 0.875rem; padding: 10px 4px; }
+.lang-switch { font-size: 0.875rem; padding: 10px 4px; }
+/* Shown by theme.js: without JavaScript the picker could not do anything. */
+.theme:not([hidden]) { display: flex; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--muted); }
+.theme select {
+  font: inherit; color: var(--text); background: var(--surface); min-height: 44px; padding: 6px 8px;
+  border: 1px solid var(--control); border-radius: 8px; cursor: pointer;
+}
 main { flex: 1 0 auto; padding: 24px 0 64px; }
 .site-footer { border-top: 1px solid var(--line); background: var(--surface); font-size: 0.875rem; color: var(--muted); }
 .site-footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; padding-top: 20px; padding-bottom: 20px; }
@@ -243,6 +274,11 @@ a.button { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 37.5em) {
   .wrap { padding: 0 16px; }
   .brand-sub { display: none; }
+  /* Room for the picker and the language link on one line; screen readers still get the label. */
+  .theme label {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
   /* While there are no photos, the empty box should not push the links off screen. */
   .empty-photo { aspect-ratio: 16 / 9; }
 }

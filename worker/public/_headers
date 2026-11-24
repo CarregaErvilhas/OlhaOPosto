@@ -7,6 +7,8 @@
   Cache-Control: public, no-cache
 /site.js
   Cache-Control: public, no-cache
+/theme.js
+  Cache-Control: public, no-cache
 # Both are UTF-8 (llms.txt has the ŧ of the brand); say so, or a browser may guess.
 /robots.txt
   Cache-Control: public, max-age=86400

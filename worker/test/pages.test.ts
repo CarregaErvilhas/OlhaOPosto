@@ -27,8 +27,8 @@ test('third-party text never reaches the page unescaped', () => {
   ]);
   assert.ok(!page.includes('<script>alert'));
   assert.ok(page.includes('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;&#39;&amp;'));
-  // The only script tag is ours.
-  assert.equal(page.match(/<script/g)?.length, 1);
+  // The only script tags are ours.
+  assert.deepEqual(page.match(/<script[^>]*>/g), ['<script src="/theme.js">', '<script src="/site.js" defer>']);
 });
 
 test('station page: static links, socket anchors, pt-PT power', () => {
@@ -139,4 +139,13 @@ test('home page has a search form with a visible label', () => {
   const home = homePage('pt');
   assert.ok(home.includes('<form class="search" action="/pesquisa" method="get" role="search">'));
   assert.ok(home.includes('<label for="q">Procurar um posto</label>'));
+});
+
+test('every page has the theme picker, hidden until theme.js shows it', () => {
+  for (const [page, label] of [[homePage('pt'), 'Tema'], [notFoundPage('en', 'x'), 'Theme']] as const) {
+    assert.ok(page.includes('<script src="/theme.js"></script>'));
+    assert.ok(page.includes('<div class="theme" hidden>'));
+    assert.ok(page.includes(`<label for="theme">${label}</label>`));
+    assert.ok(page.includes('<option value="auto">') && page.includes('<option value="dark">'));
+  }
 });

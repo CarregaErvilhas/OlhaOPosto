@@ -1,4 +1,4 @@
-"""Create the VoltFrame service account on Panoramax and print a new token.
+"""Create the VoltFrame service account on Panoramax and rotate its token.
 
 The account (`pictures` by default) has the `user` role, not `admin`: it can
 upload and change the visibility of its own pictures, and nothing else. The
@@ -7,12 +7,18 @@ only; its token is never handed to the Worker.
 
 Run inside the `pano` container (ssh pano), from /var/www:
 
-    /home/zerops/venv/bin/python panoramax/service_account.py [name] [description]
+    /opt/venv/bin/python panoramax/service_account.py [name] [description]
 
-Each run creates a NEW token for the account (the old ones keep working until
-revoked). Revoke a token by deleting its row:
+Each run deletes ALL tokens of the account and creates one new token. Any
+token of an account can list its siblings (GET /api/users/me/tokens) and
+fetch their JWTs (GET /api/users/me/tokens/<id>), so revoking one row is not
+enough: a leaked token must take the whole account's tokens with it. This
+also removes the 'default token' that Panoramax's generate_default_token_trg
+trigger adds to every new account. The JWTs carry no expiry.
 
-    DELETE FROM tokens WHERE id = '<token id printed below>';
+To revoke without minting a new token:
+
+    DELETE FROM tokens WHERE account_id = (SELECT id FROM accounts WHERE name = 'pictures');
 
 The JWT is printed to stdout and nothing else is: pipe it straight into
 `wrangler secret put` instead of copying it from the terminal when possible.
@@ -49,6 +55,9 @@ def main() -> int:
                 "INSERT INTO accounts (name, role) VALUES (%s, 'user') RETURNING id, role, is_default", [name]
             ).fetchone()
             print(f"service_account: created account {name!r} ({account['id']})", file=sys.stderr)
+
+        deleted = cur.execute("DELETE FROM tokens WHERE account_id = %s", [account["id"]]).rowcount
+        print(f"service_account: revoked {deleted} old token(s) of {name!r}", file=sys.stderr)
 
         token = cur.execute(
             "INSERT INTO tokens (account_id, description) VALUES (%s, %s) RETURNING id",

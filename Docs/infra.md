@@ -21,9 +21,10 @@ Ficheiros:
 | --- | --- |
 | `zerops-import.yaml` | Cria os serviços `db` e `pano` no projeto |
 | `zerops.yml` | Build e runtime do `pano` (setup `pano`) |
-| `panoramax/requirements.txt` | Versão do Panoramax (`geovisio==2.17.0`, do PyPI) |
+| `panoramax/requirements.in` | Versão do Panoramax (`geovisio==2.17.0`, do PyPI) |
+| `panoramax/requirements.txt` | Lock gerado do `.in`: todas as dependências, com hashes |
 | `panoramax/bootstrap_db.py` | Extensões, permissões e fuso da BD, com o superuser |
-| `panoramax/service_account.py` | Cria a conta de serviço `pictures` (não admin) e um token |
+| `panoramax/service_account.py` | Cria a conta de serviço `pictures` (não admin) e roda o token |
 
 ---
 
@@ -68,9 +69,7 @@ Ficheiros:
   autoscaling e atualizações *minor* são do Zerops. É a versão mais recente
   que o Zerops oferece. A 19 saiu a 2026-11-19 e ainda não está disponível.
   Passar para a 19 mais tarde obriga a recriar o serviço `db` e restaurar
-  um dump (como no CEME). O PostGIS vem com o serviço; o contentor
-  `postgis/postgis` do `plan.md` era só a alternativa se o gerido falhasse
-  no ensaio.
+  um dump. O PostGIS vem com o serviço.
 
 As imagens não estão no Zerops: vão para o bucket R2 `panoramax`
 (originais em `permanent/`, tamanhos em `derivatives/`, envios a meio em
@@ -99,13 +98,19 @@ limite.
 (fica em `/var/www/panoramax`) e passa o `requirements.txt` para o
 *prepare* do runtime.
 
-**Prepare (fica em cache).** Cria um venv em `/home/zerops/venv`, instala o
+**Prepare (fica em cache).** Cria um venv em `/opt/venv`, instala o
 `geovisio` do PyPI e cria o utilizador `pano`, sem sudo, sem shell e sem
 casa. Só volta a correr quando o `requirements.txt` ou os
 `prepareCommands` mudam.
 
 - **venv:** o pip do sistema no Ubuntu 24.04 recusa instalar fora de um
-  venv (PEP 668).
+  venv (PEP 668). Fica em `/opt/venv` e não na casa do `zerops`: o Ubuntu
+  cria as casas com `0750`, e o `pano` não conseguiria chegar ao venv.
+- **Lock:** o `requirements.txt` é gerado do `requirements.in` com o `uv`
+  (`uv pip compile`, comando no topo do ficheiro), para Linux x86_64 e
+  Python 3.14, com hashes de todas as dependências. O pip instala com
+  `--require-hashes`: um pacote trocado no PyPI faz falhar o prepare.
+  Gerar no Mac sem `--python-platform` dá markers e pacotes errados.
 
 **Init (cada vez que um container arranca, antes dos processos):**
 
@@ -119,10 +124,15 @@ casa. Só volta a correr quando o `requirements.txt` ou os
 2. `panoramax_backend db upgrade`, com a role da app: aplica as migrações
    que faltarem.
 
-Se algum falhar, o *readiness check* chumba e a versão anterior continua a
-servir. Atenção: no rolling deploy, as migrações correm enquanto o container
-antigo ainda serve. Uma versão nova do Panoramax com migrações
-incompatíveis pode dar erros durante esse minuto (secção 8).
+Se o `bootstrap_db.py` ou o `db upgrade` falhar antes de fazer commit, o
+*readiness check* chumba e a versão anterior continua a servir. **Mas uma
+migração que já fez commit não se desfaz:** se a API nova falhar depois
+(variável errada, wheel em falta, timeout de 240 s), o Zerops mantém a
+versão anterior a servir sobre um schema que ela não conhece. E mesmo num
+deploy que corre bem, as migrações correm enquanto o container antigo ainda
+serve, por isso uma migração que mude ou apague colunas parte a versão
+antiga durante esse minuto. Em subidas do Panoramax com migrações, ver a
+secção 8.
 
 **Processos (`startCommands`, como `pano`, sem a variável do superuser):**
 
@@ -185,25 +195,40 @@ Há duas contas:
 
 A `pictures` não é admin de propósito. Pode enviar fotos e mudar a
 visibilidade das suas, que é tudo o que o VoltFrame faz. Se o token vazar,
-quem o tiver não consegue apagar fotos de outras contas, mudar papéis nem
-tratar denúncias como admin.
+quem o tiver não consegue mudar papéis nem tratar denúncias como admin.
+**Mas isso não protege as fotos:** são todas da `pictures`, por isso quem
+tiver o token pode apagá-las, escondê-las ou torná-las públicas sem
+moderação. Uma fuga do token apanha as fotos todas.
 
 O Panoramax não tem comando para criar uma conta sem login, por isso o
 `panoramax/service_account.py` faz o mesmo que a rota de tokens: cria a
-conta com papel `user` (se não existir), acrescenta uma linha a `tokens` e
-assina o JWT com a função do próprio Panoramax. Recusa correr sobre a conta
-por omissão ou sobre um admin.
+conta com papel `user` (se não existir), apaga **todos** os tokens da conta,
+acrescenta uma linha nova a `tokens` e assina o JWT com a função do próprio
+Panoramax. Recusa correr sobre a conta por omissão ou sobre um admin.
+
+Porquê apagar todos: qualquer token de uma conta lista os outros
+(`GET /api/users/me/tokens`) e tira-lhes o JWT
+(`GET /api/users/me/tokens/<id>`). Quem tiver um token tem todos. Além
+disso, o trigger `generate_default_token_trg` do Panoramax cria um
+`default token` em cada conta nova, que nunca é mostrado. Cada execução do
+script é por isso uma rotação: o token antigo do Worker deixa de funcionar
+assim que a transação termina, e o novo vai direto para o `wrangler secret put`.
 
 ```bash
 # no container (zcli vpn up <project-id>; ssh pano)
 cd /var/www
-/home/zerops/venv/bin/python panoramax/service_account.py | npx wrangler secret put PANORAMAX_TOKEN
+/opt/venv/bin/python panoramax/service_account.py | npx wrangler secret put PANORAMAX_TOKEN
 ```
 
-O JWT não expira. Para o **revogar**, apaga-se a linha do token
-(`DELETE FROM tokens WHERE id = '…'`; o id sai no stderr do script): a API
-passa a responder 403. Trocar o `FLASK_SECRET_KEY` invalida todos os tokens
-de uma vez.
+O JWT não expira. Para o **revogar** sem criar outro, apagam-se todos os
+tokens da conta, nunca só uma linha:
+
+```sql
+DELETE FROM tokens WHERE account_id = (SELECT id FROM accounts WHERE name = 'pictures');
+```
+
+Para revogar e emitir um novo, basta voltar a correr o script. Trocar o
+`FLASK_SECRET_KEY` invalida todos os tokens do servidor de uma vez.
 
 O crédito por foto continua a ser o ponto 5 do ensaio: as fotos ficam todas
 em nome de `pictures`, e o autor vai na etiqueta `pictures|author=`.
@@ -312,11 +337,15 @@ guarda credenciais do Zerops.
 1. Ler o [changelog](https://gitlab.com/panoramax/server/api/-/blob/develop/CHANGELOG.md)
    entre as versões, à procura de migrações e variáveis novas ou retiradas
    (o `config_app.py` recusa arrancar com algumas antigas).
-2. Mudar `geovisio==` no `requirements.txt`. O Dependabot abre o PR
+2. Mudar `geovisio==` no `requirements.in`. O Dependabot abre o PR
    (ecossistema `pip`, pasta `/panoramax`).
-3. Se houver migrações pesadas, fazer o deploy com
-   `deploy.temporaryShutdown: true`: alguns segundos sem serviço em vez de
-   um container antigo a falar com um schema novo.
+   Depois de mudar o `requirements.in`, regenerar o lock
+   (`requirements.txt`, secção 3) e fazer commit dos dois.
+3. Se a versão nova trouxer migrações: fazer um backup da `db` antes, e
+   fazer o deploy com `deploy.temporaryShutdown: true` (alguns segundos sem
+   serviço em vez de um container antigo a falar com um schema novo). O
+   rolling deploy não reverte uma migração com commit (secção 3); voltar
+   atrás é restaurar o backup.
 
 ---
 
@@ -343,8 +372,8 @@ Comandos úteis no container (`zcli vpn up <project-id>`, depois
 
 ```bash
 cd /var/www
-/home/zerops/venv/bin/python panoramax/service_account.py           # conta `pictures` + token (secção 4)
-/home/zerops/venv/bin/panoramax_backend db upgrade                  # migrações à mão
+/opt/venv/bin/python panoramax/service_account.py   # conta `pictures` + rotação do token (secção 4)
+/opt/venv/bin/panoramax_backend db upgrade          # migrações à mão
 ```
 
 ---
@@ -366,9 +395,6 @@ cd /var/www
 
 - [ ] ID do projeto Zerops.
 - [ ] Sem OAuth (secção 4)? Se sim, atualizar o `plan.md`.
-- [ ] `API_PICTURES_LICENSE_URL`: hoje aponta para a CC BY-SA 4.0. Quando
-  houver uma página do VoltFrame com a autorização ODbL, passa para lá (como
-  faz o Panoramax da OSM França).
-- [ ] Cópia de segurança das fotos do R2 (outro bucket, outra conta, ou o
-  Commons para as principais).
+- [ ] `API_PICTURES_LICENSE_URL`: hoje aponta para a CC BY-SA 4.0. Quando houver uma página do VoltFrame com a autorização ODbL, passa para lá (como faz o Panoramax da OSM França).
+- [ ] Cópia de segurança das fotos do R2 (outro bucket, outra conta, ou o Commons para as principais).
 - [ ] Os dez pontos do ensaio (secção 9).

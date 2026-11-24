@@ -40,18 +40,25 @@ zerops:
       base: ubuntu/python@3.14
       prepareCommands:
         # venv: o pip do sistema no Ubuntu 24.04 recusa instalar fora de um
-        # venv (PEP 668).
-        - python3 -m venv /home/zerops/venv
-        - /home/zerops/venv/bin/pip install --no-cache-dir -r /home/zerops/panoramax/requirements.txt
+        # venv (PEP 668). Em /opt e não em /home/zerops: o `pano` tem de o
+        # atravessar, e o Ubuntu cria as casas com 0750.
+        - sudo install -d -o zerops -g zerops -m 0755 /opt/venv
+        - python3 -m venv /opt/venv
+        # requirements.txt é o lock com hashes (gerado do requirements.in):
+        # nenhuma dependência entra sem hash conhecido.
+        - /opt/venv/bin/pip install --no-cache-dir --require-hashes -r /home/zerops/panoramax/requirements.txt
         # Utilizador sem sudo, sem shell e sem casa para os processos. O
         # `zerops` tem sudo.
         - sudo useradd --system --no-create-home --shell /usr/sbin/nologin pano
       # Antes de qualquer processo arrancar (API e worker): extensões e
       # permissões com o superuser, depois as migrações com o dono da BD.
-      # Se falhar, o readiness chumba e a versão anterior continua a servir.
+      # Se falhar antes do commit, o readiness chumba e a versão anterior
+      # continua a servir. Uma migração com commit não se desfaz: em subidas
+      # do Panoramax com migrações, backup e temporaryShutdown: true
+      # (Docs/infra.md, «Atualizar o Panoramax»).
       initCommands:
-        - /home/zerops/venv/bin/python /var/www/panoramax/bootstrap_db.py
-        - env -u PANO_DB_SUPERUSER_URL /home/zerops/venv/bin/panoramax_backend db upgrade
+        - /opt/venv/bin/python /var/www/panoramax/bootstrap_db.py
+        - env -u PANO_DB_SUPERUSER_URL /opt/venv/bin/panoramax_backend db upgrade
       startCommands:
         # API (gunicorn). Corre sem shell: nada de aspas nem `&&`.
         # `env -u`: o superuser não chega aos processos.
@@ -59,7 +66,7 @@ zerops:
           user: pano
           command: >-
             env -u PANO_DB_SUPERUSER_URL HOME=/tmp
-            /home/zerops/venv/bin/gunicorn
+            /opt/venv/bin/gunicorn
             --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 120
             --access-logfile - geovisio:create_api()
         # Processamento das fotos (tamanhos, metadados) e o cron de
@@ -68,7 +75,7 @@ zerops:
           user: pano
           command: >-
             env -u PANO_DB_SUPERUSER_URL HOME=/tmp
-            /home/zerops/venv/bin/panoramax_backend picture-worker
+            /opt/venv/bin/panoramax_backend picture-worker
       ports:
         - port: 5000
           httpSupport: true

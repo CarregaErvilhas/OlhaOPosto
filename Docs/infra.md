@@ -3,8 +3,8 @@
 **Em produção** em `https://panoramax.ocarroeletrico.com`,
 atrás da Cloudflare, fora da federação. Este é o sítio onde fica documentada
 a infraestrutura do servidor Panoramax. O resto do VoltFrame (Worker, D1, R2
-`pictures`) é Cloudflare e está em [`cloudflare.md`](cloudflare.md). O design está em
-[`plan.md`](plan.md), secção *Servidor Panoramax*.
+`pictures`) é Cloudflare e está em [`cloudflare.md`](cloudflare.md). Porque é assim
+está em [`arquitetura.md`](arquitetura.md), secção *Porque o Panoramax*.
 
 ```
 VoltFrame (Worker) ──HTTPS + token──► Cloudflare (proxy) ──► balanceador L7 do Zerops ──► `pano`
@@ -43,8 +43,7 @@ Ficheiros:
 
 Próximos passos:
 
-- [ ] Ponto 6 do ensaio: ler o consumo na GUI do Zerops e fazer a conta
-  mensal (secção 9).
+- [ ] Ponto 6 do ensaio: ler o consumo na GUI do Zerops e fazer a conta mensal (secção 9).
 - [ ] Ao criar o Worker: emitir um token novo da `pictures` e guardá-lo com
   `wrangler secret put` (secção 4).
 
@@ -169,10 +168,7 @@ token '('`. Caracteres especiais do shell vão entre aspas simples.
 
 ## 4. Configuração
 
-Variáveis no `zerops.yml` (não secretas) e no Zerops (secretas). As do
-Panoramax estão em
-[settings](https://docs.panoramax.fr/backend/install/settings/); confirmei os
-nomes no código da 2.17.0 (`geovisio/config_app.py`).
+Variáveis no `zerops.yml` (não secretas) e no Zerops (secretas). As do Panoramax estão em [settings](https://docs.panoramax.fr/backend/install/settings/); confirmei os nomes no código da 2.17.0 (`geovisio/config_app.py`).
 
 | Variável | Valor | Porquê |
 | --- | --- | --- |
@@ -183,7 +179,7 @@ nomes no código da 2.17.0 (`geovisio/config_app.py`).
 | `FLASK_SECRET_KEY` | **secreta**, gerada no import | Sessões e tokens JWT. Trocá-la invalida o token da conta de serviço |
 | `API_SUMMARY` | nome, descrição, cobertura, cor, email | O que aparece no `/api/configuration` e na federação |
 | `API_WEBSITE_URL` | `false` | Não há site Panoramax à parte; a API serve o seu visualizador em `/` |
-| `API_PICTURES_LICENSE_SPDX_ID` / `_URL` | `CC-BY-SA-4.0` | Licença do servidor (`plan.md`, *Licença*) |
+| `API_PICTURES_LICENSE_SPDX_ID` / `_URL` | `CC-BY-SA-4.0` | Licença do servidor ([`licenca.md`](licenca.md)) |
 | `API_REGISTRATION_IS_OPEN` | `false` | Ninguém cria conta |
 | `API_FORCE_AUTH_ON_UPLOAD` | `true` | Só com token se envia |
 | `API_DEFAULT_PICTURE_VISIBILITY` | `owner-only` | A foto só fica pública quando o VoltFrame a aprova |
@@ -257,7 +253,7 @@ Para revogar e emitir um novo, basta voltar a correr o script. Trocar o
 **Crédito por foto (ponto 5 do ensaio):** o STAC mostra sempre
 `providers: pictures` e `geovisio:producer: pictures`. O autor só fica na
 etiqueta `pictures|author=`. Por isso o crédito é dado pelo VoltFrame e pelo
-XMP das cópias em `pictures.*` (alternativa do `plan.md`).
+XMP das cópias em `pictures.*` (`plan.md`, *Publicação dos links estáticos*).
 
 ### Acesso de admin
 
@@ -317,7 +313,7 @@ há dois containers, e um envio recebido num pode ser processado pelo
   **tal como foi enviado, com o EXIF todo**. Os tamanhos ficam em
   `data/derivatives/…/<uuid>/` e são só `sd.jpg` e `thumb.jpg`: o `hd.jpg`
   da API é o próprio original. Por isso o Worker tem de tirar o EXIF e
-  reduzir para 2048 px **antes** de enviar (`plan.md`, passo 8).
+  reduzir para 2048 px **antes** de enviar (`plan.md`, *Fluxo de upload*, passo 8).
 - Uma foto de 4,4 MB deu `sd` de 400 kB e `thumb` de 29 kB.
 - Apagar um upload set pela API apaga também os ficheiros no R2, em
   segundo plano, pelo *worker* (o bucket ficou vazio em menos de um minuto).
@@ -446,7 +442,7 @@ zcli push -P <project-id> --service-id <id-do-pano> --setup pano
 
 ## 9. Ensaio
 
-Os seis pontos do `plan.md`, mais os que saíram ao preparar a
+Os seis pontos do ensaio da fase 1, mais os que saíram ao preparar a
 configuração. Feito no subdomínio `zerops.app` e pela VPN, e depois no
 domínio.
 
@@ -456,7 +452,7 @@ domínio.
 | 2 | R2 como `FS_URL` | **Passa.** Original em `data/permanent/`, tamanhos em `data/derivatives/`; apagar limpa o bucket (secção 5) |
 | 3 | Foto isolada com etiquetas, pela API | **Passa.** Um upload set com `no_split` dá uma coleção com uma foto; as três etiquetas ficam na foto |
 | 4 | `owner-only` e passar a `anyone` ao aprovar | **Passa.** Sem token, 404 na coleção, no item e nas imagens, e o `/api/search` vem vazio. Um `PATCH /api/upload_sets/<id>` com `{"visibility": "anyone"}` passa tudo a 200. A foto em si fica `anyone`: quem esconde é a coleção (vale a mais restritiva) |
-| 5 | Crédito por foto (autor ≠ conta de serviço) | **Não passa.** O STAC mostra sempre `pictures` como produtor; o autor só na etiqueta. Fica a alternativa do `plan.md` (secção 4) |
+| 5 | Crédito por foto (autor ≠ conta de serviço) | **Não passa.** O STAC mostra sempre `pictures` como produtor; o autor só na etiqueta. Fica a alternativa do `plan.md` (*Publicação dos links estáticos*) |
 | 6 | Consumo de recursos dentro do orçamento | **Por medir.** Ler o consumo na GUI e fazer a conta mensal |
 | 7 | O pip instala o `geovisio` no `ubuntu/python@3.14` | **Passa.** Todas as dependências com hashes, sem compilar nada |
 | 8 | `run.base: ubuntu/python@3.14` é aceite | **Passa.** Python 3.14.6, Ubuntu 24.04 |

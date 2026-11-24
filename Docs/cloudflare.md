@@ -2,8 +2,9 @@
 
 Zona `ocarroeletrico.com`, na conta Cloudflare existente. O
 servidor Panoramax (Zerops, bucket `panoramax`, DNS do `panoramax.*`) está em
-[`infra.md`](infra.md). O design está em [`plan.md`](plan.md), secções *Nomes
-e domínios* e *Links estáticos*.
+[`infra.md`](infra.md). O porquê está em [`arquitetura.md`](arquitetura.md), secções *Nomes
+e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
+[`plan.md`](plan.md).
 
 ## 1. Estado
 
@@ -13,7 +14,7 @@ e domínios* e *Links estáticos*.
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio |
 | Cache Rule do `pictures.*` | Aplicada e testada |
 | D1 `pictures` | Criada, jurisdição EU; migração aplicada e primeiro import feito (8 876 postos, 19 737 pontos) |
-| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado (API de postos só de leitura) |
+| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado (páginas dos postos em pt-PT e inglês, API só de leitura, `sitemap.xml`) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos |
 
 ## 2. R2
@@ -204,7 +205,6 @@ com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem
 
 ## 6. Questões em aberto
 
-- [x] Código EVSE do NAP no `ohmigo_chargers.json` (campo `evse` em cada ponto), para os links de tomada.
 - [ ] Publicar o Worker pelo CI em vez de à mão (precisa de um token com permissões de Workers).
 - [ ] Regra de ciclo de vida no `pictures-staging` como rede de segurança
   para fotos rejeitadas ou abandonadas (por exemplo 90 dias). O risco é

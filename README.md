@@ -12,8 +12,9 @@ O link nunca muda. Muda só a foto para onde aponta.
 
 > **Estado:** o servidor Panoramax está em produção em
 > `panoramax.ocarroeletrico.com`, ainda fora da federação. Existem o plano
-> técnico e os mockups. O Worker do VoltFrame (`worker/`) já tem a API de
-> postos só de leitura e o import diário dos postos, já publicados.
+> técnico e os mockups. O Worker do VoltFrame (`worker/`) já tem as páginas
+> dos postos, a API de postos só de leitura e o import diário dos postos, já
+> publicados. O envio de fotos ainda não existe.
 
 ## Como funciona
 
@@ -40,17 +41,19 @@ O link nunca muda. Muda só a foto para onde aponta.
 | Links estáticos (`pictures.ocarroeletrico.com`) | Bucket R2 `pictures`, sem Worker | Serve `/<id>.jpg` e tamanhos pela CDN |
 | Servidor Panoramax (`panoramax.ocarroeletrico.com`) | Zerops (Python + PostgreSQL/PostGIS), imagens no R2 | Guarda as fotos, os tamanhos e os metadados |
 
-Detalhe completo em [`Docs/plan.md`](Docs/plan.md).
+O que já existe está em [`Docs/arquitetura.md`](Docs/arquitetura.md); o que falta, em [`Docs/plan.md`](Docs/plan.md).
 
 ## Estrutura do repositório
 
 | Caminho | Conteúdo |
 | --- | --- |
-| [`Docs/plan.md`](Docs/plan.md) | Design técnico: arquitetura, fontes de dados, moderação, licença, fases. É a fonte de verdade |
+| [`Docs/arquitetura.md`](Docs/arquitetura.md) | O que está a funcionar: objetivos, princípios, domínios, postos e tomadas, links estáticos |
+| [`Docs/plan.md`](Docs/plan.md) | O que falta construir: fases, envio, moderação, login, API, MCP, OSM |
+| [`Docs/licenca.md`](Docs/licenca.md) | Licenças do código, das fotos e das fontes |
 | [`Docs/infra.md`](Docs/infra.md) | Infraestrutura do servidor Panoramax: serviços, segredos, R2, DNS, deploy, ensaio |
 | [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do VoltFrame: buckets R2 `pictures`, cache, CORS, Worker |
 | `zerops.yml`, `zerops-import.yaml` | Configuração dos serviços `pano` (Panoramax) e `db` no Zerops |
-| `worker/` | Worker do VoltFrame (TypeScript + D1): API, migrações e import diário dos postos |
+| `worker/` | Worker do VoltFrame (TypeScript + D1): páginas, API, migrações e import diário dos postos |
 | `panoramax/` | Versão do Panoramax, ponto de entrada do gunicorn, scripts de preparação da BD e da conta de serviço, e scripts de envio de teste |
 | `Design/` | Mockups das páginas e do fluxo VoltFrame ↔ Panoramax |
 

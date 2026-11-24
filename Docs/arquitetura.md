@@ -12,8 +12,7 @@ Um servidor **Panoramax** próprio, só para postos de carregamento, guarda as
 fotos. Um **Worker da Cloudflare** (VoltFrame) faz o resto: a lista de postos
 do NAP, os links estáticos pelo ID oficial, a escolha da foto principal, o
 envio, a moderação, o ranking, a API e o MCP. Exemplo de link:
-`https://pictures.ocarroeletrico.com/TRK-VNT-00005.jpg`. Orçamento: **10 €/mês**
-no total.
+`https://pictures.ocarroeletrico.com/TRK-VNT-00005.jpg`.
 
 Requisitos (proposta de Alexandre Moleiro):
 
@@ -31,8 +30,7 @@ Princípios:
 - **Licença aberta obrigatória** (CC BY-SA 4.0, com autorização ODbL), para poder ser usada no OSM.
 - **Saída fácil**: dados exportáveis, código aberto e fotos num servidor Panoramax federado, para a comunidade não depender de uma pessoa ou conta.
 
-Responsável (RGPD): Fernando, na conta Cloudflare existente. Passar para uma
-associação fica como saída futura.
+Responsável (RGPD): O Carro Elétrico. Passar para uma associação fica como saída futura.
 
 ## Nomes e domínios
 
@@ -107,8 +105,7 @@ secções 4 e 9.
 
 ## Postos e tomadas
 
-A lista de postos válidos vem do NAP (fonte oficial): cerca de 8 900 locais
-e 19 700 pontos.
+A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19 700 pontos.
 
 **Sincronização.** O VoltFrame lê o `ohmigo_chargers.json` que o NAP
 dashboard já publica (o mesmo que o site e o ohmigo usam), todos os dias,
@@ -138,8 +135,7 @@ link de tomada.
 | `evses` | `station_id` (FK) + `point_id` (PK), `evse_id` (forma original com `*`), `evse_compact` (sem `*`, índice simples), `connector`, `max_kw`, `dc`, `status` | Uma linha por ponto/tomada. O `point_id` do MOBI.Data repete-se entre postos |
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
 
-As tabelas das fotos, dos utilizadores e da moderação estão em
-[`plan.md`](plan.md), *Modelo de dados*.
+As tabelas das fotos, dos utilizadores e da moderação estão em [`plan.md`](plan.md), *Modelo de dados*.
 
 ## Site e API
 

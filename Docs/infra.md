@@ -43,8 +43,7 @@ Ficheiros:
 
 Próximos passos:
 
-- [ ] Ponto 6 do ensaio: ler o consumo na GUI do Zerops e fazer a conta
-  mensal (secção 9).
+- [ ] Ponto 6 do ensaio: ler o consumo na GUI do Zerops e fazer a conta mensal (secção 9).
 - [ ] Ao criar o Worker: emitir um token novo da `pictures` e guardá-lo com
   `wrangler secret put` (secção 4).
 
@@ -169,10 +168,7 @@ token '('`. Caracteres especiais do shell vão entre aspas simples.
 
 ## 4. Configuração
 
-Variáveis no `zerops.yml` (não secretas) e no Zerops (secretas). As do
-Panoramax estão em
-[settings](https://docs.panoramax.fr/backend/install/settings/); confirmei os
-nomes no código da 2.17.0 (`geovisio/config_app.py`).
+Variáveis no `zerops.yml` (não secretas) e no Zerops (secretas). As do Panoramax estão em [settings](https://docs.panoramax.fr/backend/install/settings/); confirmei os nomes no código da 2.17.0 (`geovisio/config_app.py`).
 
 | Variável | Valor | Porquê |
 | --- | --- | --- |

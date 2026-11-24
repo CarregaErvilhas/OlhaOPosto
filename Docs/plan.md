@@ -1,6 +1,6 @@
 # Plano — o que falta construir
 
-Fernando · revisto depois de uma sessão de perguntas e respostas ao plano. Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`.
+Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`.
 
 Este documento só tem o que ainda não existe. O que já está a funcionar
 (objetivos, princípios, domínios, servidor Panoramax, import dos postos,
@@ -270,5 +270,4 @@ Orçamento: **10 €/mês** no total.
 - [ ] Modelo de deteção de matrículas para o browser, com pesos de licença permissiva.
 - [ ] Resposta da OSM Portugal e da equipa do Panoramax (federação, nome, bot).
 - [ ] Convenção do MapComplete para várias fotos no mesmo elemento (`panoramax:1=`?).
-- [ ] Custo mensal do Panoramax no Zerops (o único ponto do ensaio por fechar).
 - [ ] Fotos externas e links estáticos: rever a opção B (em uso) contra a A ou outras alternativas.

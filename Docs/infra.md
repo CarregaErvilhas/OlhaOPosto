@@ -68,9 +68,7 @@ Ficheiros:
   autoscaling e atualizações *minor* são do Zerops. É a versão mais recente
   que o Zerops oferece. A 19 saiu a 2026-11-19 e ainda não está disponível.
   Passar para a 19 mais tarde obriga a recriar o serviço `db` e restaurar
-  um dump (como no CEME). O PostGIS vem com o serviço; o contentor
-  `postgis/postgis` do `plan.md` era só a alternativa se o gerido falhasse
-  no ensaio.
+  um dump. O PostGIS vem com o serviço.
 
 As imagens não estão no Zerops: vão para o bucket R2 `panoramax`
 (originais em `permanent/`, tamanhos em `derivatives/`, envios a meio em
@@ -366,9 +364,6 @@ cd /var/www
 
 - [ ] ID do projeto Zerops.
 - [ ] Sem OAuth (secção 4)? Se sim, atualizar o `plan.md`.
-- [ ] `API_PICTURES_LICENSE_URL`: hoje aponta para a CC BY-SA 4.0. Quando
-  houver uma página do VoltFrame com a autorização ODbL, passa para lá (como
-  faz o Panoramax da OSM França).
-- [ ] Cópia de segurança das fotos do R2 (outro bucket, outra conta, ou o
-  Commons para as principais).
+- [ ] `API_PICTURES_LICENSE_URL`: hoje aponta para a CC BY-SA 4.0. Quando houver uma página do VoltFrame com a autorização ODbL, passa para lá (como faz o Panoramax da OSM França).
+- [ ] Cópia de segurança das fotos do R2 (outro bucket, outra conta, ou o Commons para as principais).
 - [ ] Os dez pontos do ensaio (secção 9).

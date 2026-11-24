@@ -231,7 +231,7 @@ Na fase 3, o refresh do NAP dashboard lê a exportação `voltframe.ocarroeletri
 
 ## API, MCP e llms.txt
 
-Há uma única camada de serviço no Worker (`searchStations`, `getStation`, `submitPhoto`…) e três portas para ela: a página web, a API REST e o servidor MCP. Assim as regras (validação, licença, desfocagem, moderação) são as mesmas para pessoas e para agentes. Se alguém pedir A2A, a mesma camada torna-o barato de acrescentar; fica fora do plano.
+Há uma única camada de serviço no Worker (`searchStations`, `getStation`, `submitPhoto`…) e três portas para ela: a página web, a API REST e o servidor MCP. Assim as regras (validação, licença, desfocagem, moderação) são as mesmas para pessoas e para agentes.
 
 ### API REST (`/api/v1`)
 
@@ -267,7 +267,7 @@ Servidor MCP remoto no mesmo Worker, com o transporte *Streamable HTTP*. A Cloud
 | `list_missing_photos` | Postos ou tomadas sem foto num concelho ou operador, para campanhas | — |
 | `submit_photo` | Envio a partir de URL ou base64, em `mode=clean` | `photos:write` |
 | `propose_station` | Posto novo para revisão | `photos:write` |
-| `set_primary_photo` | Escolher a foto principal | `trusted` |
+| `set_primary_photo` | Escolher a foto principal | `moderator` |
 
 As ferramentas de leitura funcionam sem login, para qualquer assistente poder mostrar fotos de um posto. O ohmigo pode incluir o link estático de cada posto nas respostas; não é preciso juntar os dois servidores.
 
@@ -391,7 +391,7 @@ Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
 
 **Questões em aberto**
 
-- [ ] Lista de moderadores da comunidade (o Fernando junta-a mais tarde).
+- [ ] Lista de moderadores da comunidade.
 - [ ] Como correr a desfocagem no servidor com GPU de forma barata, em escala.
 - [ ] Modelo de deteção de matrículas para o browser, com pesos de licença permissiva.
 - [ ] Resposta da OSM Portugal e da equipa do Panoramax (federação, nome, bot).

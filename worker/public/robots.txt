@@ -1,0 +1,5 @@
+# Open photos and open data: every crawler, AI crawlers included, may read everything.
+User-agent: *
+Allow: /
+
+Sitemap: https://voltframe.ocarroeletrico.com/sitemap.xml

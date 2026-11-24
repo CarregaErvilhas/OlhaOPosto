@@ -54,6 +54,8 @@
   --surface: #FFFFFF;
   --line: #DDE3DF;
   --line-strong: #C9D2CD;
+  /* Borders that mark a control: at least 3:1 against the surface (WCAG 1.4.11). */
+  --control: #86928C;
   --text: #15201C;
   --text-2: #3F4B46;
   --muted: #5A6661;
@@ -77,6 +79,7 @@
     --surface: #161E1B;
     --line: #26302C;
     --line-strong: #36433D;
+    --control: #64726B;
     --text: #E6ECE9;
     --text-2: #C2CCC7;
     --muted: #97A49E;
@@ -91,7 +94,12 @@
     --warn-soft: #2E2613;
   }
 }
+/* Users who ask for more contrast get the soft lines and grey text pushed up. */
+@media (prefers-contrast: more) {
+  :root { --line: var(--control); --line-strong: var(--control); --dashed: var(--control); --muted: var(--text-2); }
+}
 
+/* Font sizes in rem and no size on html: the browser's and the OS's text size win. */
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
@@ -99,7 +107,6 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 16px;
   line-height: 1.5;
   min-height: 100vh;
   display: flex;
@@ -108,8 +115,9 @@ body {
 a { color: var(--accent); }
 a:hover { color: var(--accent-strong); }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-h1, h2 { font-family: var(--display); font-weight: 600; }
-code, .mono { font-family: var(--mono); font-size: 13px; }
+h1, h2 { font-family: var(--display); font-weight: 600; text-wrap: balance; }
+p { text-wrap: pretty; }
+code, .mono { font-family: var(--mono); font-size: 0.8125rem; }
 .wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; width: 100%; }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -118,26 +126,28 @@ code, .mono { font-family: var(--mono); font-size: 13px; }
 
 /* Header and footer */
 .site-header { background: var(--surface); border-bottom: 1px solid var(--line); }
-.site-header .wrap { display: flex; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+.site-header .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
 .brand:hover { color: var(--text); }
 .brand img { width: 34px; height: 34px; }
-.brand-name { font-family: var(--display); font-weight: 600; font-size: 20px; letter-spacing: -0.01em; }
-.brand-sub { font-size: 13px; color: var(--muted); border-left: 1px solid var(--line-strong); padding-left: 10px; }
+.brand-name { font-family: var(--display); font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em; }
+.brand-sub { font-size: 0.8125rem; color: var(--muted); border-left: 1px solid var(--line-strong); padding-left: 10px; }
+.lang-switch { margin-left: auto; font-size: 0.875rem; padding: 10px 4px; }
 main { flex: 1 0 auto; padding: 24px 0 64px; }
-.site-footer { border-top: 1px solid var(--line); background: var(--surface); font-size: 14px; color: var(--muted); }
+.site-footer { border-top: 1px solid var(--line); background: var(--surface); font-size: 0.875rem; color: var(--muted); }
 .site-footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; padding-top: 20px; padding-bottom: 20px; }
 
 /* Station title */
-.crumbs { margin: 0 0 6px; font-size: 14px; color: var(--muted); }
+.operator { margin: 0 0 6px; font-size: 0.875rem; color: var(--muted); }
 .title-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 24px; margin-bottom: 24px; }
-.title-row h1 { margin: 0; font-size: 34px; letter-spacing: -0.01em; line-height: 1.15; overflow-wrap: anywhere; }
-.subtitle { margin: 6px 0 0; font-size: 16px; color: var(--text-2); }
+.title-row h1 { margin: 0; font-size: clamp(1.625rem, 1.2rem + 1.5vw, 2.125rem); letter-spacing: -0.01em; line-height: 1.15; overflow-wrap: anywhere; }
+.subtitle { margin: 6px 0 0; color: var(--text-2); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { font-size: 13px; font-weight: 500; padding: 6px 10px; border-radius: 999px; background: var(--chip); color: var(--text-2); }
+/* The transparent border shows up in forced colours, where backgrounds are dropped. */
+.chip { font-size: 0.8125rem; font-weight: 500; padding: 6px 10px; border-radius: 999px; background: var(--chip); color: var(--text-2); border: 1px solid transparent; }
 .chip.ok { background: var(--accent-soft); color: var(--accent-strong); }
 .chip.warn { background: var(--warn-soft); color: var(--warn); }
-.notice { background: var(--warn-soft); color: var(--warn); border-radius: 12px; padding: 12px 16px; margin: 0 0 20px; font-size: 15px; }
+.notice { background: var(--warn-soft); color: var(--warn); border: 1px solid transparent; border-radius: 12px; padding: 12px 16px; margin: 0 0 20px; font-size: 0.9375rem; }
 
 /* Layout: photos left, details right; stacks on narrow screens */
 .columns { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
@@ -149,55 +159,66 @@ main { flex: 1 0 auto; padding: 24px 0 64px; }
   color: var(--muted); text-align: center; padding: 24px;
 }
 .empty-photo svg { width: 48px; height: 48px; }
-.empty-photo strong { color: var(--text-2); font-size: 16px; font-weight: 600; }
-.hint { margin: 0; font-size: 14px; color: var(--muted); }
+.empty-photo strong { color: var(--text-2); font-weight: 600; }
+.hint { margin: 0; font-size: 0.875rem; color: var(--muted); }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
-.card h2 { margin: 0 0 4px; font-size: 18px; }
-.card > p { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
+.card h2 { margin: 0 0 4px; font-size: 1.125rem; }
+.card > p { margin: 0 0 14px; font-size: 0.875rem; color: var(--muted); }
 
 /* Static links */
 .sizes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }
 .sizes button {
-  font: inherit; font-size: 14px; min-height: 44px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--line-strong); background: var(--surface); color: var(--text-2);
+  font: inherit; font-size: 0.875rem; min-height: 44px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--control); background: var(--surface); color: var(--text-2);
 }
-.sizes button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
-.links { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.links .label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-.copy-row { display: flex; gap: 6px; }
+/* Pressed is a thicker border as well as a colour, so it does not rest on colour alone. */
+.sizes button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.links { display: flex; flex-direction: column; gap: 10px; }
+.links .label { font-size: 0.8125rem; color: var(--muted); margin-bottom: 4px; }
+.copy-row { display: flex; gap: 6px; align-items: flex-start; }
+/* Long links wrap instead of scrolling: a scroll box here would be out of reach by keyboard. */
 .copy-row code {
-  flex: 1 1 auto; min-width: 0; overflow-x: auto; white-space: nowrap;
+  flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere;
   background: var(--code); border: 1px solid var(--line); border-radius: 6px; padding: 11px 10px;
 }
 .copy {
-  flex: none; width: 44px; height: 44px; border: 1px solid var(--line-strong); border-radius: 6px; cursor: pointer;
+  flex: none; min-width: 44px; min-height: 44px; border: 1px solid var(--control); border-radius: 6px; cursor: pointer;
   background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center;
 }
 .copy svg { width: 18px; height: 18px; }
+.copy .done { display: none; }
 .copy[data-done] { border-color: var(--accent); color: var(--accent); }
+.copy[data-done] .idle { display: none; }
+.copy[data-done] .done { display: block; }
 
 /* Sockets */
 .sockets { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .socket { display: flex; gap: 12px; align-items: center; padding: 8px; margin: 0 -8px; border-radius: 8px; scroll-margin-top: 16px; }
 .socket:target { background: var(--accent-soft); outline: 2px solid var(--accent); }
 .socket .thumb {
-  width: 64px; height: 48px; flex: none; border-radius: 6px; border: 1px dashed var(--dashed);
-  display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px;
+  width: 64px; min-height: 48px; flex: none; border-radius: 6px; border: 1px dashed var(--dashed);
+  display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.75rem; text-align: center;
 }
 .socket .info { flex: 1 1 auto; min-width: 0; }
 .socket .code { overflow-wrap: anywhere; }
-.socket .meta { font-size: 13px; color: var(--muted); }
+.socket .meta { font-size: 0.8125rem; color: var(--muted); }
 
 .plain-list { margin: 0; padding-left: 20px; }
 .plain-list li { margin: 6px 0; }
-.page-msg { max-width: 640px; }
-.page-msg h1 { font-size: 30px; margin: 0 0 8px; }
+.page-msg { max-width: 40rem; }
+.page-msg h1 { font-size: 1.875rem; margin: 0 0 8px; }
 
-@media (max-width: 600px) {
+/* em, not px: the layout switches when the text no longer fits, whatever its size. */
+@media (max-width: 37.5em) {
   .wrap { padding: 0 16px; }
-  .title-row h1 { font-size: 26px; }
   .brand-sub { display: none; }
   /* While there are no photos, the empty box should not push the links off screen. */
   .empty-photo { aspect-ratio: 16 / 9; }
+}
+
+@media (forced-colors: active) {
+  /* The inset shadow is dropped here: mark the pressed size with a thicker system-colour border. */
+  .sizes button[aria-pressed="true"] { border: 3px solid Highlight; }
+  .socket:target { outline-color: Highlight; }
 }

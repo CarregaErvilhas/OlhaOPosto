@@ -39,3 +39,17 @@ export async function findEvse(env: Env, raw: string): Promise<EvseMatch[]> {
   ).bind(code).all<EvseMatch>();
   return results;
 }
+
+// Every public station with the last time its page could have changed: its own
+// row or any of its sockets. One correlated lookup per station on the evses
+// primary key; the Worker caches the result for a day (index.ts).
+export async function listStations(env: Env): Promise<{ id: string; lastmod: string }[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT s.id,
+            max(s.updated_at, coalesce((SELECT max(e.updated_at) FROM evses e WHERE e.station_id = s.id), '')) AS lastmod
+       FROM stations s
+      WHERE s.status IN ('active', 'missing_from_nap')
+      ORDER BY s.id`,
+  ).all<{ id: string; lastmod: string }>();
+  return results;
+}

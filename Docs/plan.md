@@ -21,7 +21,6 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
    - foto principal e publicação em `pictures.*`;
    - aliases de postos;
    - ranking e medalhas;
-   - pesquisa por proximidade (para sugerir o posto no envio);
    - fotos na API;
    - link manual "acrescentar ao OSM";
    - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
@@ -69,7 +68,7 @@ Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-s
 1. **Entrar com OSM.** Na primeira vez, aceitar os termos e a licença (`license_accepted_at`).
 2. **Escolher fotos.** Aceita JPEG e HEIC. O Safari descodifica HEIC nativamente; nos outros browsers usa-se `heic2any` (libheif em WebAssembly).
 3. **Ler o EXIF antes de mexer na imagem** com a biblioteca [`exifr`](https://github.com/MikeKovarik/exifr): `GPSLatitude`/`GPSLongitude`, `DateTimeOriginal` e `Orientation`.
-4. **Sugerir o posto.** Com GPS, a página pede ao Worker os postos num raio de 500 m, ordenados pela distância, e pré-seleciona o mais próximo. Sem GPS, pesquisa por código, morada ou mapa.
+4. **Sugerir o posto.** Com GPS, a página arredonda as coordenadas a 3 casas decimais (cerca de 100 m, porque os registos do Worker guardam o URL) e pede `GET /api/v1/stations?lat=&lon=&radius=500`, que já existe; pré-seleciona o mais próximo. Sem GPS, pesquisa por código, morada ou mapa.
 5. **Associar a posto ou tomada.** "Foto geral do posto" ou uma tomada concreta da lista de EVSE desse posto.
 6. **Posto não existe?** Formulário "novo posto": nome, operador, coordenadas (pré-preenchidas pelo GPS) e código se for conhecido. Cria `stations.status=pending_review` e uma entrada em `review_queue`.
 7. **Desfocar caras e matrículas** no browser, com revisão manual das caixas e a confirmação "Não há caras nem matrículas legíveis".
@@ -144,11 +143,11 @@ Há uma única camada de serviço no Worker (`searchStations`, `getStation`, `su
 
 ### API REST (`/api/v1`)
 
-Já existem `GET /stations?q=` (pesquisa por texto), `GET /stations/{id}` e `GET /evses/{evse}`, sem fotos ([`cloudflare.md`](cloudflare.md), secção 4). Falta descrevê-la em OpenAPI 3.1 em `/api/v1/openapi.json`, juntar as fotos e os links estáticos a essas duas respostas, e o resto. Os `GET` são públicos e têm CORS aberto; as escritas pedem sessão ou token.
+Já existem `GET /stations?q=` (pesquisa por texto), `GET /stations?lat=&lon=&radius=` (proximidade), `GET /stations/{id}` e `GET /evses/{evse}`, sem fotos ([`cloudflare.md`](cloudflare.md), secção 4). Falta descrevê-la em OpenAPI 3.1 em `/api/v1/openapi.json`, juntar as fotos e os links estáticos a essas duas respostas, e o resto. Os `GET` são públicos e têm CORS aberto; as escritas pedem sessão ou token.
 
 | Método e rota | Faz | Auth |
 | --- | --- | --- |
-| `GET /stations?lat=&lon=&radius=&opc=&has_photo=` | Juntar à pesquisa por texto: proximidade, operador ou falta de foto | — |
+| `GET /stations?opc=&has_photo=` | Juntar às pesquisas por texto e por proximidade: operador ou falta de foto | — |
 | `GET /photos/{id}` | Metadados: autor, licença, data, URLs | — |
 | `GET /photos.json` | Exportação diária completa | — |
 | `GET /ranking?period=month\|all` | Top de contribuidores | — |

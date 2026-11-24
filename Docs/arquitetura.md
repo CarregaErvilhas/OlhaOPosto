@@ -144,7 +144,8 @@ O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês
 (`/en/stations/{id}`), a procura de uma tomada pelo código EVSE
 (`/tomadas/{evse}`, `/en/sockets/{evse}`), a pesquisa de postos (`/pesquisa`,
 `/en/search`, também no formulário da página inicial), a API só de leitura
-(`/api/v1/stations?q=`, `/api/v1/stations/{id}`, `/api/v1/evses/{evse}`), o
+(`/api/v1/stations?q=`, `/api/v1/stations?lat=&lon=`, `/api/v1/stations/{id}`,
+`/api/v1/evses/{evse}`), o
 `sitemap.xml`, o
 `robots.txt` e o `llms.txt`. Rotas, cabeçalhos, acessibilidade e cache em
 [`cloudflare.md`](cloudflare.md), secção 4.

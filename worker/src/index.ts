@@ -1,7 +1,7 @@
 // VoltFrame Worker (voltframe.ocarroeletrico.com): the station pages and the
 // read-only API. Fonts, CSS and icons in public/ are Workers static assets,
 // served before this code runs. Static photo links are served by the R2
-// bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/plan.md).
+// bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
 import { findEvse, getStation, listStations, type Env } from './data.ts';
 import {
   evseChoicePage, homePage, messages, notFoundPage, socketAnchor, stationPage, stationPath, type Lang,

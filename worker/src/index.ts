@@ -2,12 +2,12 @@
 // read-only API. Fonts, CSS and icons in public/ are Workers static assets,
 // served before this code runs. Static photo links are served by the R2
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
-import { findEvse, getStation, listStations, type Env } from './data.ts';
+import { findEvse, getStation, listStations, searchStations, type Env } from './data.ts';
 import {
-  evseChoicePage, homePage, messages, notFoundPage, socketAnchor, stationPage, stationPath, type Lang,
+  evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';
 import { sitemapXml } from './sitemap.ts';
-import { compactCode, type EvseMatch } from './types.ts';
+import { compactCode, ftsQuery, MAX_QUERY, STATION_ID, type EvseMatch, type SearchRow } from './types.ts';
 
 // The API is for apps and agents, not for search results.
 const JSON_HEADERS = {
@@ -135,6 +135,54 @@ async function sitemap(request: Request, env: Env, ctx: ExecutionContext): Promi
   return res;
 }
 
+const PAGE_RESULTS = 20;
+const API_MAX_RESULTS = 50;
+const queryOf = (url: URL) => (url.searchParams.get('q') ?? '').trim().slice(0, MAX_QUERY);
+
+const searchBody = (r: SearchRow) => ({
+  id: r.id,
+  name: r.name,
+  operator: { id: r.opc, name: r.operator },
+  address: r.address,
+  municipality: r.municipality,
+  region: r.region,
+  lat: r.lat,
+  lon: r.lon,
+  status: r.status,
+});
+
+async function searchJson(env: Env, url: URL): Promise<Response> {
+  const q = queryOf(url);
+  if (!ftsQuery(q)) return json({ error: 'q_required', detail: 'q needs a word of at least two letters or digits' }, 400, 'no-store');
+  const asked = Number(url.searchParams.get('limit') ?? PAGE_RESULTS);
+  const limit = Number.isInteger(asked) ? Math.min(Math.max(asked, 1), API_MAX_RESULTS) : PAGE_RESULTS;
+  return json({ q, results: (await searchStations(env, q, limit)).map(searchBody) });
+}
+
+// A typed station or socket code goes straight to its page; anything else is
+// a word search. Both lookups are on primary keys or indexes.
+async function searchHtml(lang: Lang, env: Env, url: URL): Promise<Response> {
+  const q = queryOf(url);
+  // Most codes are upper case (EZC-AMD-00051), Tesla's are lower case hex: try both.
+  for (const id of new Set([q, q.toUpperCase()])) {
+    if (STATION_ID.test(id) && (await getStation(env, id))) {
+      return new Response(null, { status: 302, headers: { location: stationPath(lang, id), 'cache-control': 'no-store' } });
+    }
+  }
+  if (compactCode(q)) {
+    const evses = await findEvse(env, q);
+    if (evses.length === 1) {
+      const m = evses[0];
+      return new Response(null, {
+        status: 302,
+        headers: { location: stationPath(lang, m.station_id) + socketAnchor(m.evse_compact), 'cache-control': 'no-store' },
+      });
+    }
+  }
+  const results = ftsQuery(q) ? await searchStations(env, q, PAGE_RESULTS) : null;
+  return html(lang, searchPage(lang, q, results, PAGE_RESULTS), 200, 'no-store');
+}
+
 type Handler = (env: Env, value: string) => Promise<Response>;
 const ROUTES: [RegExp, Handler, () => Response][] = [
   [/^\/api\/v1\/stations\/([^/]+)$/, stationJson, notFound],
@@ -150,13 +198,17 @@ export default {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json({ error: 'method_not_allowed' }, 405, 'no-store');
     }
-    const { pathname } = new URL(request.url);
+    const url = new URL(request.url);
+    const { pathname } = url;
     for (const [re, handler, bad] of ROUTES) {
       const m = pathname.match(re);
       if (!m) continue;
       const value = param(m[1]);
       return value === null ? bad() : handler(env, value);
     }
+    if (pathname === '/api/v1/stations') return searchJson(env, url);
+    if (pathname === '/pesquisa') return searchHtml('pt', env, url);
+    if (pathname === '/en/search') return searchHtml('en', env, url);
     if (pathname === '/') return html('pt', homePage('pt'));
     if (pathname === '/en/') return html('en', homePage('en'));
     if (pathname === '/en') return new Response(null, { status: 301, headers: { location: '/en/' } });

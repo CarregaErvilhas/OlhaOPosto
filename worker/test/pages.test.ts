@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { esc, evseChoicePage, homePage, notFoundPage, stationPage } from '../src/pages.ts';
+import { esc, evseChoicePage, homePage, notFoundPage, searchPage, stationPage } from '../src/pages.ts';
 import { sitemapXml } from '../src/sitemap.ts';
-import { compactCode, type PointRow, type StationRow } from '../src/types.ts';
+import { compactCode, ftsQuery, type PointRow, type SearchRow, type StationRow } from '../src/types.ts';
 
 const station = (extra: Partial<StationRow> = {}): StationRow => ({
   id: 'EZC-AMD-00051', code: 'AMD-00051', opc: 'EZC3', operator: 'EZ - CHARG3, Lda', name: null,
@@ -104,4 +104,37 @@ test('sitemap lists both languages and escapes ids', () => {
   assert.equal(xml.match(/<url>/g)?.length, 4);
   assert.ok(xml.includes('<loc>https://voltframe.ocarroeletrico.com/en/stations/A_1</loc><lastmod>2000-01-02T00:00:00+00:00</lastmod>'));
   assert.ok(xml.includes('<loc>https://voltframe.ocarroeletrico.com/</loc></url>'));
+});
+
+test('ftsQuery: words as quoted prefixes, never FTS syntax', () => {
+  assert.equal(ftsQuery('Lisboa'), '"Lisboa"*');
+  assert.equal(ftsQuery('EZC-AMD-00051'), '"EZC"* AND "AMD"* AND "00051"*');
+  assert.equal(ftsQuery('Açores'), '"Açores"*');
+  assert.equal(ftsQuery('a "b" * NEAR( name:x OR y'), '"NEAR"* AND "name"* AND "OR"*');
+  assert.equal(ftsQuery(' " * : '), null);
+  assert.equal(ftsQuery('a b'), null);
+  assert.equal(ftsQuery('um dois três quatro cinco seis sete oito')?.split(' AND ').length, 6);
+  for (const q of ['"', '*', 'x"y', 'name:"', '-amd']) assert.ok(!(ftsQuery(q) ?? '').match(/"[^"]*"[^*\s]/));
+});
+
+test('search page: escapes the query, links each language, is not indexed', () => {
+  const r: SearchRow = { id: 'EZC-AMD-00051', name: null, opc: 'EZC3', operator: 'EZ', address: 'Rua', municipality: 'Amadora', region: 'CONT', lat: 0, lon: 0, status: 'missing_from_nap' };
+  const evil = '<script>"x"';
+  const page = searchPage('pt', evil, [r], 20);
+  assert.ok(!page.includes('<script>"x"'));
+  assert.ok(page.includes('value="&lt;script&gt;&quot;x&quot;"'));
+  assert.ok(page.includes('<title>Pesquisa: &lt;script&gt;&quot;x&quot; · pIcŧU/Re</title>'));
+  assert.ok(page.includes('<meta name="robots" content="noindex">') && !page.includes('rel="canonical"'));
+  assert.ok(page.includes('href="/en/search?q=%3Cscript%3E%22x%22"'));
+  assert.ok(page.includes('href="/postos/EZC-AMD-00051"') && page.includes('Fora do NAP'));
+  const en = searchPage('en', 'nada', [], 20);
+  assert.ok(en.includes('No stations found for “nada”.') && en.includes('action="/en/search"'));
+  assert.ok(searchPage('pt', 'a', null, 20).includes('pelo menos duas'));
+  assert.ok(searchPage('pt', 'x', Array(20).fill(r), 20).includes('Primeiros 20 postos'));
+});
+
+test('home page has a search form with a visible label', () => {
+  const home = homePage('pt');
+  assert.ok(home.includes('<form class="search" action="/pesquisa" method="get" role="search">'));
+  assert.ok(home.includes('<label for="q">Procurar um posto</label>'));
 });

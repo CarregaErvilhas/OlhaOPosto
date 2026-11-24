@@ -21,7 +21,7 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
    - foto principal e publicação em `pictures.*`;
    - aliases de postos;
    - ranking e medalhas;
-   - pesquisa de postos e página inicial;
+   - pesquisa por proximidade (para sugerir o posto no envio);
    - fotos na API;
    - link manual "acrescentar ao OSM";
    - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
@@ -145,11 +145,11 @@ Há uma única camada de serviço no Worker (`searchStations`, `getStation`, `su
 
 ### API REST (`/api/v1`)
 
-Já existem `GET /stations/{id}` e `GET /evses/{evse}`, sem fotos ([`cloudflare.md`](cloudflare.md), secção 4). Falta descrevê-la em OpenAPI 3.1 em `/api/v1/openapi.json`, juntar as fotos e os links estáticos a essas duas respostas, e o resto. Os `GET` são públicos e têm CORS aberto; as escritas pedem sessão ou token.
+Já existem `GET /stations?q=` (pesquisa por texto), `GET /stations/{id}` e `GET /evses/{evse}`, sem fotos ([`cloudflare.md`](cloudflare.md), secção 4). Falta descrevê-la em OpenAPI 3.1 em `/api/v1/openapi.json`, juntar as fotos e os links estáticos a essas duas respostas, e o resto. Os `GET` são públicos e têm CORS aberto; as escritas pedem sessão ou token.
 
 | Método e rota | Faz | Auth |
 | --- | --- | --- |
-| `GET /stations?q=&lat=&lon=&radius=&opc=&has_photo=` | Pesquisa por texto, proximidade, operador ou falta de foto | — |
+| `GET /stations?lat=&lon=&radius=&opc=&has_photo=` | Juntar à pesquisa por texto: proximidade, operador ou falta de foto | — |
 | `GET /photos/{id}` | Metadados: autor, licença, data, URLs | — |
 | `GET /photos.json` | Exportação diária completa | — |
 | `GET /ranking?period=month\|all` | Top de contribuidores | — |

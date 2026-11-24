@@ -7,6 +7,7 @@ Pages are in European Portuguese, with English under /en/. Station and socket da
 ## Pages
 
 - [Station page](https://voltframe.ocarroeletrico.com/en/stations/EZC-AMD-00051): `/en/stations/{station id}` in English, `/postos/{station id}` in Portuguese.
+- [Search](https://voltframe.ocarroeletrico.com/en/search?q=amadora): `/en/search?q=` (or `/pesquisa?q=`). A full station or socket code goes straight to its page.
 - Socket lookup: `/en/sockets/{EVSE code}` (or `/tomadas/{EVSE code}`) redirects to the station page, anchored on that socket. The code works with or without the `*` (`PT*EZC*E*AMD*00051*1` or `PTEZCEAMD000511`).
 
 ## API
@@ -14,6 +15,7 @@ Pages are in European Portuguese, with English under /en/. Station and socket da
 Read-only JSON, open CORS, no key.
 
 - `GET /api/v1/stations/{station id}`: the station, its operator, address, coordinates, OSM element and sockets.
+- `GET /api/v1/stations?q={words}&limit={1-50}`: full-text search over station code, name, address, town and operator. Every word must match, as a prefix, accents ignored. Public stations only, best match first.
 - `GET /api/v1/evses/{EVSE code}`: the socket and its station. 300 with `candidates` when the NAP lists the same code at more than one station, 404 when unknown.
 
 ## Static photo links

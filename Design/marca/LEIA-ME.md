@@ -33,3 +33,7 @@ Ficha Type 2 com os 7 pinos, a objetiva no pino de terra, o obturador e o flash 
 ```
 
 O `aria-label` dos SVG é "picture", como pede o plano para a marca.
+
+## Licença
+
+A marca não está licenciada: o nome pIcŧU/Re, o Pic e todos os ficheiros desta pasta ficam fora da licença MIT do repositório. Ver `Docs/licenca.md`.

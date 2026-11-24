@@ -355,7 +355,7 @@ Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
 
 **Licença das fotos.** Segue o modelo do Panoramax da OSM França: **CC BY-SA 4.0** para as fotos e derivados fotográficos, com autorização adicional para criar dados não fotográficos sob CC BY 4.0 ou ODbL ([wiki](https://wiki.openstreetmap.org/wiki/FR:Panoramax)). Sem essa autorização, a CC BY-SA sozinha não permite usar as fotos para melhorar o OSM. O uploader aceita isto uma vez (`license_accepted_at`) e declara que tirou a foto. Fotos referenciadas do OSM ou do Commons mantêm a licença e o autor de origem.
 
-**Código.** Licença aberta no repositório (ex. MIT ou AGPL), para qualquer pessoa poder montar uma cópia.
+**Código.** MIT (`LICENSE`), a mesma do Panoramax, para qualquer pessoa poder montar uma cópia. O nome e a mascote ficam de fora, como nos outros sites do grupo: um fork precisa de nome e imagem próprios. Resumo em `Docs/licenca.md`.
 
 **RGPD**
 

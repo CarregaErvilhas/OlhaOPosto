@@ -1,2 +1,8 @@
 __pycache__/
 *.pyc
+
+# Worker
+worker/node_modules/
+worker/.wrangler/
+worker/.wrangler.remote.json
+worker/.dev.vars*

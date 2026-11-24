@@ -12,7 +12,9 @@ e domínios* e *Links estáticos*.
 | R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`, vazio |
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio |
 | Cache Rule do `pictures.*` | Aplicada e testada |
-| Worker `pictures` + D1 `pictures` em `voltframe.ocarroeletrico.com` | Por fazer (fase 2) |
+| D1 `pictures` | Criada, jurisdição EU; migrações e primeiro import por fazer |
+| Worker `pictures` em `voltframe.ocarroeletrico.com` | Código em `worker/` (API de postos só de leitura); por publicar |
+| Import diário dos postos | Workflow `import-stations.yml`; à espera dos segredos do repositório |
 
 ## 2. R2
 
@@ -71,8 +73,89 @@ cf cache purge -z ocarroeletrico.com -f --body '{"files":["https://pictures.ocar
 No `cf`, os comandos que apagam ou substituem (`r2 objects delete`,
 `r2 buckets cors update`) pedem `--force` quando não há terminal interativo.
 
-## 4. Questões em aberto
+## 4. Worker e D1
 
+O código está em `worker/`. O Worker chama-se `pictures` e responde em
+`voltframe.ocarroeletrico.com` (custom domain; `workers.dev` e *preview URLs*
+desligados). Por agora só tem:
+
+| Pedido | Devolve |
+| --- | --- |
+| `GET /api/v1/stations/{id}` | Posto e pontos, com CORS e `max-age=300`. `404` para ids que não existem e para propostas ou postos rejeitados |
+| `GET /` | Texto «em construção» |
+
+**A D1 `pictures` está na jurisdição EU**: vai guardar dados de
+utilizadores (RGPD), e a jurisdição só se escolhe ao criar a base.
+
+**O ID da D1 não está no repositório.** O `wrangler.json` tem
+`database_id: "local-only"`, que só serve para o D1 local. Os comandos
+remotos passam pelo `npm run remote`, que procura o ID pelo nome com as
+credenciais de quem corre, escreve uma cópia temporária da configuração
+(`.wrangler.remote.json`, ignorada pelo git) e apaga-a no fim.
+
+**Nunca correr `wrangler deploy` diretamente.** Com o *placeholder* falha.
+Sem `database_id` nenhum, o wrangler criaria uma D1 nova e vazia e
+escreveria o ID dela no `wrangler.json`.
+
+Em local (sem login na Cloudflare):
+
+```bash
+cd worker
+npm ci
+npm test                  # testes do import
+npm run db:local          # migrações na D1 local
+npm run import:local      # importa o feed real para a D1 local
+npm run dev               # http://localhost:8787/api/v1/stations/EZC-AMD-00051
+```
+
+Em produção, depois de `npx wrangler login`:
+
+```bash
+cd worker
+npm run remote -- d1 migrations apply DB --remote
+node scripts/import-stations.ts --remote      # primeiro import
+npm run remote -- deploy
+```
+
+## 5. Importação dos postos
+
+`worker/scripts/import-stations.ts` lê o modelo da rede do NAP dashboard
+(`https://nap.ocarroeletrico.com/ohmigo/chargers.json`, ~12 MB) e atualiza
+`stations` e `evses`. Corre no GitHub Actions
+(`.github/workflows/import-stations.yml`, todos os dias às 05:23 UTC e à mão
+com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem
+10 ms de CPU e só ler o JSON passa disso.
+
+- **Só escreve o que mudou.** Lê o estado da D1, compara e grava só as
+  linhas novas ou alteradas: a D1 Free conta as linhas escritas por dia. Se
+  o `generatedAt` do feed é o mesmo do último import, não faz nada
+  (`--force` para repetir).
+- **Nunca apaga.** Postos e pontos que saem do feed passam a
+  `missing_from_nap` e voltam a `active` se regressarem.
+- **Só mexe nas linhas do NAP.** Um posto `community` com o mesmo id fica
+  como está e aparece em *conflicts*, para um moderador decidir.
+- **Trava se o feed vier partido.** Recusa quando mais de 5 % dos postos
+  ativos passariam a `missing_from_nap` (`--allow-mass-missing` para
+  confirmar).
+- **A D1 fica indisponível uns segundos** enquanto o `--file` remoto importa
+  (API de importação da D1): um pequeno soluço na API por volta das 05:23 UTC.
+- **Pontos sem código EVSE.** O feed ainda não traz o código EVSE do NAP
+  (`PT*EDP*E*LSB*90050*01`), por isso a chave de `evses` é
+  (`station_id`, `point_id`) e o `evse_id` fica vazio. Sem ele não há link
+  estático de tomada; o campo tem de ser acrescentado no NAP dashboard
+  (`plan.md`, *Fontes de postos existentes*).
+
+**Segredos do repositório** (*Settings → Secrets and variables → Actions*):
+
+| Segredo | O quê |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Token da conta só com **D1 → Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | ID da conta Cloudflare |
+
+## 6. Questões em aberto
+
+- [ ] Código EVSE do NAP no `ohmigo_chargers.json` (campo `evse` em cada ponto), para os links de tomada.
+- [ ] Publicar o Worker pelo CI em vez de à mão (precisa de um token com permissões de Workers).
 - [ ] Regra de ciclo de vida no `pictures-staging` como rede de segurança
   para fotos rejeitadas ou abandonadas (por exemplo 90 dias). O risco é
   apagar as versões de uma foto que ainda está na fila.

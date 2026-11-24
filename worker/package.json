@@ -1,0 +1,26 @@
+{
+  "name": "pictures-worker",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.scripts.json",
+    "test": "node --test test/",
+    "db:local": "wrangler d1 migrations apply DB --local",
+    "import:local": "node scripts/import-stations.ts --local",
+    "remote": "node scripts/remote.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261109.1",
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2",
+    "wrangler": "4.159.0"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "workerd": true
+  }
+}

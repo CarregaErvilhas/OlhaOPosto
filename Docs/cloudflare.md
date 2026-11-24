@@ -13,8 +13,8 @@ e domínios* e *Links estáticos*.
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio |
 | Cache Rule do `pictures.*` | Aplicada e testada |
 | D1 `pictures` | Criada, jurisdição EU; migração aplicada e primeiro import feito (8 876 postos, 19 737 pontos) |
-| Worker `pictures` em `voltframe.ocarroeletrico.com` | Código em `worker/` (API de postos só de leitura); por publicar |
-| Import diário dos postos | Workflow `import-stations.yml`; à espera dos segredos do repositório |
+| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado (API de postos só de leitura) |
+| Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos |
 
 ## 2. R2
 

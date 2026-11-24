@@ -13,7 +13,7 @@ O link nunca muda. Muda só a foto para onde aponta.
 > **Estado:** o servidor Panoramax está em produção em
 > `panoramax.ocarroeletrico.com`, ainda fora da federação. Existem o plano
 > técnico e os mockups. O Worker do VoltFrame (`worker/`) já tem a API de
-> postos só de leitura e o import diário dos postos, ainda por publicar.
+> postos só de leitura e o import diário dos postos, já publicados.
 
 ## Como funciona
 

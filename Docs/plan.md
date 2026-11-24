@@ -15,7 +15,7 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
    - medir o custo mensal no Zerops (ponto 6 do ensaio, [`infra.md`](infra.md), secção 9);
    - começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Falta:
-   - ligar o login OSM, que já está feito mas desligado ([`cloudflare.md`](cloudflare.md), secção 4): falta a política de privacidade, registar a aplicação no OSM e pôr os segredos; e a ligação para a conta no cabeçalho, com a página de envio;
+   - ligar o login OSM, que já está feito mas desligado ([`cloudflare.md`](cloudflare.md), secção 4): falta registar a aplicação no OSM e pôr os segredos; e a ligação para a conta no cabeçalho, com a página de envio;
    - página de envio com desfocagem no browser;
    - fila de moderação com promoção manual;
    - foto principal e publicação em `pictures.*`;
@@ -190,7 +190,7 @@ O início de sessão já está feito e desligado: como funciona e como se liga e
 
 **O que falta**
 
-1. Ligá-lo: política de privacidade publicada, aplicação registada no OSM e segredos `OSM_CLIENT_ID`/`OSM_CLIENT_SECRET` no Worker.
+1. Ligá-lo: aplicação registada no OSM e segredos `OSM_CLIENT_ID`/`OSM_CLIENT_SECRET` no Worker.
 2. O token da conta de serviço do Panoramax como segredo do Worker, com o envio.
 3. Proteção do envio: Cloudflare Turnstile no formulário, limite de envios por utilizador (50 fotos/dia para `contributor`) e verificação de origem em cada `POST`, como já faz o `/auth/logout`.
 4. Painéis `/admin` (fila de revisão, remoções, postos fora do NAP) atrás de Cloudflare Access, além do papel `moderator` na D1: duas camadas para a parte sensível.
@@ -241,7 +241,7 @@ A licença das fotos (CC BY-SA 4.0 com autorização ODbL) está em [`licenca.md
 - **Dados de quem envia:** ID e nome do OSM, pseudónimo opcional, papel e GPS das fotos. Sem email.
 - **Pessoas e matrículas nas fotos:** desfocagem obrigatória e caixa a confirmar no envio.
 - **Pedidos de remoção:** formulário público `/takedown` (sem login, com Turnstile). A foto fica `hidden` de imediato (no VoltFrame, no Panoramax e em `pictures`) e um moderador decide em **72 h**.
-- **Política de privacidade** publicada no site, com o responsável identificado.
+- **Política de privacidade:** publicada em `/privacidade` (registos, login e *cookies*); falta acrescentar o envio de fotos (GPS, desfocagem, remoção) antes de o abrir.
 - **Conservação:** o GPS fica na D1 só para moderação; as versões em `pictures-staging` apagam-se ao aprovar ou rejeitar; logs com retenção curta.
 
 **Moderação**

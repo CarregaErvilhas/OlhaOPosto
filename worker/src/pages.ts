@@ -22,6 +22,7 @@ export const stationPath = (lang: Lang, id: string) =>
 export const socketPath = (lang: Lang, evse: string) =>
   `${lang === 'pt' ? '/tomadas/' : '/en/sockets/'}${encodeURIComponent(evse)}`;
 export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/search');
+export const privacyPath = (lang: Lang) => (lang === 'pt' ? '/privacidade' : '/en/privacy');
 export const accountPath = (lang: Lang) => (lang === 'pt' ? '/conta' : '/en/account');
 export const socketAnchor =(compact: string) => `#t-${encodeURIComponent(compact)}`;
 
@@ -39,6 +40,7 @@ const T = {
     other: 'English',
     footerData: 'Fotos CC BY-SA 4.0 · Dados dos postos: NAP Portugal (MOBI.E) e © contribuidores do OpenStreetMap (ODbL)',
     footerCode: 'Código (MIT)',
+    footerPrivacy: 'Privacidade',
     ogImageAlt: 'Pic, a mascote do pIcŧU/Re',
     inNap: 'No NAP',
     outNap: 'Fora do NAP',
@@ -110,6 +112,7 @@ const T = {
     loginIntro: 'Para enviar fotos, inicia sessão com a tua conta OpenStreetMap. Só guardamos o número e o nome da conta no OSM, nunca o email.',
     loginButton: 'Iniciar sessão com o OpenStreetMap',
     loginOff: 'O início de sessão ainda não está disponível. Abre com o envio de fotos.',
+    privacyLink: 'Como tratamos estes dados.',
     signedIn: 'Sessão iniciada como',
     roleLabel: 'Papel:',
     roles: {
@@ -129,6 +132,7 @@ const T = {
     other: 'Português',
     footerData: 'Photos CC BY-SA 4.0 · Station data: NAP Portugal (MOBI.E) and © OpenStreetMap contributors (ODbL)',
     footerCode: 'Source code (MIT)',
+    footerPrivacy: 'Privacy',
     ogImageAlt: 'Pic, the pIcŧU/Re mascot',
     inNap: 'In the NAP',
     outNap: 'Not in the NAP',
@@ -200,6 +204,7 @@ const T = {
     loginIntro: 'To upload photos, sign in with your OpenStreetMap account. We only keep the account number and name on OSM, never your email.',
     loginButton: 'Sign in with OpenStreetMap',
     loginOff: 'Signing in is not available yet. It opens with photo uploads.',
+    privacyLink: 'How we handle this data.',
     signedIn: 'Signed in as',
     roleLabel: 'Role:',
     roles: {
@@ -334,6 +339,7 @@ ${p.body}
 <footer class="site-footer">
   <div class="wrap">
     <span>${t.footerData}</span>
+    <a href="${privacyPath(p.lang)}">${t.footerPrivacy}</a>
     <a href="https://github.com/CarregaErvilhas/VoltFrame">${t.footerCode}</a>
   </div>
 </footer>
@@ -515,7 +521,7 @@ export function accountPage(
     // A link, not a form: the CSP's form-action 'self' would block the
     // redirect to openstreetmap.org that follows a form submission.
     parts.push(
-      `<p>${t.loginIntro}</p>`,
+      `<p>${t.loginIntro} <a href="${privacyPath(lang)}">${t.privacyLink}</a></p>`,
       `<p><a class="button" href="/auth/osm/login?next=${encodeURIComponent(here)}">${t.loginButton}</a></p>`,
     );
   } else {

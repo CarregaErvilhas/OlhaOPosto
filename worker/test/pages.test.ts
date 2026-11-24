@@ -101,7 +101,9 @@ test('pages that should not be indexed have no canonical', () => {
 test('sitemap lists both languages and escapes ids', () => {
   const xml = sitemapXml([{ id: 'A_1', lastmod: '2000-01-02T00:00:00+00:00' }]);
   assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
-  assert.equal(xml.match(/<url>/g)?.length, 4);
+  // Home and privacy in both languages, plus the station in both.
+  assert.equal(xml.match(/<url>/g)?.length, 6);
+  assert.ok(xml.includes('<loc>https://voltframe.ocarroeletrico.com/en/privacy</loc></url>'));
   assert.ok(xml.includes('<loc>https://voltframe.ocarroeletrico.com/en/stations/A_1</loc><lastmod>2000-01-02T00:00:00+00:00</lastmod>'));
   assert.ok(xml.includes('<loc>https://voltframe.ocarroeletrico.com/</loc></url>'));
 });

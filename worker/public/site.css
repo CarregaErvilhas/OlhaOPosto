@@ -232,6 +232,12 @@ a.button { display: inline-flex; align-items: center; text-decoration: none; }
 .plain-list li { margin: 6px 0; }
 .page-msg { max-width: 40rem; }
 .page-msg h1 { font-size: 1.875rem; margin: 0 0 8px; }
+/* Long text pages (privacy): readable line length, room between sections. */
+.prose h2 { font-size: 1.25rem; margin: 32px 0 8px; }
+.prose p, .prose li { line-height: 1.6; }
+.prose ul { padding-left: 20px; }
+.prose li { margin: 6px 0; }
+.prose code { overflow-wrap: anywhere; }
 
 /* em, not px: the layout switches when the text no longer fits, whatever its size. */
 @media (max-width: 37.5em) {

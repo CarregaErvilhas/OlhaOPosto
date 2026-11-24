@@ -1,6 +1,6 @@
 # Infra — Panoramax do VoltFrame no Zerops
 
-2026-11-24 · **em produção** em `https://panoramax.ocarroeletrico.com`,
+**Em produção** em `https://panoramax.ocarroeletrico.com`,
 atrás da Cloudflare, fora da federação. Este é o sítio onde fica documentada
 a infraestrutura do servidor Panoramax. O resto do VoltFrame (Worker, D1, R2
 `pictures`) é Cloudflare e está em [`cloudflare.md`](cloudflare.md). O design está em
@@ -34,7 +34,7 @@ Ficheiros:
 
 | O quê | Onde |
 | --- | --- |
-| Projeto Zerops | `Panoramax` (`zU6YoVaBRBuGV2ItdSULOA`), org Cocofree, core *Lightweight*, região `prg1` |
+| Projeto Zerops | `Panoramax`, org Cocofree, core *Lightweight*, região `prg1` |
 | Serviços | `pano` (Panoramax 2.17.0) e `db` (PostgreSQL 18, PostGIS 3.6.4) |
 | Imagens | Bucket R2 `panoramax`, privado |
 | Domínio | `panoramax.ocarroeletrico.com`: `AAAA` com proxy da Cloudflare, certificado do Zerops, *Access Policy* só para a Cloudflare |
@@ -149,7 +149,7 @@ secção 8.
   metadados e corre o cron diário de estatísticas. Por isso a API tem
   `PICTURE_PROCESS_THREADS_LIMIT=0`: não processa fotos dentro do pedido.
 
-Os `startCommands` correm em bash (visto no primeiro deploy, 2026-11-24):
+Os `startCommands` correm em bash (visto no primeiro deploy):
 o `geovisio:create_api()` sem aspas dava `syntax error near unexpected
 token '('`. Caracteres especiais do shell vão entre aspas simples.
 
@@ -302,7 +302,7 @@ são os do `pictures.*`, que não passam por aqui.
 há dois containers, e um envio recebido num pode ser processado pelo
 *worker* do outro. Num disco local, o ficheiro não estaria lá.
 
-**O que se viu no ensaio (2026-11-24):**
+**O que se viu no ensaio:**
 
 - O original fica em `data/permanent/<xx>/<xx>/<xx>/<xx>/<resto do uuid>.jpg`
   **tal como foi enviado, com o EXIF todo**. Os tamanhos ficam em
@@ -340,28 +340,28 @@ domínio, e com o proxy da Cloudflare esse `AAAA` é da Cloudflare, por isso
 um `A` partilhado com proxy não funciona. A Cloudflare traduz os clientes
 IPv4.
 
-Como está (2026-11-24):
+Como está:
 
 | Onde | O quê |
 | --- | --- |
 | Zerops, *Public access* do `pano` | `panoramax.ocarroeletrico.com` → `pano:5000`, SSL (Let's Encrypt emitido pelo Zerops) |
-| Cloudflare, zona `ocarroeletrico.com` | `panoramax  AAAA  2a00:1ed0:1100::160:0:3d41`, proxy ON. A zona já estava em SSL *Full (strict)* |
+| Cloudflare, zona `ocarroeletrico.com` | `panoramax  AAAA  <IPv6 dedicado do projeto>`, proxy ON (o IPv6 está no Zerops, *Public access* do `pano`). A zona já estava em SSL *Full (strict)* |
 | Zerops, roda dentada do domínio → *Access Policy* | *Default Policy* `deny`; *CIDR Blocks* = as gamas da Cloudflare, uma por linha |
 | Zerops, subdomínio `zerops.app` | Desligado: ficava fora da Cloudflare |
 
-O `A` partilhado (93.185.106.128) não se usa, e o CNAME que o Zerops
+O `A` partilhado do Zerops não se usa, e o CNAME que o Zerops
 também propõe não traz nada: com o IPv4 partilhado excluído, aponta para o
 mesmo IPv6, e esse interruptor vale para o projeto todo.
 
 **Access Policy.** O Zerops só a configura na GUI (sem chave no
 `zerops.yml`, sem zcli). A verificação usa o IP de quem liga, por isso
 funciona atrás da Cloudflare. As gamas vêm de
-`https://www.cloudflare.com/ips-v4` e `ips-v6` (22 a 2026-11-24); quando a
+`https://www.cloudflare.com/ips-v4` e `ips-v6`; quando a
 Cloudflare as mudar, atualizam-se à mão. Para confirmar:
 
 ```bash
 # direto à origem, sem Cloudflare: tem de dar 403
-curl -s -o /dev/null -w '%{http_code}\n' --resolve 'panoramax.ocarroeletrico.com:443:[2a00:1ed0:1100::160:0:3d41]' https://panoramax.ocarroeletrico.com/api/configuration
+curl -s -o /dev/null -w '%{http_code}\n' --resolve "panoramax.ocarroeletrico.com:443:[$PANO_IPV6]" https://panoramax.ocarroeletrico.com/api/configuration
 # pela Cloudflare: tem de dar 200
 curl -s -o /dev/null -w '%{http_code}\n' https://panoramax.ocarroeletrico.com/api/configuration
 ```
@@ -371,8 +371,8 @@ As fotos chegam com 2048 px (menos de 2 MB), por isso o limite não conta.
 
 **Proxies.** O Panoramax monta os URLs absolutos das respostas STAC a
 partir dos `X-Forwarded-*`. O `INFRA_NB_PROXIES` dele aplica a mesma
-contagem aos cinco cabeçalhos, e isso não serve aqui (visto a 2026-11-24 no
-subdomínio, com `INFRA_NB_PROXIES=1`):
+contagem aos cinco cabeçalhos, e isso não serve aqui (visto no subdomínio,
+com `INFRA_NB_PROXIES=1`):
 
 - O balanceador do Zerops define `Host`, `Proto` e `Port`, mas deixa passar
   o `X-Forwarded-Prefix` do cliente. Um pedido com `X-Forwarded-Prefix: /zz`
@@ -406,7 +406,8 @@ guarda credenciais do Zerops.
 À mão, em último recurso, na raiz do repo (faz commit antes):
 
 ```bash
-zcli push -P zU6YoVaBRBuGV2ItdSULOA --service-id Y9KxooDBQvqn2Bpq9w1O6A --setup pano
+# IDs fora do repo: zcli project list / zcli service list -P <project-id>
+zcli push -P <project-id> --service-id <id-do-pano> --setup pano
 ```
 
 - **Num `git worktree` falha** com `exit status 128` (o `.git` é um
@@ -434,7 +435,7 @@ zcli push -P zU6YoVaBRBuGV2ItdSULOA --service-id Y9KxooDBQvqn2Bpq9w1O6A --setup 
 
 ---
 
-## 9. Ensaio (2026-11-24)
+## 9. Ensaio
 
 Os seis pontos do `plan.md`, mais os que saíram ao preparar a
 configuração. Feito no subdomínio `zerops.app` e pela VPN, e depois no
@@ -475,8 +476,8 @@ panoramax/trial_batch.sh fotos/*.jpg           # ponto 10 (ficheiros diferentes)
 ### Acesso ao container
 
 ```bash
-zcli vpn up -P zU6YoVaBRBuGV2ItdSULOA   # com -P: sem ele, o zcli pode escolher outro projeto
-ssh pano.zerops                         # o nome curto `pano` não resolve no `dig`
+zcli vpn up -P <project-id>   # com -P: sem ele, o zcli pode escolher outro projeto
+ssh pano.zerops               # o nome curto `pano` não resolve no `dig`
 ```
 
 A API responde pela VPN em `http://pano.zerops:5000`. No container:

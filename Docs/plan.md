@@ -1,6 +1,6 @@
 # Fotos dos postos de carregamento — design técnico
 
-2026-11-23 · Fernando · revisto depois de uma sessão de perguntas e respostas ao plano de 2026-11-22. Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`.
+Fernando · revisto depois de uma sessão de perguntas e respostas ao plano. Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`.
 
 ## Resumo e objetivos
 
@@ -85,7 +85,7 @@ pictures|author=joao_osm
 
 **Federação.** Abre-se um pedido no repositório do catálogo federado e os operadores acrescentam o servidor ao *harvester* ([como](https://docs.panoramax.fr/how-to-contribute/hosting-instance/)). Só depois da conversa com a OSM Portugal e com a equipa do Panoramax; até lá o servidor fica privado.
 
-**Ensaio antes de construir (fase 1), feito a 2026-11-24.** O servidor está em produção em `panoramax.ocarroeletrico.com`, fora da federação. Detalhe e números em [`infra.md`](infra.md), secção 9.
+**Ensaio antes de construir (fase 1), feito.** O servidor está em produção em `panoramax.ocarroeletrico.com`, fora da federação. Detalhe e números em [`infra.md`](infra.md), secção 9.
 
 | Verificar | Resultado |
 | --- | --- |
@@ -199,7 +199,7 @@ Notas:
 
 **Em comum às duas opções.** O cron diário lê as fotos que o `charger_photos.py` do NAP dashboard já recolhe do OSM (com autor, licença e miniatura) e guarda-as em `photos` com `origin=osm_panoramax` ou `commons`, só como referência. A API mostra-as com o link para a origem. As do Mapillary ficam de fora (a API deles pede uma chave).
 
-**B — só na galeria (decidido, 2026-11-23).**
+**B — só na galeria (decidido).**
 
 - As externas aparecem na página do posto e na API, mas nunca são a principal.
 - O link estático só existe para fotos enviadas pelo VoltFrame.
@@ -384,7 +384,7 @@ Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
 
 **Fases**
 
-1. **Panoramax.** Feito a 2026-11-24: ensaio e servidor em produção, fora da federação (falta só o custo). Falta começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
+1. **Panoramax.** Feito: ensaio e servidor em produção, fora da federação (falta só o custo). Falta começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Importação diária do `ohmigo_chargers.json` (com o `evse` novo), login OSM, página de envio com desfocagem no browser, fila de moderação com promoção manual, página do posto, foto principal e links estáticos em `pictures.*`, aliases de postos, ranking e medalhas, API `GET`, `llms.txt`, link manual "acrescentar ao OSM". Entrada na federação depois da conversa com a comunidade.
 3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP, escrita pela API com tokens, exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
 4. **Desfocagem no servidor**, quando houver uma GPU a um custo razoável.

@@ -1,6 +1,6 @@
 # Cloudflare — recursos do VoltFrame
 
-2026-11-24 · zona `ocarroeletrico.com`, na conta Cloudflare existente. O
+Zona `ocarroeletrico.com`, na conta Cloudflare existente. O
 servidor Panoramax (Zerops, bucket `panoramax`, DNS do `panoramax.*`) está em
 [`infra.md`](infra.md). O design está em [`plan.md`](plan.md), secções *Nomes
 e domínios* e *Links estáticos*.
@@ -27,9 +27,8 @@ O `pictures-staging` tem de ser um bucket à parte, não um prefixo em
 
 ## 3. `pictures.ocarroeletrico.com`
 
-**Custom domain.** TLS mínimo **1.3**, por escolha (2026-11-24). Fica de
-fora quem só fala TLS 1.2: Android 9 e mais antigos, iOS anterior ao 12.2,
-apps nativas do Windows 10 (Schannel, .NET Framework, PowerShell 5) e Java
+**Custom domain.** TLS mínimo **1.3**. Fica de fora quem só fala TLS 1.2:
+Android 9 e mais antigos, iOS anterior ao 12.2, apps nativas do Windows 10 (Schannel, .NET Framework, PowerShell 5) e Java
 ou Python com OpenSSL antigo. Se alguma app ou mapa se queixar, baixar para
 1.2 com `cf r2 buckets domains custom update pictures.ocarroeletrico.com
 --bucket-name pictures --min-tls 1.2`.

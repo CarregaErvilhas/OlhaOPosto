@@ -34,4 +34,4 @@ Estado: fase de design. Existem mockups, o plano técnico e a configuração do 
 
 - Docs e UI em pt-PT; código e commits em inglês.
 - Commits com `-s` (DCO).
-- `.github/dependabot.yml` só cobre GitHub Actions; acrescentar o ecossistema (npm, pip) quando houver lockfile.
+- `.github/dependabot.yml` cobre GitHub Actions e o pip de `panoramax/` (lock `requirements.txt` gerado do `requirements.in` com o `uv`); acrescentar outros ecossistemas (npm) quando houver lockfile.

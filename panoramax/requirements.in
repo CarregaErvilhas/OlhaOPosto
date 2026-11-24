@@ -1,0 +1,9 @@
+# Panoramax API (pacote PyPI `geovisio`). Versão fixa: subir de propósito,
+# lendo o changelog (https://gitlab.com/panoramax/server/api/-/blob/develop/CHANGELOG.md),
+# porque cada versão pode trazer migrações da BD.
+geovisio==2.17.0
+#
+# O requirements.txt é o lock (todas as dependências, com hashes), gerado a
+# partir deste ficheiro para o runtime do Zerops (Linux x86_64, Python 3.14).
+# Depois de mudar este ficheiro, regenerar com o comando no topo do
+# requirements.txt (precisa do uv) e fazer commit dos dois.

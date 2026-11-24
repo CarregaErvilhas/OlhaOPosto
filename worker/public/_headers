@@ -1,0 +1,13 @@
+# Font files are never edited in place: a new version gets a new file name.
+/fonts/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+# CSS and JS keep their names, so the browser revalidates them (ETag) on every
+# page: a deploy must never pair new HTML with yesterday's stylesheet.
+/site.css
+  Cache-Control: public, no-cache
+/site.js
+  Cache-Control: public, no-cache
+/robots.txt
+  Cache-Control: public, max-age=86400
+/llms.txt
+  Cache-Control: public, max-age=86400

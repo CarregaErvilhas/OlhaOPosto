@@ -1,0 +1,31 @@
+# pIcŧU/Re (VoltFrame)
+
+> Community photos of EV charging stations and sockets in Portugal, with one stable static photo link per station and per socket, keyed by the official NAP Portugal (MOBI.E) codes.
+
+Pages are in European Portuguese, with English under /en/. Station and socket data come from NAP Portugal (MOBI.E), matched to OpenStreetMap, and are refreshed daily. Photo uploads are not open yet, so most static links still return 404.
+
+## Pages
+
+- [Station page](https://voltframe.ocarroeletrico.com/en/stations/EZC-AMD-00051): `/en/stations/{station id}` in English, `/postos/{station id}` in Portuguese.
+- Socket lookup: `/en/sockets/{EVSE code}` (or `/tomadas/{EVSE code}`) redirects to the station page, anchored on that socket. The code works with or without the `*` (`PT*EZC*E*AMD*00051*1` or `PTEZCEAMD000511`).
+
+## API
+
+Read-only JSON, open CORS, no key.
+
+- `GET /api/v1/stations/{station id}`: the station, its operator, address, coordinates, OSM element and sockets.
+- `GET /api/v1/evses/{EVSE code}`: the socket and its station. 300 with `candidates` when the NAP lists the same code at more than one station, 404 when unknown.
+
+## Static photo links
+
+- `https://pictures.ocarroeletrico.com/{station id}.jpg` (1024 px), `.thumb.jpg` (400 px), `.full.jpg` (2048 px).
+- Sockets use the EVSE code without the `*`: `https://pictures.ocarroeletrico.com/PTEZCEAMD000511.jpg`.
+- The link never changes; the photo behind it can. 404 until the station or socket has a main photo.
+
+## Licences
+
+- Photos: CC BY-SA 4.0. Station data: NAP Portugal (MOBI.E) and © OpenStreetMap contributors (ODbL). Code: MIT, https://github.com/CarregaErvilhas/VoltFrame
+
+## Optional
+
+- [Sitemap](https://voltframe.ocarroeletrico.com/sitemap.xml)

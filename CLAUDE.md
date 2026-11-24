@@ -2,7 +2,7 @@
 
 VoltFrame: serviço comunitário de fotos de postos e tomadas de carregamento em Portugal. Guarda as fotos e serve links estáticos pelo ID oficial (`OPC-XXXXXXXXXX` para postos, `PTOPCEYYYYYYYYY` para tomadas), para qualquer app ou mapa (OSM, NAP dashboard).
 
-Estado: fase 1 quase feita. O servidor Panoramax está em produção em `panoramax.ocarroeletrico.com` (Zerops, atrás da Cloudflare, fora da federação), com o ensaio feito (falta o custo). Existem mockups e o plano técnico. Fase 2 começada: o Worker em `worker/` tem a API de postos só de leitura e o import diário dos postos (GitHub Actions para a D1), já publicados.
+Estado: fase 1 quase feita. O servidor Panoramax está em produção em `panoramax.ocarroeletrico.com` (Zerops, atrás da Cloudflare, fora da federação), com o ensaio feito (falta o custo). Existem mockups e o plano técnico. Fase 2 começada: o Worker em `worker/` tem a página do posto, a API só de leitura e o import diário dos postos (GitHub Actions para a D1), já publicados.
 
 ## Onde está o quê
 
@@ -11,7 +11,7 @@ Estado: fase 1 quase feita. O servidor Panoramax está em produção em `panoram
 - `Design/*.dc.html`: mockups das páginas (Main, Galeria, Enviar, Admin) e `canvas.json`.
 - `Docs/infra.md`: infraestrutura do servidor Panoramax no Zerops (serviços, segredos, R2, DNS, deploy, ensaio). Atualizar sempre que a infra mudar.
 - `Docs/cloudflare.md`: recursos Cloudflare do VoltFrame (buckets `pictures` e `pictures-staging`, Cache Rule, CORS, Worker, D1 e o import dos postos). Atualizar sempre que mudarem.
-- `worker/`: Worker `pictures` (TypeScript, D1), migrações e o import dos postos (`scripts/import-stations.ts`, corrido pelo `.github/workflows/import-stations.yml`). Comandos remotos só com `npm run remote` (`Docs/cloudflare.md`, secção 4).
+- `worker/`: Worker `pictures` (TypeScript, D1): API, páginas em HTML em pt-PT e inglês (`src/pages.ts`, com CSS, fontes, ícones, `robots.txt` e `llms.txt` em `worker/public/`), `sitemap.xml`, migrações e o import dos postos (`scripts/import-stations.ts`, corrido pelo `.github/workflows/import-stations.yml`). Comandos remotos só com `npm run remote` (`Docs/cloudflare.md`, secção 4).
 - `zerops.yml`, `zerops-import.yaml`, `panoramax/`: configuração do serviço `pano` (Panoramax) e do `db`. Um push para `main` faz deploy pelo webhook do Zerops.
 - `Design/marca/`: mascote Pic (versão âmbar) em SVG e PNG, favicon, ícones de app e `site.webmanifest`; cores e `<head>` no `LEIA-ME.md`.
 - `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`: fluxo VoltFrame ↔ Panoramax e ecrãs do plano revisto (envio, moderação, posto, Panoramax, ranking).

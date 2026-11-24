@@ -86,17 +86,42 @@ desligados). Por agora tem:
 | `GET /postos/{id}` | Página do posto: tomadas com o código EVSE, links estáticos de cada tamanho para copiar, ligação ao OSM. `404` em HTML como na API |
 | `GET /tomadas/{evse}` | `302` para `/postos/{id}#t-{evse}`, com a tomada marcada; uma página com a lista se o código estiver em mais de um posto. `302` e não `301`, porque um código pode mudar de posto |
 | `GET /` | Página inicial provisória |
+| `GET /en/`, `/en/stations/{id}`, `/en/sockets/{evse}` | As mesmas páginas em inglês. `/en/sockets/{evse}` faz `302` para `/en/stations/{id}#t-{evse}` |
+| `GET /sitemap.xml` | Página inicial e todos os postos públicos, nas duas línguas, com `lastmod` (a última alteração do posto ou de uma tomada). Fica um dia na Cache API: cerca de 9 mil linhas lidas por dia e por centro de dados |
+| `GET /robots.txt`, `/llms.txt` | Ficheiros estáticos em `worker/public/`. O `robots.txt` deixa entrar todos os robôs, incluindo os de IA, e aponta para o *sitemap*. O `llms.txt` descreve as páginas, a API, os links estáticos e as licenças |
 
 As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os
 ficheiros de `worker/public/` (CSS, `site.js`, fontes, ícones) são *static
 assets* do Worker: a Cloudflare serve-os antes de o código correr e não contam
 para o limite de pedidos. O `public/_headers` dá às fontes um ano de cache
-(`immutable`): uma fonte nova leva um nome de ficheiro novo.
+(`immutable`): uma fonte nova leva um nome de ficheiro novo. O CSS e o
+`site.js` mantêm o nome, por isso vão com `no-cache`: o browser confirma-os
+(ETag) em cada página e um deploy nunca junta HTML novo com CSS antigo.
+
+**Duas línguas, URLs fixos.** As páginas em pt-PT ficam onde estavam; o
+inglês vive em `/en/`. Não há redirecionamento pelo `Accept-Language` (os
+robôs de pesquisa só veriam uma língua): cada página tem um link para a
+outra língua, o seu próprio `canonical` e os `hreflang` das duas (`pt-PT`,
+`en`, `x-default` para o pt-PT). Os textos do NAP (nomes, moradas,
+operadores) não se traduzem; nas páginas em inglês vão marcados com
+`lang="pt-PT"` para os leitores de ecrã. Todas as frases estão num único
+dicionário em `src/pages.ts`.
+
+**Acessibilidade.** Contraste de pelo menos 4,5:1 no texto e 3:1 nos
+contornos dos botões, nos temas claro e escuro (seguem o sistema). Tamanhos
+de letra em `rem` e sem tamanho no `html`, para respeitar o tamanho de letra
+do browser e do sistema; a página passa a 320 px de largura com texto a
+200 % sem *scroll* horizontal. Há regras para `prefers-contrast: more` e para
+o modo de cores forçadas do Windows. O botão de copiar anuncia o resultado
+numa região `role="status"` e troca o ícone, em vez de mudar só a cor.
 
 **Nada de terceiros nas páginas.** As fontes (Inter, Space Grotesk, JetBrains
 Mono) estão alojadas em `public/fonts/`, não no Google Fonts. A CSP só deixa
 carregar ficheiros do próprio site e imagens de `pictures.*`, e não permite
-*scripts* nem estilos *inline*: tudo vai em `site.css` e `site.js`.
+*scripts* nem estilos *inline*: tudo vai em `site.css` e `site.js`. As
+páginas levam também HSTS, `nosniff`, `referrer-policy` e COOP; a API leva
+`x-robots-tag: noindex`, porque é para apps e agentes, não para resultados de
+pesquisa.
 
 **A D1 `pictures` está na jurisdição EU**: vai guardar dados de
 utilizadores (RGPD), e a jurisdição só se escolhe ao criar a base.

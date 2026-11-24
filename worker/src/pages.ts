@@ -340,7 +340,7 @@ ${p.body}
   <div class="wrap">
     <span>${t.footerData}</span>
     <a href="${privacyPath(p.lang)}">${t.footerPrivacy}</a>
-    <a href="https://github.com/CarregaErvilhas/VoltFrame">${t.footerCode}</a>
+    <a target="_blank" rel="noopener" href="https://github.com/CarregaErvilhas/VoltFrame">${t.footerCode}</a>
   </div>
 </footer>
 </body>
@@ -385,9 +385,9 @@ export function stationPage(lang: Lang, s: StationRow, points: PointRow[]): stri
   const operator = s.operator ?? s.opc;
   const osm = s.osm_ref && OSM_ELEMENT.test(s.osm_ref)
     ? `<p>${t.osmLinked(`<code>${esc(s.osm_ref)}</code>`)}</p>
-        <a href="https://www.openstreetmap.org/${esc(s.osm_ref)}">${t.osmView}</a>`
+        <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/${esc(s.osm_ref)}">${t.osmView}</a>`
     : `<p>${t.osmNone}</p>
-        <a href="https://www.openstreetmap.org/?mlat=${s.lat}&amp;mlon=${s.lon}#map=19/${s.lat}/${s.lon}">${t.osmMap}</a>`;
+        <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${s.lat}&amp;mlon=${s.lon}#map=19/${s.lat}/${s.lon}">${t.osmMap}</a>`;
   const operatorData = [s.operator ? nap(lang, s.operator) : null, s.opc ? `(${esc(s.opc)})` : null].filter(Boolean).join(' ');
   const body = `<p class="operator">${operator ? nap(lang, operator) : t.unknownOperator}</p>
 <div class="title-row">
@@ -442,7 +442,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
     <section class="card">
       <h2>${t.dataTitle}</h2>
       <p>${operatorData}${region ? `${operatorData ? ' · ' : ''}${esc(region)}` : ''}</p>
-      <a href="/api/v1/stations/${encodeURIComponent(s.id)}">${t.dataJson}</a>
+      <a target="_blank" rel="noopener" href="/api/v1/stations/${encodeURIComponent(s.id)}">${t.dataJson}</a>
     </section>
   </div>
 </div>`;

@@ -38,6 +38,10 @@ export function esc(v: unknown): string {
 const T = {
   pt: {
     other: 'English',
+    theme: 'Tema',
+    themeAuto: 'Automático',
+    themeLight: 'Claro',
+    themeDark: 'Escuro',
     footerData: 'Fotos CC BY-SA 4.0 · Dados dos postos: NAP Portugal (MOBI.E) e © contribuidores do OpenStreetMap (ODbL)',
     footerCode: 'Código (MIT)',
     footerPrivacy: 'Privacidade',
@@ -130,6 +134,10 @@ const T = {
   },
   en: {
     other: 'Português',
+    theme: 'Theme',
+    themeAuto: 'Automatic',
+    themeLight: 'Light',
+    themeDark: 'Dark',
     footerData: 'Photos CC BY-SA 4.0 · Station data: NAP Portugal (MOBI.E) and © OpenStreetMap contributors (ODbL)',
     footerCode: 'Source code (MIT)',
     footerPrivacy: 'Privacy',
@@ -319,6 +327,7 @@ ${head.join('\n')}
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <meta name="theme-color" content="#F2B33D">
+<script src="/theme.js"></script>
 ${p.script ? '<script src="/site.js" defer></script>\n' : ''}</head>
 <body>
 <header class="site-header">
@@ -328,6 +337,14 @@ ${p.script ? '<script src="/site.js" defer></script>\n' : ''}</head>
       <span class="brand-name"><span aria-hidden="true">pIcŧU/Re</span><span class="sr-only" lang="en">picture</span></span>
       <span class="brand-sub">VoltFrame</span>
     </a>
+    <div class="theme" hidden>
+      <label for="theme">${t.theme}</label>
+      <select id="theme">
+        <option value="auto">${t.themeAuto}</option>
+        <option value="light">${t.themeLight}</option>
+        <option value="dark">${t.themeDark}</option>
+      </select>
+    </div>
     <a class="lang-switch" href="${esc(otherHref)}" hreflang="${HTML_LANG[other]}" lang="${HTML_LANG[other]}">${t.other}</a>
   </div>
 </header>

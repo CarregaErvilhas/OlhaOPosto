@@ -22,7 +22,8 @@ export const stationPath = (lang: Lang, id: string) =>
 export const socketPath = (lang: Lang, evse: string) =>
   `${lang === 'pt' ? '/tomadas/' : '/en/sockets/'}${encodeURIComponent(evse)}`;
 export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/search');
-export const socketAnchor = (compact: string) => `#t-${encodeURIComponent(compact)}`;
+export const accountPath = (lang: Lang) => (lang === 'pt' ? '/conta' : '/en/account');
+export const socketAnchor =(compact: string) => `#t-${encodeURIComponent(compact)}`;
 
 export function esc(v: unknown): string {
   return String(v ?? '')
@@ -104,6 +105,25 @@ const T = {
     noResults: (q: string) => `Nenhum posto encontrado para «${q}».`,
     noResultsTip: 'Experimenta o código do posto (EZC-AMD-00051), a localidade ou o operador.',
     tooShort: 'Escreve pelo menos duas letras ou dois números.',
+    accountTitle: 'Conta',
+    accountDesc: 'Iniciar sessão no pIcŧU/Re com a conta OpenStreetMap.',
+    loginIntro: 'Para enviar fotos, inicia sessão com a tua conta OpenStreetMap. Só guardamos o número e o nome da conta no OSM, nunca o email.',
+    loginButton: 'Iniciar sessão com o OpenStreetMap',
+    loginOff: 'O início de sessão ainda não está disponível. Abre com o envio de fotos.',
+    signedIn: 'Sessão iniciada como',
+    roleLabel: 'Papel:',
+    roles: {
+      contributor: 'contribuidor (as fotos passam pela moderação antes de aparecerem)',
+      trusted: 'de confiança (as fotos aparecem logo)',
+      moderator: 'moderador',
+      admin: 'administrador',
+    } as Record<string, string>,
+    logout: 'Terminar sessão',
+    loginErrors: {
+      denied: 'O início de sessão foi cancelado no OpenStreetMap.',
+      expired: 'O pedido expirou ou foi aberto noutro separador. Tenta outra vez.',
+      failed: 'Não foi possível falar com o OpenStreetMap. Tenta outra vez daqui a pouco.',
+    } as Record<string, string>,
   },
   en: {
     other: 'Português',
@@ -175,6 +195,25 @@ const T = {
     noResults: (q: string) => `No stations found for “${q}”.`,
     noResultsTip: 'Try the station code (EZC-AMD-00051), the town or the operator.',
     tooShort: 'Type at least two letters or numbers.',
+    accountTitle: 'Account',
+    accountDesc: 'Sign in to pIcŧU/Re with your OpenStreetMap account.',
+    loginIntro: 'To upload photos, sign in with your OpenStreetMap account. We only keep the account number and name on OSM, never your email.',
+    loginButton: 'Sign in with OpenStreetMap',
+    loginOff: 'Signing in is not available yet. It opens with photo uploads.',
+    signedIn: 'Signed in as',
+    roleLabel: 'Role:',
+    roles: {
+      contributor: 'contributor (photos are moderated before they appear)',
+      trusted: 'trusted (photos appear straight away)',
+      moderator: 'moderator',
+      admin: 'administrator',
+    } as Record<string, string>,
+    logout: 'Sign out',
+    loginErrors: {
+      denied: 'Signing in was cancelled on OpenStreetMap.',
+      expired: 'The request expired or was opened in another tab. Try again.',
+      failed: 'Could not reach OpenStreetMap. Try again in a little while.',
+    } as Record<string, string>,
   },
 } satisfies Record<Lang, unknown>;
 
@@ -445,6 +484,50 @@ export function notFoundPage(lang: Lang, what: string): string {
 <p>${esc(what)}</p>
 <p><a href="${homePath(lang)}">${t.back}</a></p>
 </div>`,
+  });
+}
+
+export interface AccountView {
+  name: string;
+  role: string;
+}
+
+// The only page that knows who is signed in. It is never cached, so the
+// station and search pages can stay public and cacheable.
+export function accountPage(
+  lang: Lang,
+  p: { user: AccountView | null; enabled: boolean; error?: string },
+): string {
+  const t = T[lang];
+  const here = accountPath(lang);
+  const parts: string[] = [`<h1>${t.accountTitle}</h1>`];
+  const err = p.error ? t.loginErrors[p.error] : undefined;
+  if (err) parts.push(`<p class="notice" role="alert">${esc(err)}</p>`);
+  if (p.user) {
+    // The OSM name is the person's own text, in whatever language they chose.
+    parts.push(
+      `<p>${t.signedIn} <strong lang="">${esc(p.user.name)}</strong>.</p>`,
+      `<p>${t.roleLabel} ${esc(t.roles[p.user.role] ?? p.user.role)}</p>`,
+      `<form method="post" action="/auth/logout?next=${encodeURIComponent(here)}">` +
+        `<button type="submit" class="button">${t.logout}</button></form>`,
+    );
+  } else if (p.enabled) {
+    // A link, not a form: the CSP's form-action 'self' would block the
+    // redirect to openstreetmap.org that follows a form submission.
+    parts.push(
+      `<p>${t.loginIntro}</p>`,
+      `<p><a class="button" href="/auth/osm/login?next=${encodeURIComponent(here)}">${t.loginButton}</a></p>`,
+    );
+  } else {
+    parts.push(`<p>${t.loginOff}</p>`);
+  }
+  return layout({
+    lang,
+    title: `${t.accountTitle} · pIcŧU/Re`,
+    description: t.accountDesc,
+    noindex: true,
+    switchTo: { pt: accountPath('pt'), en: accountPath('en') },
+    body: `<div class="page-msg">\n${parts.join('\n')}\n</div>`,
   });
 }
 

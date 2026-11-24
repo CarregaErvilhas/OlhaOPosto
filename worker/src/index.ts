@@ -1,7 +1,8 @@
-// VoltFrame Worker (voltframe.ocarroeletrico.com): the station pages and the
-// read-only API. Fonts, CSS and icons in public/ are Workers static assets,
+// VoltFrame Worker (voltframe.ocarroeletrico.com): the station pages, the
+// read-only API and sign-in with OpenStreetMap (auth.ts). Fonts, CSS and icons in public/ are Workers static assets,
 // served before this code runs. Static photo links are served by the R2
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
+import { accountHtml, callback, login, logout, type AuthEnv } from './auth.ts';
 import { findEvse, getStation, listStations, searchStations, type Env } from './data.ts';
 import {
   evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
@@ -194,12 +195,14 @@ const ROUTES: [RegExp, Handler, () => Response][] = [
 ];
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env & AuthEnv, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    const { pathname } = url;
+    // The one POST: everything else on this site only reads.
+    if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json({ error: 'method_not_allowed' }, 405, 'no-store');
     }
-    const url = new URL(request.url);
-    const { pathname } = url;
     for (const [re, handler, bad] of ROUTES) {
       const m = pathname.match(re);
       if (!m) continue;
@@ -212,9 +215,13 @@ export default {
     if (pathname === '/') return html('pt', homePage('pt'));
     if (pathname === '/en/') return html('en', homePage('en'));
     if (pathname === '/en') return new Response(null, { status: 301, headers: { location: '/en/' } });
+    if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
+    if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS);
+    if (pathname === '/auth/osm/login') return login(request, env, HTML_HEADERS);
+    if (pathname === '/auth/osm/callback') return callback(request, env, ctx, HTML_HEADERS);
     if (pathname === '/sitemap.xml') return sitemap(request, env, ctx);
     if (pathname.startsWith('/api/')) return notFound();
     const lang: Lang = pathname.startsWith('/en/') ? 'en' : 'pt';
     return pageNotFound(lang, messages(lang).noPage);
   },
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<Env & AuthEnv>;

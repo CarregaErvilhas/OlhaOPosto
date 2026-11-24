@@ -15,7 +15,7 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
    - medir o custo mensal no Zerops (ponto 6 do ensaio, [`infra.md`](infra.md), secção 9);
    - começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Falta:
-   - login OSM;
+   - ligar o login OSM, que já está feito mas desligado ([`cloudflare.md`](cloudflare.md), secção 4): falta a política de privacidade, registar a aplicação no OSM e pôr os segredos; e a ligação para a conta no cabeçalho, com a página de envio;
    - página de envio com desfocagem no browser;
    - fila de moderação com promoção manual;
    - foto principal e publicação em `pictures.*`;
@@ -43,19 +43,18 @@ pictures|author=joao_osm
 
 ## Modelo de dados (D1)
 
-As imagens vivem no Panoramax (originais e tamanhos) e, para as fotos principais, no bucket `pictures`. A D1 guarda metadados, a ligação a postos e tomadas e as escolhas. As tabelas `stations` e `evses` já existem ([`arquitetura.md`](arquitetura.md), *Postos e tomadas*). Faltam:
+As imagens vivem no Panoramax (originais e tamanhos) e, para as fotos principais, no bucket `pictures`. A D1 guarda metadados, a ligação a postos e tomadas e as escolhas. As tabelas `stations`, `evses`, `users` e `sessions` já existem ([`arquitetura.md`](arquitetura.md), *Postos e tomadas*). Faltam:
 
 | Tabela | Colunas principais | Notas |
 | --- | --- | --- |
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP, só à mão; o link antigo responde `301` |
 | `photos` | `id` (UUID), `panoramax_id`, `origin` (`pictures`, `osm_panoramax`, `commons`, `mapillary`), `station_id`, `evse_id` (nulo = foto geral), `uploader_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`pending`, `published`, `hidden`, `removed`), `approved_by`, `created_at` | GPS do EXIF guardado só para moderação, nunca publicado. Fotos externas: só referência |
 | `selections` | `target` (PK: `id` do posto ou EVSE compacto), `photo_id`, `chosen_by`, `chosen_at`, `published_at` | Qual foto o link estático serve; ver *Publicação dos links estáticos* |
-| `users` | `id`, `osm_uid`, `osm_name`, `pseudonym` (opcional), `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at` | Sem email |
 | `review_queue` | `id`, `kind` (`new_station`, `photo`, `takedown`), `payload` (JSON), `submitted_by`, `status`, `decided_by`, `decided_at`, `note` | Fila única para tudo o que precisa de um humano |
 | `points` | `user_id`, `photo_id`, `points`, `reason` (`approved`, `first_photo`, `refresh`), `month` | Ver *Gamificação* |
 | `osm_edits` | `osm_element`, `key`, `value`, `photo_id`, `changeset`, `written_at` | O que o bot escreveu no OSM, para só alterar valores dele |
 
-Sessões e *tokens* de API ficam no KV ou numa tabela própria (só o hash dos *tokens*).
+Os *tokens* de API vão para uma tabela própria, só com o hash, como as sessões.
 
 Regras:
 
@@ -187,16 +186,14 @@ O `/llms.txt` já existe (`worker/public/llms.txt`), com as páginas, a API, os 
 
 **Só login com conta OpenStreetMap (OAuth2)**, no `voltframe.*`. Ler as fotos e a API é público; só o envio e a moderação pedem login. GitHub fica para depois, se alguém o pedir: a maior parte da comunidade EV não tem conta lá.
 
-OSM OAuth2: Authorization Code + PKCE em `openstreetmap.org/oauth2/authorize`; só o âmbito `read_prefs`; depois `GET /api/0.6/user/details.json` dá o ID e o nome. Não dá email. Nunca se pede `write_api` aos contribuidores: as edições no OSM são do bot ou manuais.
+O início de sessão já está feito e desligado: como funciona e como se liga está no [`cloudflare.md`](cloudflare.md), secção 4. Nunca se pede `write_api` aos contribuidores: as edições no OSM são do bot ou manuais.
 
-**O que é preciso implementar**
+**O que falta**
 
-1. Registar a aplicação em `openstreetmap.org/oauth2/applications`, com `display_name` "pIcŧU/Re" e o redirect `https://voltframe.ocarroeletrico.com/auth/osm/callback`.
-2. Guardar `CLIENT_ID`/`CLIENT_SECRET` e o token da conta de serviço do Panoramax como *secrets* do Worker (`wrangler secret put`).
-3. Rotas no Worker: `/auth/osm/login` (gera `state` e `code_verifier` e guarda-os num cookie curto), `/auth/osm/callback` (troca o código, lê `user/details`, cria ou atualiza `users`), `/auth/logout`.
-4. Sessão: cookie `HttpOnly; Secure; SameSite=Lax` com um ID aleatório, só em `voltframe.*`; a sessão fica na D1 ou no KV, com validade de 30 dias. O token do OSM não se guarda.
-5. Proteção: Cloudflare Turnstile no formulário de upload, limite de envios por utilizador (50 fotos/dia para `contributor`) e verificação de CSRF nos `POST`.
-6. Painéis `/admin` (fila de revisão, remoções, postos fora do NAP) atrás de Cloudflare Access, além do papel `moderator` na D1: duas camadas para a parte sensível.
+1. Ligá-lo: política de privacidade publicada, aplicação registada no OSM e segredos `OSM_CLIENT_ID`/`OSM_CLIENT_SECRET` no Worker.
+2. O token da conta de serviço do Panoramax como segredo do Worker, com o envio.
+3. Proteção do envio: Cloudflare Turnstile no formulário, limite de envios por utilizador (50 fotos/dia para `contributor`) e verificação de origem em cada `POST`, como já faz o `/auth/logout`.
+4. Painéis `/admin` (fila de revisão, remoções, postos fora do NAP) atrás de Cloudflare Access, além do papel `moderator` na D1: duas camadas para a parte sensível.
 
 **Papéis**
 

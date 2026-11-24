@@ -3,6 +3,7 @@
 
 export interface FeedPoint {
   id: string;
+  evse?: string | null;   // NAP EVSE code as published, PT*EDP*E*LSB*90050*01
   kw?: number | null;
   connector?: string | null;
   dc?: boolean;
@@ -46,6 +47,8 @@ export interface StationRow {
 export interface EvseRow {
   station_id: string;
   point_id: string;
+  evse_id: string | null;
+  evse_compact: string | null;
   connector: string | null;
   max_kw: number | null;
   dc: 0 | 1;
@@ -63,13 +66,19 @@ export interface CurrentEvse extends EvseRow {
 
 const STATION_FIELDS = ['code', 'opc', 'operator', 'name', 'address', 'municipality',
   'region', 'lat', 'lon', 'osm_ref'] as const;
-const EVSE_FIELDS = ['connector', 'max_kw', 'dc'] as const;
+const EVSE_FIELDS = ['evse_id', 'evse_compact', 'connector', 'max_kw', 'dc'] as const;
 
 export const STATION_COLUMNS = ['id', ...STATION_FIELDS] as const;
 export const EVSE_COLUMNS = ['station_id', 'point_id', ...EVSE_FIELDS] as const;
 
 const str = (v: unknown): string | null =>
   typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
+
+// The EVSE code without the `*` (PTEDPELSB9005001), for links. Nothing else is
+// normalised: OSM's ref:EU:EVSE matches the NAP code as published, leading
+// zeros included. Not unique: a few operators publish one code on two sites.
+export const compactEvse = (evse: string | null): string | null =>
+  evse === null ? null : evse.replace(/\*/g, '') || null;
 
 export function validateFeed(feed: unknown): Feed {
   const f = feed as Feed;
@@ -110,9 +119,12 @@ export function toRows(feed: Feed): { stations: StationRow[]; evses: EvseRow[]; 
       const pid = str(p.id);
       if (!pid || points.has(pid)) continue;
       points.add(pid);
+      const evse = str(p.evse);
       evses.push({
         station_id: id,
         point_id: pid,
+        evse_id: evse,
+        evse_compact: compactEvse(evse),
         connector: str(p.connector),
         max_kw: typeof p.kw === 'number' && Number.isFinite(p.kw) ? p.kw : null,
         dc: p.dc ? 1 : 0,

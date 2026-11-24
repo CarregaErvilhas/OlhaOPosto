@@ -87,10 +87,19 @@ As imagens não estão no Zerops: vão para o bucket R2 `panoramax`
 | Serviço | mínimo | máximo | containers |
 | --- | --- | --- | --- |
 | `pano` | 1 CPU / 0,5 GB / 1 GB disco | 2 CPU / 2 GB / 5 GB | 1 a 2 |
-| `db` | 1 CPU / 0,25 GB / 1 GB disco | 2 CPU / 1 GB / 5 GB | 1 (`single`) |
+| `db` | 1 CPU / 0,5 GB / 1 GB disco | 2 CPU / 0,5 GB / 5 GB | 1 (`single`) |
 
 Tudo em CPU `SHARED`. O segundo container do `pano` só existe durante um
 deploy (rolling).
+
+**A RAM do `db` é fixa (mínimo = máximo).** O Zerops deriva o
+`shared_buffers` da RAM, e mudar o `shared_buffers` obriga a reiniciar o
+PostgreSQL. Com RAM entre 0,25 e 1 GB, o autoscaling oscilava entre 0,25 e
+0,5 GB a cada poucos minutos, e cada passo reiniciava a BD. O pool de ligações
+do Panoramax fica com as ligações mortas, o `/api/configuration` dá 500 até as
+descartar todas (1 a 2 minutos), o `pano` falha o health check e o site dá
+502. Para mudar a RAM, mudar o mínimo e o máximo juntos, na GUI (o `zcli` não
+mexe no scaling), e contar com um reinício.
 
 O *Lightweight* inclui 100 GB/mês de tráfego de saída. Como as imagens do
 Panoramax passam pela API (secção 5), cada visualização conta. Os links
@@ -169,7 +178,7 @@ nomes no código da 2.17.0 (`geovisio/config_app.py`).
 | --- | --- | --- |
 | `DB_URL` | `${db_connectionString}` (porta 5432) | Não o pgBouncer (6432): o Panoramax manda `-c statement_timeout` na ligação, que o pgBouncer recusa |
 | `PANO_DB_SUPERUSER_URL` | superuser do `db` | Só para o `bootstrap_db.py`; tirado dos processos com `env -u` |
-| `DB_MAX_CNX` | `5` | Por processo gunicorn; a BD tem 0,25 GB |
+| `DB_MAX_CNX` | `5` | Por processo gunicorn; a BD tem 0,5 GB |
 | `FS_URL` | **secreta**, ver secção 6 | Bucket R2 `panoramax` |
 | `FLASK_SECRET_KEY` | **secreta**, gerada no import | Sessões e tokens JWT. Trocá-la invalida o token da conta de serviço |
 | `API_SUMMARY` | nome, descrição, cobertura, cor, email | O que aparece no `/api/configuration` e na federação |

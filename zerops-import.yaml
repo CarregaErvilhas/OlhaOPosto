@@ -19,12 +19,16 @@ services:
     # Tetos fixos já: sem isto herda o perfil `oltp-staging` (8 vCPU / 48 GB /
     # 250 GB). O disco nunca encolhe. Os metadados de
     # 100k fotos cabem em poucos GB; as imagens estão no R2.
+    # RAM fixa (min = max): o Zerops calcula o shared_buffers a partir da RAM,
+    # e cada subida ou descida da RAM reinicia o PostgreSQL e corta as ligações
+    # do Panoramax. Entre 0,25 e 0,5 GB oscilava a cada poucos minutos e deixava
+    # o `pano` a falhar o health check (Docs/infra.md, «Recursos»).
     verticalAutoscaling:
       cpuMode: SHARED
       minCpu: 1
       maxCpu: 2
-      minRam: 0.25
-      maxRam: 1
+      minRam: 0.5
+      maxRam: 0.5
       minDisk: 1
       maxDisk: 5
 

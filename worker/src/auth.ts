@@ -144,7 +144,8 @@ export async function currentUser(request: Request, env: AuthEnv): Promise<Sessi
 
 export async function accountHtml(lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>) {
   const enabled = loginEnabled(env);
-  const user = enabled ? await currentUser(request, env) : null;
+  // A D1 hiccup (or a missing migration) reads as signed out, never as a 500.
+  const user = enabled ? await currentUser(request, env).catch(() => null) : null;
   const error = new URL(request.url).searchParams.get('erro') ?? undefined;
   return page(lang, accountPage(lang, { user, enabled, error }), 200, headers);
 }
@@ -237,17 +238,21 @@ export async function callback(request: Request, env: AuthEnv, ctx: Waiter, head
   const hash = await tokenHash(token);
   // One round trip: the account (new or with a fresh OSM name), the session,
   // and the expired sessions out of the way.
-  await env.DB.batch([
-    env.DB.prepare(
-      `INSERT INTO users (id, osm_uid, osm_name, created_at, last_login_at) VALUES (?1, ?2, ?3, ?4, ?4)
-       ON CONFLICT (osm_uid) DO UPDATE SET osm_name = excluded.osm_name, last_login_at = excluded.last_login_at`,
-    ).bind(crypto.randomUUID(), user.id, user.name, now.toISOString()),
-    env.DB.prepare(
-      `INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
-       SELECT ?1, id, ?2, ?3 FROM users WHERE osm_uid = ?4`,
-    ).bind(hash, now.toISOString(), new Date(now.getTime() + SESSION_TTL * 1000).toISOString(), user.id),
-    env.DB.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(now.toISOString()),
-  ]);
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO users (id, osm_uid, osm_name, created_at, last_login_at) VALUES (?1, ?2, ?3, ?4, ?4)
+         ON CONFLICT (osm_uid) DO UPDATE SET osm_name = excluded.osm_name, last_login_at = excluded.last_login_at`,
+      ).bind(crypto.randomUUID(), user.id, user.name, now.toISOString()),
+      env.DB.prepare(
+        `INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
+         SELECT ?1, id, ?2, ?3 FROM users WHERE osm_uid = ?4`,
+      ).bind(hash, now.toISOString(), new Date(now.getTime() + SESSION_TTL * 1000).toISOString(), user.id),
+      env.DB.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(now.toISOString()),
+    ]);
+  } catch {
+    return fail('failed');
+  }
   // A clean URL: the one-time code does not stay in history or in a Referer.
   return redirect(next, [...cleared, setCookie(SESSION_COOKIE, token, SESSION_TTL)]);
 }

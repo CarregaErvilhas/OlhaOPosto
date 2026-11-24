@@ -3,13 +3,15 @@
 // served before this code runs. Static photo links are served by the R2
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
 import { accountHtml, callback, login, logout, type AuthEnv } from './auth.ts';
-import { findEvse, getStation, listStations, searchStations, type Env } from './data.ts';
+import { findEvse, getStation, listStations, nearStations, searchStations, type Env } from './data.ts';
 import {
   evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
 import { sitemapXml } from './sitemap.ts';
-import { compactCode, ftsQuery, MAX_QUERY, STATION_ID, type EvseMatch, type SearchRow } from './types.ts';
+import {
+  compactCode, ftsQuery, MAX_QUERY, NEAR_MAX_M, parseNear, STATION_ID, type EvseMatch, type SearchRow,
+} from './types.ts';
 
 // The API is for apps and agents, not for search results.
 const JSON_HEADERS = {
@@ -153,12 +155,35 @@ const searchBody = (r: SearchRow) => ({
   status: r.status,
 });
 
-async function searchJson(env: Env, url: URL): Promise<Response> {
-  const q = queryOf(url);
-  if (!ftsQuery(q)) return json({ error: 'q_required', detail: 'q needs a word of at least two letters or digits' }, 400, 'no-store');
+function limitOf(url: URL): number {
   const asked = Number(url.searchParams.get('limit') ?? PAGE_RESULTS);
-  const limit = Number.isInteger(asked) ? Math.min(Math.max(asked, 1), API_MAX_RESULTS) : PAGE_RESULTS;
-  return json({ q, results: (await searchStations(env, q, limit)).map(searchBody) });
+  return Number.isInteger(asked) ? Math.min(Math.max(asked, 1), API_MAX_RESULTS) : PAGE_RESULTS;
+}
+
+// Two ways in: words (?q=) or a place (?lat=&lon=&radius=), never both.
+async function searchJson(env: Env, url: URL): Promise<Response> {
+  const near = parseNear(url.searchParams);
+  if (near !== null) {
+    if (url.searchParams.has('q')) {
+      return json({ error: 'q_or_coordinates', detail: 'use either q or lat/lon, not both' }, 400, 'no-store');
+    }
+    if (near === 'bad') {
+      return json({
+        error: 'bad_coordinates',
+        detail: `lat and lon in decimal degrees; radius in whole metres, 1 to ${NEAR_MAX_M}`,
+      }, 400, 'no-store');
+    }
+    const results = await nearStations(env, near, limitOf(url));
+    return json({ ...near, results: results.map((r) => ({ ...searchBody(r), distance_m: r.distance_m })) });
+  }
+  const q = queryOf(url);
+  if (!ftsQuery(q)) {
+    return json({
+      error: 'q_required',
+      detail: 'q needs a word of at least two letters or digits, or search by place with lat and lon',
+    }, 400, 'no-store');
+  }
+  return json({ q, results: (await searchStations(env, q, limitOf(url))).map(searchBody) });
 }
 
 // A typed station or socket code goes straight to its page; anything else is

@@ -1,7 +1,8 @@
 // The one data path for stations and sockets: the JSON API and the HTML pages
 // both read through here, so visibility rules live in one place.
 import {
-  compactCode, ftsQuery, isPublic, STATION_ID, type EvseMatch, type PointRow, type SearchRow, type StationRow,
+  boundingBox, compactCode, distanceM, ftsQuery, isPublic, STATION_ID,
+  type EvseMatch, type NearQuery, type PointRow, type SearchRow, type StationRow,
 } from './types.ts';
 
 export interface Env {
@@ -77,3 +78,23 @@ export async function searchStations(env: Env, raw: string, limit: number): Prom
     return [];
   }
 }
+
+export type NearRow = SearchRow & { distance_m: number };
+
+// Public stations within q.radius metres, nearest first. The box comes from
+// the stations_lat_lon index; the circle and the order are done here.
+export async function nearStations(env: Env, q: NearQuery, limit: number): Promise<NearRow[]> {
+  const b = boundingBox(q);
+  const { results } = await env.DB.prepare(
+    `SELECT id, name, opc, operator, address, municipality, region, lat, lon, status
+       FROM stations
+      WHERE lat BETWEEN ?1 AND ?2 AND lon BETWEEN ?3 AND ?4
+        AND status IN ('active', 'missing_from_nap')`,
+  ).bind(b.minLat, b.maxLat, b.minLon, b.maxLon).all<SearchRow>();
+  return results
+    .map((r) => ({ ...r, distance_m: Math.round(distanceM(q.lat, q.lon, r.lat, r.lon)) }))
+    .filter((r) => r.distance_m <= q.radius)
+    .sort((a, b) => a.distance_m - b.distance_m || a.id.localeCompare(b.id))
+    .slice(0, limit);
+}
+

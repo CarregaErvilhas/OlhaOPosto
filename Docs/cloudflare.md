@@ -88,6 +88,7 @@ desligados). Por agora tem:
 | `GET /postos/{id}` | Página do posto: tomadas com o código EVSE, links estáticos de cada tamanho para copiar, ligação ao OSM. `404` em HTML como na API |
 | `GET /tomadas/{evse}` | `302` para `/postos/{id}#t-{evse}`, com a tomada marcada; uma página com a lista se o código estiver em mais de um posto. `302` e não `301`, porque um código pode mudar de posto |
 | `GET /api/v1/stations?q=&limit=` | Pesquisa por texto em `stations_fts` (FTS5): cada palavra tem de aparecer, como prefixo, no código, nome, morada, localidade ou operador; sem acentos (`acores` encontra `Açores`). Postos públicos, os melhores primeiro, `limit` até 50 (20 por omissão). `400` sem uma palavra de pelo menos dois caracteres |
+| `GET /api/v1/stations?lat=&lon=&radius=&limit=` | Postos públicos a menos de `radius` metros (500 por omissão, até 5000), do mais perto para o mais longe, cada um com `distance_m`. Usa o índice `stations_lat_lon` (migração `0005`) para uma caixa à volta do ponto e corta o círculo no Worker. `400` com coordenadas em branco ou fora do intervalo, ou com `q` e coordenadas ao mesmo tempo |
 | `GET /pesquisa?q=` | A mesma pesquisa em HTML, 20 resultados, `noindex` e fora do *sitemap*. Um código de posto ou de tomada escrito por inteiro faz `302` para a página dele |
 | `GET /` | Página inicial com a caixa de pesquisa |
 | `GET /en/`, `/en/stations/{id}`, `/en/sockets/{evse}`, `/en/search` | As mesmas páginas em inglês. `/en/sockets/{evse}` faz `302` para `/en/stations/{id}#t-{evse}` |
@@ -235,6 +236,17 @@ somam ao import duas linhas por posto alterado (a entrada antiga do índice
 sai, a nova entra) e uma por posto novo; um import que reescreva todos os
 postos escreve perto de 27 mil linhas só nos postos (mais as cerca de 20
 mil das tomadas), ainda dentro do limite diário.
+
+**Custo da pesquisa por proximidade.** O índice `(lat, lon)` percorre a faixa
+de latitude do pedido e só vai à tabela pelos postos dentro da caixa. Com os
+dados reais, no centro de Lisboa (o caso mais denso), a faixa tem cerca de
+280 entradas a 500 m e cerca de 1500 a 5 km: é essa a ordem das linhas lidas
+(por medir na D1 de produção depois da `0005`). Criar o índice escreve uma
+linha por posto; não juntar com um import que reescreva tudo.
+
+Quem chamar com a localização de uma pessoa deve arredondar as coordenadas
+a 3 casas decimais (cerca de 100 m) antes do pedido: os registos do Worker
+guardam o URL completo. A página de envio vai fazer isso.
 
 ## 5. Importação dos postos
 

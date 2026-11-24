@@ -10,9 +10,9 @@ https://pictures.ocarroeletrico.com/<id-do-posto>.jpg
 
 O link nunca muda. Muda só a foto para onde aponta.
 
-> **Estado:** fase de design. Existem o plano técnico, os mockups e a
-> configuração do servidor Panoramax. Ainda não há deploy nem código da
-> aplicação.
+> **Estado:** o servidor Panoramax está em produção em
+> `panoramax.ocarroeletrico.com`, ainda fora da federação. Existem o plano
+> técnico e os mockups; o site (o Worker do VoltFrame) ainda não tem código.
 
 ## Como funciona
 
@@ -48,7 +48,7 @@ Detalhe completo em [`Docs/plan.md`](Docs/plan.md).
 | [`Docs/plan.md`](Docs/plan.md) | Design técnico: arquitetura, fontes de dados, moderação, licença, fases. É a fonte de verdade |
 | [`Docs/infra.md`](Docs/infra.md) | Infraestrutura do servidor Panoramax: serviços, segredos, R2, DNS, deploy, ensaio |
 | `zerops.yml`, `zerops-import.yaml` | Configuração dos serviços `pano` (Panoramax) e `db` no Zerops |
-| `panoramax/` | Versão do Panoramax e scripts de preparação da BD e da conta de serviço |
+| `panoramax/` | Versão do Panoramax, ponto de entrada do gunicorn, scripts de preparação da BD e da conta de serviço, e scripts de envio de teste |
 | `Design/` | Mockups das páginas e do fluxo VoltFrame ↔ Panoramax |
 
 ## Contribuir

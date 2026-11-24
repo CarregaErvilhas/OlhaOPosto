@@ -72,7 +72,7 @@ Configuração principal ([settings](https://docs.panoramax.fr/backend/install/s
 
 - `FS_URL` (ou `FS_TMP_URL`, `FS_PERMANENT_URL`, `FS_DERIVATIVES_URL`): `s3://panoramax/...?endpoint_url=https://<conta>.r2.cloudflarestorage.com&region=auto`.
 - `API_PICTURES_LICENSE_SPDX_ID=CC-BY-SA-4.0` e `API_PICTURES_LICENSE_URL`.
-- `OAUTH_PROVIDER=osm` só para a conta de serviço e para o admin; `API_FORCE_AUTH_ON_UPLOAD`; registo fechado.
+- Sem `OAUTH_PROVIDER`: ninguém entra pela web, nem a conta de serviço nem o admin, que usam tokens emitidos no servidor ([`infra.md`](infra.md), secção 4); `API_FORCE_AUTH_ON_UPLOAD`; registo fechado.
 - `API_BLUR_URL` vazio: sem desfocagem no servidor por agora (ver *Desfocagem*).
 
 Cada foto tem etiquetas `chave=valor` ([sintaxe](https://docs.panoramax.fr/tags/syntax/)):
@@ -85,16 +85,16 @@ pictures|author=joao_osm
 
 **Federação.** Abre-se um pedido no repositório do catálogo federado e os operadores acrescentam o servidor ao *harvester* ([como](https://docs.panoramax.fr/how-to-contribute/hosting-instance/)). Só depois da conversa com a OSM Portugal e com a equipa do Panoramax; até lá o servidor fica privado.
 
-**Ensaio antes de construir (fase 1).** Um dia no Zerops (configuração e passos em [`infra.md`](infra.md)). Passa quando os seis pontos passam ou cada falha tem a alternativa escolhida:
+**Ensaio antes de construir (fase 1), feito a 2026-11-24.** O servidor está em produção em `panoramax.ocarroeletrico.com`, fora da federação. Detalhe e números em [`infra.md`](infra.md), secção 9.
 
-| Verificar | Se falhar |
+| Verificar | Resultado |
 | --- | --- |
-| PostGIS 3.4+ no PostgreSQL gerido do Zerops (não confirmado na documentação) | Contentor `postgis/postgis` no Zerops, com cópias de segurança para o R2 |
-| R2 como `FS_URL` (não documentado como testado; o R2 não suporta as ACL que a documentação usa para buckets públicos) | Ficheiros do Panoramax no disco do Zerops; só os links estáticos ficam no R2 |
-| Envio de uma foto isolada (não uma sequência) com etiquetas, pela API | Uma coleção por posto |
-| Foto enviada como `owner-only` e passada a `anyone` ao aprovar | Moderação antes do envio para o Panoramax (foto guardada em privado no R2 até ser aprovada) |
-| Crédito por foto (autor diferente da conta de serviço) | Crédito só no VoltFrame e no XMP das cópias em `pictures.*` |
-| Custo mensal dentro dos 10 € (com Cloudflare) | VPS pequena com o Docker Compose do Panoramax |
+| PostGIS 3.4+ no PostgreSQL gerido do Zerops | Passa: PostGIS 3.6.4 no PostgreSQL 18 |
+| R2 como `FS_URL` | Passa: originais e tamanhos no bucket `panoramax`, e apagar pela API limpa o bucket |
+| Envio de uma foto isolada (não uma sequência) com etiquetas, pela API | Passa |
+| Foto enviada como `owner-only` e passada a `anyone` ao aprovar | Passa: aprovar é mudar a visibilidade do upload set (passo 13) |
+| Crédito por foto (autor diferente da conta de serviço) | Não passa: o Panoramax mostra sempre `pictures` como produtor. Fica a alternativa: crédito no VoltFrame e no XMP das cópias em `pictures.*`; a etiqueta `pictures\|author=` continua |
+| Custo mensal dentro dos 10 € (com Cloudflare) | Por medir. Se passar, VPS pequena com o Docker Compose do Panoramax |
 
 ## Fontes de postos existentes
 
@@ -154,7 +154,7 @@ Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-s
 5. **Associar a posto ou tomada.** "Foto geral do posto" ou uma tomada concreta da lista de EVSE desse posto.
 6. **Posto não existe?** Formulário "novo posto": nome, operador, coordenadas (pré-preenchidas pelo GPS) e código se for conhecido. Cria `stations.status=pending_review` e uma entrada em `review_queue`.
 7. **Desfocar caras e matrículas** no browser, com revisão manual das caixas e a confirmação "Não há caras nem matrículas legíveis".
-8. **Rodar, redimensionar e limpar.** Aplica-se a `Orientation` e re-codifica-se num `<canvas>` para 2048 px (mestre), 1024 px e 400 px, JPEG qualidade ~0,85. A re-codificação descarta todo o EXIF.
+8. **Rodar, redimensionar e limpar.** Aplica-se a `Orientation` e re-codifica-se num `<canvas>` para 2048 px (mestre), 1024 px e 400 px, JPEG qualidade ~0,85. A re-codificação descarta todo o EXIF. Não é opcional: o Panoramax guarda o ficheiro recebido tal como vem e serve-o como `hd.jpg`.
 9. **Enviar.** `POST /api/v1/photos` com as três imagens e um JSON: alvo, `taken_at`, `exif_lat`/`exif_lon`.
 10. **Validar no Worker.** Sessão, limite de envios (50 fotos/dia para `contributor`), Turnstile, alvo existente, nenhum segmento APP1/EXIF nos bytes, `distance_m` ao posto.
 11. **Enviar para o Panoramax** com a conta de serviço: `POST /api/upload_sets`, depois `.../files` com a mestre de 2048 px, as coordenadas do posto, a data do EXIF, `isBlurred=true` e as etiquetas (`osm|ref:EU:EVSE=…`, `pictures|site=…`, `pictures|author=…`), e `.../complete`. Visibilidade `owner-only` até ser aprovada. As versões de 1024 e 400 px ficam num bucket R2 privado (`pictures-staging`) até à aprovação.
@@ -162,7 +162,7 @@ Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-s
     - Conta `trusted` (promovida à mão), posto `active` e dentro de 300 m → aprovada logo.
     - Conta `contributor` → sempre `pending`, à espera de um moderador. Todas as contas novas começam aqui.
     - Sem GPS, a mais de 300 m ou com posto novo → `pending` mesmo para `trusted`. Estes sinais também ordenam a fila e aparecem como avisos.
-13. **Ao aprovar.** O Worker passa a foto a `anyone` no Panoramax, marca-a `published`, atribui os pontos e, se o alvo não tinha principal, publica-a em `pictures` (ver *Links estáticos*).
+13. **Ao aprovar.** O Worker passa o upload set a `anyone` no Panoramax (`PATCH /api/upload_sets/<id>` com `{"visibility": "anyone"}`; a visibilidade da foto sozinha não chega, porque vale a mais restritiva entre foto e coleção), marca-a `published`, atribui os pontos e, se o alvo não tinha principal, publica-a em `pictures` (ver *Links estáticos*).
 
 **O que se faz com a localização do EXIF**
 
@@ -378,13 +378,13 @@ Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
 
 **Custos.** Orçamento: **10 €/mês** no total.
 
-- **Panoramax no Zerops** (API, *workers*, PostgreSQL): o custo fixo maior, ainda por medir no ensaio. Se passar o orçamento, VPS pequena.
+- **Panoramax no Zerops** (API, *workers*, PostgreSQL): o custo fixo maior, ainda por medir (ponto 6 do ensaio). Em repouso usa os mínimos (0,5 GB de RAM e 0,06 de 1 CPU no `pano`) e o pico de 20 fotos ficou abaixo de 1 GB. Se passar o orçamento, VPS pequena.
 - **R2:** com 100k fotos, ~100 GB no bucket `panoramax` (mestre e tamanhos) e ~25 GB em `pictures` (só as principais, três tamanhos), ~1,7 $/mês: 10 GB-mês grátis e depois 0,015 $/GB-mês, sem custos de tráfego ([preços R2](https://developers.cloudflare.com/r2/pricing)). As leituras de `pictures.*` são Classe B (10 milhões grátis por mês).
 - **Workers e D1:** plano grátis. Como as fotos não passam pelo Worker, o limite de 100 000 pedidos/dia só conta para o site e a API em `voltframe.*`. Workers Paid (5 $/mês) só se o site ou a API o pedirem.
 
 **Fases**
 
-1. **Panoramax.** Ensaio de um dia no Zerops (ver *Servidor Panoramax*), depois o servidor em produção, ainda privado. Começa a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
+1. **Panoramax.** Feito a 2026-11-24: ensaio e servidor em produção, fora da federação (falta só o custo). Falta começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Importação diária do `ohmigo_chargers.json` (com o `evse` novo), login OSM, página de envio com desfocagem no browser, fila de moderação com promoção manual, página do posto, foto principal e links estáticos em `pictures.*`, aliases de postos, ranking e medalhas, API `GET`, `llms.txt`, link manual "acrescentar ao OSM". Entrada na federação depois da conversa com a comunidade.
 3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP, escrita pela API com tokens, exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
 4. **Desfocagem no servidor**, quando houver uma GPU a um custo razoável.
@@ -396,5 +396,5 @@ Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
 - [ ] Modelo de deteção de matrículas para o browser, com pesos de licença permissiva.
 - [ ] Resposta da OSM Portugal e da equipa do Panoramax (federação, nome, bot).
 - [ ] Convenção do MapComplete para várias fotos no mesmo elemento (`panoramax:1=`?).
-- [ ] Os seis pontos do ensaio do Panoramax no Zerops.
+- [ ] Custo mensal do Panoramax no Zerops (o único ponto do ensaio por fechar).
 - [ ] Fotos externas e links estáticos: rever a opção B (em uso) contra a A ou outras alternativas.

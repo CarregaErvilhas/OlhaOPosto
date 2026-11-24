@@ -15,7 +15,7 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 | Cache Rule do `pictures.*` | Aplicada e testada |
 | D1 `pictures` | Criada, jurisdição EU; migração aplicada e primeiro import feito (8 876 postos, 19 737 pontos) |
 | Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado (páginas dos postos em pt-PT e inglês, API só de leitura, `sitemap.xml`) |
-| Início de sessão com o OSM | Feito e desligado: faltam a política de privacidade, a aplicação no OSM e os segredos (secção 4) |
+| Início de sessão com o OSM | Feito e desligado: faltam a aplicação no OSM e os segredos (secção 4) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos |
 
 ## 2. R2
@@ -93,6 +93,7 @@ desligados). Por agora tem:
 | `GET /en/`, `/en/stations/{id}`, `/en/sockets/{evse}`, `/en/search` | As mesmas páginas em inglês. `/en/sockets/{evse}` faz `302` para `/en/stations/{id}#t-{evse}` |
 | `GET /sitemap.xml` | Página inicial e todos os postos públicos, nas duas línguas, com `lastmod` (a última alteração do posto ou de uma tomada). Fica um dia na Cache API: cada geração lê os postos e as tomadas (cerca de 28 mil linhas), uma vez por dia e por centro de dados |
 | `GET /robots.txt`, `/llms.txt` | Ficheiros estáticos em `worker/public/`. O `robots.txt` deixa entrar todos os robôs, incluindo os de IA, e aponta para o *sitemap*. O `llms.txt` descreve as páginas, a API, os links estáticos e as licenças |
+| `GET /privacidade`, `/en/privacy` | Política de privacidade (`src/privacy.ts`), com ligação no rodapé de todas as páginas e no *sitemap*. Muda no mesmo PR que mudar o que o Worker guarda |
 | `GET /conta`, `/en/account` | A conta de quem tem sessão (nome, papel, botão para terminar) ou o botão para iniciar sessão. A única página que lê a sessão: `no-store` e `noindex` |
 | `GET /auth/osm/login?next=` | `302` para o OpenStreetMap, com `state` e PKCE num *cookie* de 10 minutos. `503` enquanto não houver os segredos do OSM |
 | `GET /auth/osm/callback` | Volta do OpenStreetMap: troca o código, lê o utilizador, cria a sessão e faz `302` para o `next`. Qualquer falha volta à conta com `?erro=` |
@@ -131,6 +132,13 @@ páginas levam também HSTS, `nosniff`, `referrer-policy` e COOP; a API leva
 `x-robots-tag: noindex`, porque é para apps e agentes, não para resultados de
 pesquisa.
 
+**Registos do Worker** (`observability` no `wrangler.json`). Cada pedido
+fica nos Workers Logs com o URL (incluindo o texto das pesquisas), o IP, a
+localização que a Cloudflare tira dele e o navegador; os cabeçalhos `cookie`
+e `authorization` aparecem como `REDACTED`. Retenção: 3 dias no plano Free,
+até 7 com os preços novos da Cloudflare. É isto que a política de
+privacidade descreve; se a retenção ou os campos mudarem, ela muda também.
+
 **Início de sessão com o OpenStreetMap** (`src/auth.ts`, migração `0004`).
 OAuth2 com PKCE (S256), só o âmbito `read_prefs`: chega para ler o número e
 o nome da conta, não dá o email nem deixa editar o mapa. O *token* do OSM
@@ -147,8 +155,8 @@ Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e
 `OSM_CLIENT_SECRET`: até lá, `/conta` diz que ainda não está disponível e
 `/auth/osm/*` responde `503`. Para ligar (só o Fernando):
 
-1. Publicar a política de privacidade (o plano, *RGPD e moderação*, pede-a
-   antes de guardar dados de quem entra).
+1. Confirmar que a política de privacidade (`/privacidade`) está publicada
+   e certa.
 2. Registar a aplicação em `openstreetmap.org/oauth2/applications`: nome
    "pIcŧU/Re", confidencial, só "Ler as preferências do utilizador"
    (`read_prefs`), *redirect* `https://voltframe.ocarroeletrico.com/auth/osm/callback`.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  clearCookie, langOf, login, logout, packOAuth, parseCookies, pkceChallenge, safeNext, sameOrigin, setCookie,
+  clearCookie, langOf, OAUTH_COOKIE, SESSION_COOKIE, login, logout, packOAuth, parseCookies, pkceChallenge, safeNext, sameOrigin, setCookie,
   unpackOAuth, type AuthEnv, type Db,
 } from '../src/auth.ts';
 import { accountPage } from '../src/pages.ts';
@@ -98,4 +98,19 @@ test('the account page escapes the OSM name and never links out by form', () => 
   assert.ok(!/<form[^>]*openstreetmap/.test(anon));
   // An unknown error key shows nothing rather than echoing the query string.
   assert.ok(!accountPage('pt', { user: null, enabled: true, error: '<script>' }).includes('<script>'));
+});
+
+test('the privacy page exists in both languages, indexable, and every page links to it', async () => {
+  const { privacyPage } = await import('../src/privacy.ts');
+  const { homePage } = await import('../src/pages.ts');
+  for (const [lang, path, other] of [['pt', '/privacidade', '/en/privacy'], ['en', '/en/privacy', '/privacidade']] as const) {
+    const out = privacyPage(lang);
+    assert.ok(!out.includes('noindex'), lang);
+    assert.ok(out.includes(`<link rel="canonical" href="https://voltframe.ocarroeletrico.com${path}">`), lang);
+    assert.ok(out.includes(`href="https://voltframe.ocarroeletrico.com${other}"`), lang);
+    // The controller and both cookies are named, so the text matches the code.
+    for (const must of ['info@ocarroeletrico.com', OAUTH_COOKIE, SESSION_COOKIE]) assert.ok(out.includes(must), `${lang}: ${must}`);
+    assert.ok(homePage(lang).includes(`href="${path}"`), `${lang} footer`);
+  }
+  assert.ok(accountPage('pt', { user: null, enabled: true }).includes('href="/privacidade"'));
 });

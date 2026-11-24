@@ -31,3 +31,4 @@ Read-only JSON, open CORS, no key.
 ## Optional
 
 - [Sitemap](https://voltframe.ocarroeletrico.com/sitemap.xml)
+- [Privacy policy](https://voltframe.ocarroeletrico.com/en/privacy) (pt-PT: /privacidade)

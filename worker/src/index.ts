@@ -7,6 +7,7 @@ import { findEvse, getStation, listStations, searchStations, type Env } from './
 import {
   evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';
+import { privacyPage } from './privacy.ts';
 import { sitemapXml } from './sitemap.ts';
 import { compactCode, ftsQuery, MAX_QUERY, STATION_ID, type EvseMatch, type SearchRow } from './types.ts';
 
@@ -215,6 +216,8 @@ export default {
     if (pathname === '/') return html('pt', homePage('pt'));
     if (pathname === '/en/') return html('en', homePage('en'));
     if (pathname === '/en') return new Response(null, { status: 301, headers: { location: '/en/' } });
+    if (pathname === '/privacidade') return html('pt', privacyPage('pt'));
+    if (pathname === '/en/privacy') return html('en', privacyPage('en'));
     if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/auth/osm/login') return login(request, env, HTML_HEADERS);

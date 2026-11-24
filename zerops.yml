@@ -1,0 +1,113 @@
+# VoltFrame no Zerops: servidor Panoramax (serviço `pano`).
+#
+# Só o runtime. O PostgreSQL (hostname `db`) cria-se à parte, com o
+# `zerops-import.yaml`, e este serviço puxa as variáveis dele por referência
+# `${db_variavel}`. Tudo o que é segredo (FS_URL com as chaves do R2,
+# FLASK_SECRET_KEY) é variável secreta do serviço `pano` no Zerops, nunca
+# está no repositório. Ver Docs/infra.md.
+#
+# Deploy: webhook do Zerops no push para `main` (Docs/infra.md, «Deploy»).
+# À mão, em último recurso: `zcli push pano --setup pano` na raiz do repo.
+zerops:
+  - setup: pano
+    build:
+      # Não há nada a compilar: o Panoramax vem do PyPI (`geovisio`) e é
+      # instalado no runtime (prepareCommands), que fica em cache enquanto o
+      # requirements.txt não mudar.
+      # 3.14: a mais recente no Zerops (só existe em Ubuntu). O Panoramax
+      # anuncia suporte ao 3.14 no changelog e as dependências binárias têm
+      # wheels cp314 para glibc (verificado no PyPI para a 2.17.0).
+      base: python@3.14
+      os: ubuntu
+      deployFiles:
+        - panoramax
+      addToRunPrepare:
+        - panoramax/requirements.txt
+    deploy:
+      # Rolling: o container novo entra antes de o velho sair.
+      temporaryShutdown: false
+      readinessCheck:
+        httpGet:
+          port: 5000
+          path: /api/configuration
+        # As migrações correm nos initCommands antes do arranque; numa BD
+        # vazia são ~200 e podem levar um minuto.
+        failureTimeout: "240s"
+        retryPeriod: "10s"
+    run:
+      # Ubuntu e não Alpine: o pyexiv2 (dependência do geopic-tag-reader) só
+      # tem wheels para glibc, e o Python 3.14 do Zerops só existe em Ubuntu.
+      base: ubuntu/python@3.14
+      prepareCommands:
+        # venv: o pip do sistema no Ubuntu 24.04 recusa instalar fora de um
+        # venv (PEP 668).
+        - python3 -m venv /home/zerops/venv
+        - /home/zerops/venv/bin/pip install --no-cache-dir -r /home/zerops/panoramax/requirements.txt
+        # Utilizador sem sudo, sem shell e sem casa para os processos. O
+        # `zerops` tem sudo.
+        - sudo useradd --system --no-create-home --shell /usr/sbin/nologin pano
+      # Antes de qualquer processo arrancar (API e worker): extensões e
+      # permissões com o superuser, depois as migrações com o dono da BD.
+      # Se falhar, o readiness chumba e a versão anterior continua a servir.
+      initCommands:
+        - /home/zerops/venv/bin/python /var/www/panoramax/bootstrap_db.py
+        - env -u PANO_DB_SUPERUSER_URL /home/zerops/venv/bin/panoramax_backend db upgrade
+      startCommands:
+        # API (gunicorn). Corre sem shell: nada de aspas nem `&&`.
+        # `env -u`: o superuser não chega aos processos.
+        - name: api
+          user: pano
+          command: >-
+            env -u PANO_DB_SUPERUSER_URL HOME=/tmp
+            /home/zerops/venv/bin/gunicorn
+            --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 120
+            --access-logfile - geovisio:create_api()
+        # Processamento das fotos (tamanhos, metadados) e o cron de
+        # estatísticas. Separado da API: PICTURE_PROCESS_THREADS_LIMIT=0.
+        - name: worker
+          user: pano
+          command: >-
+            env -u PANO_DB_SUPERUSER_URL HOME=/tmp
+            /home/zerops/venv/bin/panoramax_backend picture-worker
+      ports:
+        - port: 5000
+          httpSupport: true
+      healthCheck:
+        httpGet:
+          port: 5000
+          path: /api/configuration
+      envVariables:
+        # --- Base de dados. Porta 5432 direta, não o pgBouncer (6432): o
+        # Panoramax passa `-c statement_timeout=…` nas opções de arranque da
+        # ligação, que o pgBouncer recusa, e as migrações usam SET de sessão. ---
+        DB_URL: ${db_connectionString}
+        PANO_DB_SUPERUSER_URL: postgresql://${db_superUser}:${db_superUserPassword}@${db_hostname}:5432/${db_dbName}
+        PANO_DB_APP_USER: ${db_user}
+        DB_MAX_CNX: "5"
+        # --- Instância ---
+        API_SUMMARY: >-
+          {"name": {"pt": "VoltFrame — fotos de postos de carregamento",
+          "en": "VoltFrame — EV charger photos"},
+          "description": {"pt": "Fotos de postos de carregamento em Portugal, enviadas pelo VoltFrame",
+          "en": "Photos of EV charging stations in Portugal, uploaded through VoltFrame"},
+          "geo_coverage": {"pt": "Portugal\nSó postos de carregamento, enviados pelo VoltFrame.",
+          "en": "Portugal\nCharging stations only, uploaded through VoltFrame."},
+          "email": "voltframe@ocarroeletrico.com",
+          "color": "#1f7a4d"}
+        API_WEBSITE_URL: "false"
+        API_PICTURES_LICENSE_SPDX_ID: CC-BY-SA-4.0
+        API_PICTURES_LICENSE_URL: https://creativecommons.org/licenses/by-sa/4.0/
+        # --- Contas e envio: sem OAuth. O VoltFrame envia com a conta
+        # `pictures` (papel `user`), criada por panoramax/service_account.py. ---
+        API_REGISTRATION_IS_OPEN: "false"
+        API_FORCE_AUTH_ON_UPLOAD: "true"
+        # Fica gravado na BD no primeiro arranque; mudar aqui depois não tem
+        # efeito (Docs/infra.md, «Configuração gravada na BD»).
+        API_DEFAULT_PICTURE_VISIBILITY: owner-only
+        # --- Processamento ---
+        PICTURE_PROCESS_THREADS_LIMIT: "0"
+        PICTURE_PROCESS_DERIVATES_STRATEGY: PREPROCESS
+        # --- Rede: proxies à frente (subdomínio zerops.app: 1; com a
+        # Cloudflare: 2). Ver Docs/infra.md, «Proxies». ---
+        INFRA_NB_PROXIES: "1"
+        API_LOG_LEVEL: info

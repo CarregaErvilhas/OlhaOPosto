@@ -20,3 +20,20 @@ updates:
         update-types:
           - "minor"
           - "patch"
+  # Panoramax (pacote `geovisio`). Subir a versão pode trazer migrações da BD:
+  # ler o changelog antes do merge (Docs/infra.md, «Atualizar o Panoramax»).
+  - package-ecosystem: "pip"
+    directory: "/panoramax"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+      - "panoramax"
+    commit-message:
+      prefix: "deps(panoramax)"
+      include: "scope"

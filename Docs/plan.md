@@ -85,7 +85,7 @@ pictures|author=joao_osm
 
 **Federação.** Abre-se um pedido no repositório do catálogo federado e os operadores acrescentam o servidor ao *harvester* ([como](https://docs.panoramax.fr/how-to-contribute/hosting-instance/)). Só depois da conversa com a OSM Portugal e com a equipa do Panoramax; até lá o servidor fica privado.
 
-**Ensaio antes de construir (fase 1).** Um dia no Zerops. Passa quando os seis pontos passam ou cada falha tem a alternativa escolhida:
+**Ensaio antes de construir (fase 1).** Um dia no Zerops (configuração e passos em [`infra.md`](infra.md)). Passa quando os seis pontos passam ou cada falha tem a alternativa escolhida:
 
 | Verificar | Se falhar |
 | --- | --- |

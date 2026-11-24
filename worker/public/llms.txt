@@ -14,7 +14,7 @@ Pages are in European Portuguese, with English under /en/. Station and socket da
 
 Read-only JSON, open CORS, no key.
 
-- `GET /api/v1/stations/{station id}`: the station, its operator, address, coordinates, OSM element and sockets.
+- `GET /api/v1/stations/{station id}`: the station, its operator, address, coordinates, OSM element and sockets. Each socket has its EVSE code as published (`evse`) and without the `*` (`compact`), which is the name of its static link.
 - `GET /api/v1/stations?q={words}&limit={1-50}`: full-text search over station code, name, address, town and operator. Every word must match, as a prefix, accents ignored. Public stations only, best match first.
 - `GET /api/v1/stations?lat={deg}&lon={deg}&radius={metres, default 500, max 5000}&limit={1-50}`: public stations near a point, nearest first, each with `distance_m`. Use either `q` or `lat`/`lon`, not both.
 - `GET /api/v1/evses/{EVSE code}`: the socket and its station. 300 with `candidates` when the NAP lists the same code at more than one station, 404 when unknown.

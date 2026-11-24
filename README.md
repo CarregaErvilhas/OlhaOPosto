@@ -11,10 +11,12 @@ https://pictures.ocarroeletrico.com/<id-do-posto>.jpg
 O link nunca muda. Muda só a foto para onde aponta.
 
 > **Estado:** o servidor Panoramax está em produção em
-> `panoramax.ocarroeletrico.com`, ainda fora da federação. Existem o plano
-> técnico e os mockups. O Worker do VoltFrame (`worker/`) já tem as páginas
-> dos postos, a API de postos só de leitura e o import diário dos postos, já
-> publicados. O envio de fotos ainda não existe.
+> `panoramax.ocarroeletrico.com`, ainda fora da federação. O Worker do
+> VoltFrame (`worker/`) já publica as páginas dos postos, a pesquisa, a API
+> de postos só de leitura e a política de privacidade, com o import diário
+> dos postos. O login com o OpenStreetMap e a página de envio estão feitos
+> mas desligados; a página prepara a foto no browser, mas o envio para o
+> servidor, a moderação e a publicação ainda não existem.
 
 ## Como funciona
 
@@ -51,9 +53,9 @@ O que já existe está em [`Docs/arquitetura.md`](Docs/arquitetura.md); o que fa
 | [`Docs/plan.md`](Docs/plan.md) | O que falta construir: fases, envio, moderação, login, API, MCP, OSM |
 | [`Docs/licenca.md`](Docs/licenca.md) | Licenças do código, das fotos e das fontes |
 | [`Docs/infra.md`](Docs/infra.md) | Infraestrutura do servidor Panoramax: serviços, segredos, R2, DNS, deploy, ensaio |
-| [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do VoltFrame: buckets R2 `pictures`, cache, CORS, Worker |
+| [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do VoltFrame: buckets R2, cache, CORS, Worker e rotas, login, página de envio, D1 e import |
 | `zerops.yml`, `zerops-import.yaml` | Configuração dos serviços `pano` (Panoramax) e `db` no Zerops |
-| `worker/` | Worker do VoltFrame (TypeScript + D1): páginas, API, migrações e import diário dos postos |
+| `worker/` | Worker do VoltFrame (TypeScript + D1): páginas, API, login, página de envio, migrações e import diário dos postos |
 | `panoramax/` | Versão do Panoramax, ponto de entrada do gunicorn, scripts de preparação da BD e da conta de serviço, e scripts de envio de teste |
 | `Design/` | Mockups das páginas e do fluxo VoltFrame ↔ Panoramax |
 

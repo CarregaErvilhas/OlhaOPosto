@@ -13,8 +13,8 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 | R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`, vazio |
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio |
 | Cache Rule do `pictures.*` | Aplicada e testada |
-| D1 `pictures` | Criada, jurisdição EU; migração aplicada e primeiro import feito (8 876 postos, 19 737 pontos) |
-| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado (páginas dos postos em pt-PT e inglês, API só de leitura, `sitemap.xml`) |
+| D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0004` aplicadas; a `0005` (proximidade) aplica-se antes do próximo deploy |
+| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado: páginas dos postos e pesquisa em pt-PT e inglês, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema. A pesquisa por proximidade e a página de envio estão no `main` mas ainda não foram publicadas |
 | Início de sessão com o OSM | Feito e desligado: faltam a aplicação no OSM e os segredos (secção 4) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos |
 
@@ -102,12 +102,22 @@ desligados). Por agora tem:
 | `POST /auth/logout?next=` | Apaga a sessão e faz `303` para o `next`. `403` se o pedido vier de outro site. É o único `POST`; tudo o resto responde `405` |
 
 As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os
-ficheiros de `worker/public/` (CSS, `site.js`, fontes, ícones) são *static
+ficheiros de `worker/public/` (CSS, *scripts*, fontes, ícones) são *static
 assets* do Worker: a Cloudflare serve-os antes de o código correr e não contam
 para o limite de pedidos. O `public/_headers` dá às fontes um ano de cache
-(`immutable`): uma fonte nova leva um nome de ficheiro novo. O CSS e o
-`site.js` mantêm o nome, por isso vão com `no-cache`: o browser confirma-os
-(ETag) em cada página e um deploy nunca junta HTML novo com CSS antigo.
+(`immutable`): uma fonte nova leva um nome de ficheiro novo. O CSS e os
+*scripts* (`site.js`, `theme.js`, `upload.js`, `jpeg.js`) mantêm o nome, por
+isso vão com `no-cache`: o browser confirma-os (ETag) em cada página e um
+deploy nunca junta HTML novo com CSS antigo.
+
+**Seletor de tema** (`public/theme.js`). Automático (segue o sistema), claro
+ou escuro, no cabeçalho. Carrega no `<head>` sem `defer`, para o tema estar
+posto antes de a página aparecer. "Automático" não guarda nada; claro ou
+escuro ficam em `localStorage` (`vf-theme`), só no browser. Sem JavaScript o
+seletor fica escondido e vale o tema do sistema.
+
+**Links externos** (OSM, o código no GitHub) e o JSON da API abrem num
+separador novo, com `rel="noopener"`.
 
 **Duas línguas, URLs fixos.** As páginas em pt-PT ficam onde estavam; o
 inglês vive em `/en/`. Não há redirecionamento pelo `Accept-Language` (os
@@ -119,7 +129,7 @@ operadores) não se traduzem; nas páginas em inglês vão marcados com
 dicionário em `src/pages.ts`.
 
 **Acessibilidade.** Contraste de pelo menos 4,5:1 no texto e 3:1 nos
-contornos dos botões, nos temas claro e escuro (seguem o sistema). Tamanhos
+contornos dos botões, nos temas claro e escuro. Tamanhos
 de letra em `rem` e sem tamanho no `html`, para respeitar o tamanho de letra
 do browser e do sistema; a página passa a 320 px de largura com texto a
 200 % sem *scroll* horizontal. Há regras para `prefers-contrast: more` e para
@@ -129,7 +139,9 @@ numa região `role="status"` e troca o ícone, em vez de mudar só a cor.
 **Nada de terceiros nas páginas.** As fontes (Inter, Space Grotesk, JetBrains
 Mono) estão alojadas em `public/fonts/`, não no Google Fonts. A CSP só deixa
 carregar ficheiros do próprio site e imagens de `pictures.*`, e não permite
-*scripts* nem estilos *inline*: tudo vai em `site.css` e `site.js`. As
+*scripts* nem estilos *inline*: tudo vai em `site.css` e nos *scripts* de
+`public/`. A página de envio é a única com uma CSP mais larga (ver a tabela
+acima). As
 páginas levam também HSTS, `nosniff`, `referrer-policy` e COOP; a API leva
 `x-robots-tag: noindex`, porque é para apps e agentes, não para resultados de
 pesquisa.

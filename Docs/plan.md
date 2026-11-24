@@ -4,7 +4,8 @@ Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`
 
 Este documento só tem o que ainda não existe. O que já está a funcionar
 (objetivos, princípios, domínios, servidor Panoramax, import dos postos,
-páginas e API só de leitura) está em [`arquitetura.md`](arquitetura.md). Quando
+páginas, pesquisa e API só de leitura, login OSM, política de privacidade e
+a parte do envio que corre no browser) está em [`arquitetura.md`](arquitetura.md). Quando
 uma parte daqui fica feita, sai deste documento e a descrição do que ficou
 passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
 [`infra.md`](infra.md).
@@ -235,11 +236,10 @@ A licença das fotos (CC BY-SA 4.0 com autorização ODbL) está em [`licenca.md
 
 **RGPD**
 
-- **Responsável:** Fernando.
 - **Dados de quem envia:** ID e nome do OSM, pseudónimo opcional, papel e GPS das fotos. Sem email.
 - **Pessoas e matrículas nas fotos:** desfocagem obrigatória e caixa a confirmar no envio.
 - **Pedidos de remoção:** formulário público `/takedown` (sem login, com Turnstile). A foto fica `hidden` de imediato (no VoltFrame, no Panoramax e em `pictures`) e um moderador decide em **72 h**.
-- **Política de privacidade:** publicada em `/privacidade` (registos, login e *cookies*); falta acrescentar o envio de fotos (GPS, desfocagem, remoção) antes de o abrir.
+- **Política de privacidade:** publicada em `/privacidade`, com o responsável, os registos, o login, os *cookies* e o que a página de envio já pede à API. Falta o envio em si (desfocagem, GPS guardado para a moderação, licença, remoção) antes de o abrir.
 - **Conservação:** o GPS fica na D1 só para moderação; as versões em `pictures-staging` apagam-se ao aprovar ou rejeitar; logs com retenção curta.
 
 **Moderação**

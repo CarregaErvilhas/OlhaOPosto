@@ -47,6 +47,7 @@ Detalhe completo em [`Docs/plan.md`](Docs/plan.md).
 | --- | --- |
 | [`Docs/plan.md`](Docs/plan.md) | Design técnico: arquitetura, fontes de dados, moderação, licença, fases. É a fonte de verdade |
 | [`Docs/infra.md`](Docs/infra.md) | Infraestrutura do servidor Panoramax: serviços, segredos, R2, DNS, deploy, ensaio |
+| [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do VoltFrame: buckets R2 `pictures`, cache, CORS, Worker |
 | `zerops.yml`, `zerops-import.yaml` | Configuração dos serviços `pano` (Panoramax) e `db` no Zerops |
 | `panoramax/` | Versão do Panoramax, ponto de entrada do gunicorn, scripts de preparação da BD e da conta de serviço, e scripts de envio de teste |
 | `Design/` | Mockups das páginas e do fluxo VoltFrame ↔ Panoramax |

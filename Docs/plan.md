@@ -189,7 +189,7 @@ Notas:
 - **Galerias e metadados** ficam na API: `voltframe.ocarroeletrico.com/api/v1/stations/{id}`.
 - **Sem foto:** o R2 responde `404`, para cada app decidir o que mostrar.
 - **Re-keys:** o `301` do código antigo é uma regra de redirect da Cloudflare gerada a partir de `station_aliases`.
-- **Cache:** `Cache-Control: public, max-age=86400` em cada objeto; Edge TTL longo na Cache Rule; *purge* ao mudar a principal. No pior caso, um browser mostra a foto antiga durante 24 h.
+- **Cache:** `Cache-Control: public, max-age=86400` em cada objeto; Edge TTL de 30 dias e `404` de 1 h na Cache Rule, sem query strings na chave; *purge* ao mudar a principal (também na primeira foto, por causa do `404` em cache). No pior caso, um browser mostra a foto antiga durante 24 h. Configuração em [`cloudflare.md`](cloudflare.md).
 - **Atribuição:** o R2 não devolve cabeçalhos próprios, por isso o autor e a licença vão no **XMP/IPTC** da cópia pública (sem GPS), escritos pelo Worker ao publicar. O crédito completo fica em `voltframe.ocarroeletrico.com/p/{photo_id}`, que a CC BY-SA exige.
 - **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
 

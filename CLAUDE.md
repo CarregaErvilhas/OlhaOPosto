@@ -10,6 +10,7 @@ Estado: fase 1 quase feita. O servidor Panoramax está em produção em `panoram
 - `LICENSE` (MIT, código) e `Docs/licenca.md`: resumo das licenças do código e das fotos; a marca e a mascote não estão licenciadas.
 - `Design/*.dc.html`: mockups das páginas (Main, Galeria, Enviar, Admin) e `canvas.json`.
 - `Docs/infra.md`: infraestrutura do servidor Panoramax no Zerops (serviços, segredos, R2, DNS, deploy, ensaio). Atualizar sempre que a infra mudar.
+- `Docs/cloudflare.md`: recursos Cloudflare do VoltFrame (buckets `pictures` e `pictures-staging`, Cache Rule, CORS; depois Worker e D1). Atualizar sempre que mudarem.
 - `zerops.yml`, `zerops-import.yaml`, `panoramax/`: configuração do serviço `pano` (Panoramax) e do `db`. Um push para `main` faz deploy pelo webhook do Zerops.
 - `Design/marca/`: mascote Pic (versão âmbar) em SVG e PNG, favicon, ícones de app e `site.webmanifest`; cores e `<head>` no `LEIA-ME.md`.
 - `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`: fluxo VoltFrame ↔ Panoramax e ecrãs do plano revisto (envio, moderação, posto, Panoramax, ranking).

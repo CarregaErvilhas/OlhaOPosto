@@ -3,7 +3,7 @@
 2026-11-24 · **em produção** em `https://panoramax.ocarroeletrico.com`,
 atrás da Cloudflare, fora da federação. Este é o sítio onde fica documentada
 a infraestrutura do servidor Panoramax. O resto do VoltFrame (Worker, D1, R2
-`pictures`) é Cloudflare e fica para quando houver código. O design está em
+`pictures`) é Cloudflare e está em [`cloudflare.md`](cloudflare.md). O design está em
 [`plan.md`](plan.md), secção *Servidor Panoramax*.
 
 ```

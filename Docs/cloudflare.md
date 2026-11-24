@@ -12,9 +12,9 @@ e domínios* e *Links estáticos*.
 | R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`, vazio |
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio |
 | Cache Rule do `pictures.*` | Aplicada e testada |
-| D1 `pictures` | Criada, jurisdição EU; migrações e primeiro import por fazer |
-| Worker `pictures` em `voltframe.ocarroeletrico.com` | Código em `worker/` (API de postos só de leitura); por publicar |
-| Import diário dos postos | Workflow `import-stations.yml`; à espera dos segredos do repositório |
+| D1 `pictures` | Criada, jurisdição EU; migração aplicada e primeiro import feito (8 876 postos, 19 737 pontos) |
+| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado (API de postos só de leitura) |
+| Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos |
 
 ## 2. R2
 
@@ -82,6 +82,7 @@ desligados). Por agora só tem:
 | Pedido | Devolve |
 | --- | --- |
 | `GET /api/v1/stations/{id}` | Posto e pontos, com CORS e `max-age=300`. `404` para ids que não existem e para propostas ou postos rejeitados |
+| `GET /api/v1/evses/{evse}` | Tomada pelo código EVSE, com ou sem os `*` (`PT*EZC*E*AMD*00051*1` ou `PTEZCEAMD000511`), e o posto a que pertence. `300` com a lista `candidates` se o código estiver em mais de um posto |
 | `GET /` | Texto «em construção» |
 
 **A D1 `pictures` está na jurisdição EU**: vai guardar dados de
@@ -117,6 +118,13 @@ node scripts/import-stations.ts --remote      # primeiro import
 npm run remote -- deploy
 ```
 
+Uma migração nova aplica-se **antes** do deploy que a usa, a partir do
+`main`: `npm run remote -- d1 migrations apply DB --remote` e depois
+`npm run remote -- deploy`. Criar um índice escreve uma linha por linha da
+tabela (cerca de 20 mil em `evses`), e isso conta para o limite diário da
+D1 Free (100 mil linhas escritas): não juntar no mesmo dia com um import que
+reescreva tudo.
+
 ## 5. Importação dos postos
 
 `worker/scripts/import-stations.ts` lê o modelo da rede do NAP dashboard
@@ -139,11 +147,15 @@ com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem
   confirmar).
 - **A D1 fica indisponível uns segundos** enquanto o `--file` remoto importa
   (API de importação da D1): um pequeno soluço na API por volta das 05:23 UTC.
-- **Pontos sem código EVSE.** O feed ainda não traz o código EVSE do NAP
-  (`PT*EDP*E*LSB*90050*01`), por isso a chave de `evses` é
-  (`station_id`, `point_id`) e o `evse_id` fica vazio. Sem ele não há link
-  estático de tomada; o campo tem de ser acrescentado no NAP dashboard
-  (`plan.md`, *Fontes de postos existentes*).
+- **Código EVSE de cada tomada.** O feed traz em cada ponto o `evse`, o
+  código EVSE do NAP tal como publicado (`PT*EDP*E*LSB*90050*01`). Fica em
+  `evse_id` e, sem os `*`, em `evse_compact` (`PTEDPELSB9005001`), a forma dos
+  links de tomada. A chave de `evses` continua a ser (`station_id`,
+  `point_id`): o NAP não garante que o código seja único (já houve um
+  operador a publicar o mesmo em dois postos, `PT*KLS*E281*1`), por isso o
+  índice em `evse_compact` não é `UNIQUE`.
+  O primeiro import depois de o campo aparecer reescreve todos os pontos
+  (cerca de 20 mil linhas, dentro do limite diário da D1 Free).
 
 **Segredos do repositório** (*Settings → Secrets and variables → Actions*):
 
@@ -154,7 +166,7 @@ com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem
 
 ## 6. Questões em aberto
 
-- [ ] Código EVSE do NAP no `ohmigo_chargers.json` (campo `evse` em cada ponto), para os links de tomada.
+- [x] Código EVSE do NAP no `ohmigo_chargers.json` (campo `evse` em cada ponto), para os links de tomada.
 - [ ] Publicar o Worker pelo CI em vez de à mão (precisa de um token com permissões de Workers).
 - [ ] Regra de ciclo de vida no `pictures-staging` como rede de segurança
   para fotos rejeitadas ou abandonadas (por exemplo 90 dias). O risco é

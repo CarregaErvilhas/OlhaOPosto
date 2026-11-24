@@ -1,5 +1,5 @@
 // VoltFrame Worker (voltframe.ocarroeletrico.com). For now: the read-only
-// station API. Static photo links are served by the R2 bucket on
+// station and socket API. Static photo links are served by the R2 bucket on
 // pictures.ocarroeletrico.com, never by this Worker (Docs/plan.md).
 
 export interface Env {
@@ -34,6 +34,10 @@ interface EvseRow {
 // Station ids seen in the NAP: letters, digits, dashes and underscores
 // (EZC-AMD-00051, HGP-MCN-HOTEL-CASAL_SILVA-C01). Anything else cannot be a station.
 const STATION_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+// A socket's NAP EVSE code, with or without the `*` (PT*EDP*E*LSB*90050*01 or
+// PTEDPELSB9005001). A few operators use dashes (PT*VIA*EMOBI-CSC-00189-3).
+const EVSE_CODE = /^[A-Z0-9-]{3,64}$/;
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -92,24 +96,71 @@ async function station(env: Env, id: string): Promise<Response> {
   });
 }
 
+interface EvseMatch {
+  station_id: string;
+  name: string | null;
+  opc: string | null;
+  operator: string | null;
+  point_id: string;
+  evse_id: string;
+  evse_compact: string;
+  connector: string | null;
+  max_kw: number | null;
+  dc: number;
+  status: string;
+  updated_at: string;
+}
+
+async function evse(env: Env, raw: string): Promise<Response> {
+  const code = raw.replace(/\*/g, '').toUpperCase();
+  if (!EVSE_CODE.test(code)) return notFound();
+  const { results } = await env.DB.prepare(
+    `SELECT e.station_id, s.name, s.opc, s.operator, e.point_id, e.evse_id, e.evse_compact,
+            e.connector, e.max_kw, e.dc, e.status, e.updated_at
+       FROM evses e JOIN stations s ON s.id = e.station_id
+      WHERE e.evse_compact = ? AND s.status IN ('active', 'missing_from_nap')
+      ORDER BY e.station_id, e.point_id`,
+  ).bind(code).all<EvseMatch>();
+  if (results.length === 0) return notFound();
+  const body = (e: EvseMatch) => ({
+    evse: e.evse_id,
+    compact: e.evse_compact,
+    station: { id: e.station_id, name: e.name, operator: { id: e.opc, name: e.operator } },
+    point: { id: e.point_id, connector: e.connector, kw: e.max_kw, dc: e.dc === 1, status: e.status },
+    updatedAt: e.updated_at,
+  });
+  // The NAP does not promise one code per socket. When it repeats, say so and
+  // list the candidates instead of picking one at random.
+  if (results.length > 1) return json({ error: 'ambiguous', candidates: results.map(body) }, 300);
+  return json(body(results[0]));
+}
+
+function param(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json({ error: 'method_not_allowed' }, 405, 'no-store');
     }
     const { pathname } = new URL(request.url);
-    const m = pathname.match(/^\/api\/v1\/stations\/([^/]+)$/);
-    if (m) {
-      let id: string;
-      try {
-        id = decodeURIComponent(m[1]);
-      } catch {
-        return notFound();
-      }
-      return station(env, id);
+    const st = pathname.match(/^\/api\/v1\/stations\/([^/]+)$/);
+    if (st) {
+      const id = param(st[1]);
+      return id === null ? notFound() : station(env, id);
+    }
+    const ev = pathname.match(/^\/api\/v1\/evses\/([^/]+)$/);
+    if (ev) {
+      const code = param(ev[1]);
+      return code === null ? notFound() : evse(env, code);
     }
     if (pathname === '/') {
-      return new Response('VoltFrame: em construção. API: /api/v1/stations/{id}\n', {
+      return new Response('VoltFrame: em construção. API: /api/v1/stations/{id}, /api/v1/evses/{evse}\n', {
         headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=300' },
       });
     }

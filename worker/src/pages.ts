@@ -133,6 +133,7 @@ const T = {
     } as Record<string, string>,
     logout: 'Terminar sessão',
     uploadLink: 'Enviar fotos',
+    manageUsers: 'Gerir utilizadores e papéis',
     loginErrors: {
       denied: 'O início de sessão foi cancelado no OpenStreetMap.',
       expired: 'O pedido expirou ou foi aberto noutro separador. Tenta outra vez.',
@@ -230,6 +231,7 @@ const T = {
     } as Record<string, string>,
     logout: 'Sign out',
     uploadLink: 'Upload photos',
+    manageUsers: 'Manage users and roles',
     loginErrors: {
       denied: 'Signing in was cancelled on OpenStreetMap.',
       expired: 'The request expired or was opened in another tab. Try again.',
@@ -347,6 +349,7 @@ ${p.script ? '<script src="/site.js" defer></script>\n' : ''}${p.module ? `<scri
       <span class="brand-name"><span aria-hidden="true">${BRAND}</span><span class="sr-only" lang="pt-PT">${BRAND_SPOKEN}</span></span>
     </a>
     <a class="header-link" href="${uploadPath(p.lang)}">${t.uploadLink}</a>
+    <a class="header-link" href="${accountPath(p.lang)}">${t.accountTitle}</a>
     <div class="theme" hidden>
       <label for="theme">${t.theme}</label>
       <select id="theme">
@@ -542,6 +545,9 @@ export function accountPage(
       `<p>${t.signedIn} <strong lang="">${esc(p.user.name)}</strong>.</p>`,
       `<p>${t.roleLabel} ${esc(t.roles[p.user.role] ?? p.user.role)}</p>`,
       `<p><a class="button" href="${uploadPath(lang)}">${t.uploadLink}</a></p>`,
+      ...(p.user.role === 'moderator' || p.user.role === 'admin'
+        ? [`<p><a href="${lang === 'pt' ? '/admin/utilizadores' : '/en/admin/users'}">${t.manageUsers}</a></p>`]
+        : []),
       `<form method="post" action="/auth/logout?next=${encodeURIComponent(here)}">` +
         `<button type="submit" class="button">${t.logout}</button></form>`,
     );

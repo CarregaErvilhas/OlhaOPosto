@@ -31,7 +31,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2>Ao iniciar sessão</h2>
 <p>A conta é a do OpenStreetMap. No OpenStreetMap autorizas o ${BRAND} a ler as preferências da conta, e recebemos só o número e o nome da conta. Não recebemos o teu email nem a tua palavra-passe, e não podemos editar o mapa em teu nome. Essa autorização serve uma vez e é revogada logo a seguir.</p>
-<p>Guardamos o número e o nome da conta no OpenStreetMap (o nome atualiza-se em cada início de sessão), o teu papel no site (por exemplo, contribuidor) e as datas de criação da conta e do último início de sessão.</p>
+<p>Guardamos o número e o nome da conta no OpenStreetMap (o nome atualiza-se em cada início de sessão), o teu papel no site (por exemplo, contribuidor) e as datas de criação da conta e do último início de sessão. Quando um moderador ou administrador muda o teu papel, guardamos quem o mudou e quando. Moderadores e administradores veem o nome, o papel e a data do último início de sessão de cada conta, para gerir os papéis.</p>
 <p>Usamos dois <i>cookies</i>, ambos necessários para iniciar sessão, por isso não pedimos consentimento:</p>
 <ul>
 <li><code>__Host-oop_oauth</code>: dura 10 minutos, enquanto passas pelo OpenStreetMap;</li>
@@ -80,7 +80,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2>When you sign in</h2>
 <p>The account is your OpenStreetMap account. On OpenStreetMap you allow ${BRAND} to read your account preferences, and we receive only the account number and name. We do not receive your email or your password, and we cannot edit the map on your behalf. That permission is used once and revoked straight away.</p>
-<p>We keep your OpenStreetMap account number and name (the name is refreshed at each sign-in), your role on the site (for example, contributor) and the dates the account was created and last signed in.</p>
+<p>We keep your OpenStreetMap account number and name (the name is refreshed at each sign-in), your role on the site (for example, contributor) and the dates the account was created and last signed in. When a moderator or admin changes your role, we keep who changed it and when. Moderators and admins see each account’s name, role and last sign-in date, to manage roles.</p>
 <p>We use two cookies, both needed to sign in, so we do not ask for consent:</p>
 <ul>
 <li><code>__Host-oop_oauth</code>: lasts 10 minutes, while you go through OpenStreetMap;</li>

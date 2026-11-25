@@ -192,6 +192,18 @@ ou para um servidor falso. O `wrangler dev` mostra ao Worker o domínio de
 produção como *host*; com `--local-upstream 127.0.0.1:8787` o
 `redirect_uri` fica local.
 
+**Papéis** (`/admin/utilizadores` e `/en/admin/users`, `src/admin.ts`).
+Só para moderadores e administradores; quem não tem sessão vai para o login,
+outro papel recebe `403`. Lista as contas (as 200 com sessão mais recente,
+com pesquisa pelo nome no OSM) e muda o papel com um `POST /admin/papel`
+(mesma origem). Um administrador dá qualquer papel; um moderador só muda
+entre `contributor` e `trusted`, e nunca mexe em moderadores ou
+administradores. Ninguém muda o próprio papel, para o último administrador
+não se trancar fora. Cada mudança guarda `promoted_by` e `promoted_at`, e só
+escreve se o papel ainda for o que a página mostrava. O primeiro
+administrador foi promovido à mão na D1. Ainda sem Cloudflare Access à frente
+(`plan.md`, *Autenticação*).
+
 **Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js` e
 `public/jpeg.js`). Tudo o que mexe na foto corre no browser. Com o envio
 fechado, a página para no passo 5 e oferece o download para testar; aberto,

@@ -351,3 +351,14 @@ label[for="photo"], .station-search label { font-weight: 600; }
   .sizes button[aria-pressed="true"] { border: 3px solid Highlight; }
   .socket:target { outline-color: Highlight; }
 }
+
+/* Admin: users and roles */
+.table-wrap { overflow-x: auto; margin: 16px 0 24px; }
+table.users { border-collapse: collapse; width: 100%; font-size: 0.9375rem; }
+table.users th, table.users td { text-align: left; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.users th { font-weight: 600; color: var(--muted); font-size: 0.875rem; }
+.role-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.role-form select {
+  font: inherit; color: var(--text); background: var(--surface); min-height: 44px; padding: 6px 8px;
+  border: 1px solid var(--control); border-radius: 8px;
+}

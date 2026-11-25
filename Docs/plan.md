@@ -38,7 +38,7 @@ OlhaOPosto|site=TRK-VNT-00005
 OlhaOPosto|author=joao_osm
 ```
 
-**Federação.** Abre-se um pedido no repositório do catálogo federado e os operadores acrescentam o servidor ao *harvester* ([como](https://docs.panoramax.fr/how-to-contribute/hosting-instance/)). Só depois da conversa com a OSM Portugal e com a equipa do Panoramax; até lá o servidor fica privado.
+**Federação.** Abre-se um pedido no repositório do catálogo federado e os operadores acrescentam o servidor ao *harvester* ([como](https://docs.panoramax.fr/how-to-contribute/hosting-instance/)). Só depois da conversa com a OSM Portugal e com a equipa do Panoramax; até lá o servidor fica privado. Duas condições da federação a levar a essa conversa: a instância só pode ter fotos ao nível da rua (*street-level*), e fotos de perto de um posto podem não caber; e só aceitam as licenças LO 2.0 ou CC BY-SA 4.0 (a nossa é CC BY-SA 4.0). O catálogo federado só recolhe os metadados, as fotos ficam no nosso servidor.
 
 ## Modelo de dados (D1)
 
@@ -199,7 +199,7 @@ O início de sessão já está feito e desligado: como funciona e como se liga e
 | `moderator` | Aprovar ou rejeitar a fila, ocultar fotos, tratar pedidos de remoção, promover a `trusted`, criar aliases de postos |
 | `admin` | Gerir moderadores, importações e configuração |
 
-**Sem promoção automática.** Todos os contribuidores ficam moderados até um moderador ou admin os promover manualmente a `trusted`. A promoção fica registada (`promoted_by`, `promoted_at`) e pode ser revertida.
+**Sem promoção automática.** Todos os contribuidores ficam moderados até um moderador ou admin os promover manualmente a `trusted`. A promoção fica registada (`promoted_by`, `promoted_at`) e pode ser revertida, na página `/admin/utilizadores` ([`cloudflare.md`](cloudflare.md), secção 4, *Papéis*).
 
 **Crédito.** Por defeito, o nome OSM. Na página de perfil, a pessoa pode escrever um pseudónimo, que passa a ser o crédito em todo o lado (olh'o'posto, etiqueta no Panoramax, XMP). Mudar o crédito volta a publicar as cópias em `pictures`. O `uploader_id` fica sempre, para a moderação.
 

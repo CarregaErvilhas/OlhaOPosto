@@ -2,6 +2,7 @@
 // read-only API and sign-in with OpenStreetMap (auth.ts). Fonts, CSS and icons in public/ are Workers static assets,
 // served before this code runs. Static photo links are served by the R2
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
+import { ROLE_ACTION, setRole, usersHtml } from './admin.ts';
 import { accountHtml, callback, login, logout } from './auth.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { findEvse, getStation, listStations, nearStations, searchStations, type Env } from './data.ts';
@@ -235,8 +236,9 @@ export default {
   async fetch(request: Request, env: Env & PhotoEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
-    // The two POSTs: everything else on this site only reads.
+    // The POSTs: everything else on this site only reads.
     if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
+    if (request.method === 'POST' && pathname === ROLE_ACTION) return setRole(request, env);
     if (request.method === 'POST' && pathname === '/api/v1/photos') return submitPhoto(request, env, ctx);
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json({ error: 'method_not_allowed' }, 405, 'no-store');
@@ -257,6 +259,8 @@ export default {
     if (pathname === '/en/privacy') return html('en', privacyPage('en'));
     if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS);
+    if (pathname === '/admin/utilizadores') return usersHtml('pt', request, env, HTML_HEADERS);
+    if (pathname === '/en/admin/users') return usersHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
     if (pathname === '/en/upload') return uploadHtml('en', request, env, UPLOAD_HEADERS);
     if (pathname === '/auth/osm/login') return login(request, env, HTML_HEADERS);

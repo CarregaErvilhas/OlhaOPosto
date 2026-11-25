@@ -14,7 +14,7 @@
 import { isCleanJpeg, jpegSize } from '../public/jpeg.js';
 import { currentUser, loginEnabled, page, sameOrigin, type AuthEnv, type Db, type Waiter } from './auth.ts';
 import { PANORAMAX_URL, type Lang } from './pages.ts';
-import { distanceM, STATION_ID } from './types.ts';
+import { distanceM, FAR_M, STATION_ID } from './types.ts';
 import { TURNSTILE_ACTION, uploadPage } from './upload.ts';
 import { allowed, type RateEnv } from './ratelimit.ts';
 
@@ -28,6 +28,9 @@ export interface PhotoEnv extends AuthEnv, RateEnv {
   STAGING?: Bucket;
   PANORAMAX_TOKEN?: string;
   PANORAMAX_URL?: string;
+  // Cache purge on pictures.* when swapping a main photo.
+  CF_ZONE_ID?: string;
+  CF_CACHE_PURGE_TOKEN?: string;
   // Turnstile on the upload form. Both are Worker secrets: the site key is
   // public in the page, but it is a Cloudflare resource id and stays out of
   // the repository.
@@ -149,13 +152,14 @@ export function sameShape(a: { width: number; height: number }, b: { width: numb
 interface StationTarget {
   lat: number;
   lon: number;
+  status: string;
   evse_id: string | null;
 }
 
 async function findTarget(db: Db, meta: PhotoMeta): Promise<StationTarget | null> {
   const station = await db.prepare(
-    `SELECT lat, lon FROM stations WHERE id = ? AND status IN ('active', 'missing_from_nap')`,
-  ).bind(meta.station).first<{ lat: number; lon: number }>();
+    `SELECT lat, lon, status FROM stations WHERE id = ? AND status IN ('active', 'missing_from_nap')`,
+  ).bind(meta.station).first<{ lat: number; lon: number; status: string }>();
   if (!station) return null;
   if (meta.target === meta.station) return { ...station, evse_id: null };
   const socket = await db.prepare(
@@ -266,6 +270,12 @@ export async function submitPhoto(
     ? Math.round(distanceM(meta.exif_lat, meta.exif_lon, target.lat, target.lon))
     : null;
   const evse = meta.target === meta.station ? null : meta.target;
+  // Trusted accounts publish directly when the station is active and the photo
+  // was taken on site. Otherwise it goes to the moderation queue.
+  const autoApprove = user.role === 'trusted'
+    && target.status === 'active'
+    && distance !== null
+    && distance <= FAR_M;
   await env.DB.prepare(
     `INSERT INTO photos (id, station_id, evse_compact, uploader_id, taken_at, exif_lat, exif_lon, distance_m,
        credit, status, created_at)
@@ -287,19 +297,57 @@ export async function submitPhoto(
     const pictureId = await sendToPanoramax(env, fetcher, id, files.full, {
       lat: target.lat, lon: target.lon, takenAt: captureTime(meta.taken_at, now), semantics,
     }, (s) => { setId = s; });
+    const finalStatus = autoApprove ? 'published' : 'pending';
     await env.DB.batch([
-      env.DB.prepare(`UPDATE photos SET status = 'pending', panoramax_set = ?, panoramax_id = ? WHERE id = ?`)
-        .bind(setId, pictureId, id),
+      env.DB.prepare(`UPDATE photos SET status = ?, panoramax_set = ?, panoramax_id = ?, approved_by = ?, approved_at = ? WHERE id = ?`)
+        .bind(finalStatus, setId, pictureId, autoApprove ? user.id : null, autoApprove ? createdAt : null, id),
       env.DB.prepare('UPDATE users SET license_accepted_at = COALESCE(license_accepted_at, ?) WHERE id = ?')
         .bind(createdAt, user.id),
     ]);
+    if (autoApprove) {
+      // Make the set public and publish the static links, like a moderator
+      // approving it (src/moderation.ts + src/publish.ts).
+      const base = env.PANORAMAX_URL ?? PANORAMAX_URL;
+      const headers = { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'OlhaOPosto' };
+      if (setId) {
+        await fetcher(`${base}/api/upload_sets/${encodeURIComponent(setId)}`, {
+          method: 'PATCH',
+          headers: { ...headers, 'content-type': 'application/json' },
+          body: JSON.stringify({ visibility: 'anyone' }),
+        }).catch(() => {});
+      }
+      try {
+        const { publishMain } = await import('./publish.ts');
+        await publishMain(env, id, user.id, fetcher, now);
+      } catch {
+        // The photo stays published; the link may be missing. A later
+        // approval of the same target retries (publishMain is idempotent).
+      }
+      // Award points for a directly published photo.
+      try {
+        const others = await env.DB.prepare(
+          `SELECT COUNT(*) AS n FROM photos WHERE station_id = ? AND evse_compact IS ? AND id <> ? AND status = 'published'`,
+        ).bind(meta.station, evse, id).first<{ n: number }>();
+        const isFirst = (others?.n ?? 0) === 0;
+        const month = now.toISOString().slice(0, 7);
+        const stmts = [env.DB.prepare(
+          `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 1, 'approved', ?, ?)`,
+        ).bind(user.id, id, month, now.toISOString())];
+        if (isFirst) stmts.push(env.DB.prepare(
+          `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 3, 'first_photo', ?, ?)`,
+        ).bind(user.id, id, month, now.toISOString()));
+        await env.DB.batch(stmts);
+      } catch {
+        // Points are best-effort.
+      }
+    }
   } catch (err) {
     // Leave nothing behind but the failed row.
     ctx.waitUntil(cleanUp(env, fetcher, staged, setId, id));
     if (err instanceof PanoramaxError && err.status === 409) return reply(409, { error: 'duplicate' });
     return reply(502, { error: 'upload_failed' });
   }
-  return reply(201, { id, status: 'pending' });
+  return reply(201, { id, status: autoApprove ? 'published' : 'pending' });
 }
 
 // Panoramax wants a time zone. EXIF often has none; then it is the phone's

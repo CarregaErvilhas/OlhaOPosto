@@ -9,7 +9,7 @@ import { accountHtml, callback, currentUser, login, logout } from './auth.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { chooseMain } from './publish.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
-import { findEvse, getStation, listMainPhotos, listStations, nearStations, ranking, searchStations, type Env } from './data.ts';
+import { findEvse, getStation, getStationAlias, listMainPhotos, listStations, nearStations, ranking, searchStations, type Env } from './data.ts';
 import {
   PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, rankingPage, rankingPath, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';

@@ -291,7 +291,7 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
       if (isFirst) stmts.push(db(env).prepare(
         `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 3, 'first_photo', ?, ?)`,
       ).bind(user.id, id, month, now.toISOString()));
-      await db(env).batch(stmts);
+      await env.DB.batch(stmts);
     } catch {
       // Points are best-effort; never block an approval.
     }

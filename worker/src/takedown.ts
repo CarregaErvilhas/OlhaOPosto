@@ -223,7 +223,13 @@ async function resolvePhoto(env: PhotoEnv, asked: { target?: string; picture?: s
     ).bind(target).first<{ id: string }>();
     if (row) return row.id;
   }
-  return null;
+  // A second request by code: hiding deleted the selection, but the first
+  // request remembers which targets it cleared.
+  const earlier = await db(env).prepare(
+    `SELECT k.photo_id AS id FROM takedowns k, json_each(k.cleared) c
+      WHERE k.status = 'open' AND k.photo_id IS NOT NULL AND c.value IN (?1, upper(?1)) LIMIT 1`,
+  ).bind(asked.target).first<{ id: string }>();
+  return earlier?.id ?? null;
 }
 
 // Steps 2 and 3 of hiding. Safe to repeat: R2 deletes, the Panoramax PATCH
@@ -280,7 +286,11 @@ const redirect = (location: string, status = 302) =>
 const noStore = (body: string, status: number) =>
   new Response(body, { status, headers: { 'cache-control': 'no-store' } });
 
-export const takedownOpen = (env: PhotoEnv) => Boolean(env.TURNSTILE_SITEKEY && env.TURNSTILE_SECRET);
+// Closed until the purge works too: without it a deleted static link keeps
+// being served from the edge for up to 30 days, and the form would promise
+// something it cannot do.
+export const takedownOpen = (env: PublishEnv) =>
+  Boolean(env.TURNSTILE_SITEKEY && env.TURNSTILE_SECRET && env.CF_ZONE_ID && env.CF_CACHE_PURGE_TOKEN);
 
 export function takedownPage(lang: Lang, p: { open: boolean; sitekey?: string; asked?: string; ok?: boolean; error?: string }): string {
   const t = T[lang];
@@ -324,7 +334,7 @@ export function takedownPage(lang: Lang, p: { open: boolean; sitekey?: string; a
   });
 }
 
-export function takedownHtml(lang: Lang, request: Request, env: PhotoEnv, headers: Record<string, string>): Response {
+export function takedownHtml(lang: Lang, request: Request, env: PublishEnv, headers: Record<string, string>): Response {
   const url = new URL(request.url);
   const open = takedownOpen(env);
   return page(lang, takedownPage(lang, {

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { tokenHash } from '../src/auth.ts';
 import worker from '../src/index.ts';
 import { chooseMain } from '../src/publish.ts';
-import { decideTakedown, parseAsked, submitTakedown, takedownPage, type TakedownEnv } from '../src/takedown.ts';
+import { decideTakedown, parseAsked, submitTakedown, takedownPage, takedownsPage, type TakedownEnv, type TakedownRow } from '../src/takedown.ts';
 import { d1 } from './d1.ts';
 
 const SITE = 'https://olhaoposto.ocarroeletrico.com';
@@ -161,12 +161,31 @@ test('takedown: hidden at once in D1, pictures.* and Panoramax, with purges', as
   assert.equal(api.points[0].photo, null);
 });
 
-test('takedown: without the purge secrets the request says so for moderators', async () => {
+test('takedown: the form stays closed without the purge secrets', async () => {
   const w = await world({ purge: false });
-  await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher, NOW);
+  const page = await (await worker.fetch(new Request(`${SITE}/takedown`), w.env as never, {} as never)).text();
+  assert.ok(page.includes('info@ocarroeletrico.com') && !page.includes('cf-turnstile'));
+  const res = await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher, NOW);
+  assert.equal(res.headers.get('location'), '/takedown?erro=bad');
+  assert.equal(status(w), 'published');
+});
+
+test('takedown: a failed purge is recorded for moderators, the photo still hidden', async () => {
+  const w = await world();
+  const failing = async (url: string, init?: RequestInit) =>
+    url.includes('purge_cache') ? new Response('{}', { status: 500 }) : w.fetcher(url, init);
+  await submitTakedown(ask('EZC-AMD-00051'), w.env, failing, NOW);
   assert.equal(status(w), 'hidden');
   const row = w.db.sql.prepare('SELECT hide_failed FROM takedowns').get() as { hide_failed: string };
   assert.deepEqual(JSON.parse(row.hide_failed), ['purge']);
+});
+
+test('takedown: a second request by code finds the photo the first one hid', async () => {
+  const w = await world();
+  await submitTakedown(ask('PTEZCEAMD000511'), w.env, w.fetcher, NOW);
+  await submitTakedown(ask('ptezceamd000511'), w.env, w.fetcher, NOW);
+  const rows = w.db.sql.prepare('SELECT photo_id FROM takedowns').all() as { photo_id: string }[];
+  assert.deepEqual(rows.map((r) => r.photo_id), [PHOTO, PHOTO]);
 });
 
 test('takedown: unknown code gets the same answer, recorded without a photo', async () => {
@@ -268,4 +287,27 @@ test('chooseMain publishes a socket photo on the socket target', async () => {
   assert.ok(w.r2.has('PTEZCEAMD000511.full.jpg'));
   // A socket photo is not a station photo.
   assert.deepEqual(await chooseMain(w.env, 'EZC-AMD-00051', PHOTO, 'mod', w.fetcher, NOW), []);
+});
+
+test('admin panel: anonymous text escaped, the right buttons per request, overdue shown', () => {
+  const evil = `<script>alert("x")</script>'`;
+  const row = (extra: Partial<TakedownRow>): TakedownRow => ({
+    id: 'k1', asked: evil, photo_id: PHOTO, reason: 'face', details: evil, contact: `${evil}@x.pt`, status: 'open',
+    hide_failed: null, created_at: '2026-11-21T12:00:00.000Z', decided_at: null, station_id: 'EZC-AMD-00051',
+    station_name: evil, evse_compact: 'PTEZCEAMD000511', photo_status: 'hidden', ...extra,
+  });
+  const html = takedownsPage('pt', [
+    row({}),
+    row({ id: 'k2', photo_id: null, station_id: null, created_at: '2026-11-25T11:00:00.000Z' }),
+    row({ id: 'k3', hide_failed: '["purge"]', created_at: '2026-11-25T11:00:00.000Z' }),
+  ], [], {}, NOW);
+  assert.ok(!html.includes('<script>alert'));
+  assert.ok(html.includes('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;&#39;'));
+  const article = (id: string) => html.split('<article').find((a) => a.includes(`value="${id}"`))!;
+  assert.ok(article('k1').includes('value="remove"') && article('k1').includes('value="restore"'));
+  assert.ok(!article('k1').includes('value="retry"') && !article('k1').includes('value="close"'));
+  assert.ok(article('k1').includes('Atrasado 24 h'));
+  assert.ok(article('k2').includes('value="close"') && !article('k2').includes('value="remove"'));
+  assert.ok(article('k2').includes('Faltam 71 h'));
+  assert.ok(article('k3').includes('value="retry"') && article('k3').includes('limpeza da cache'));
 });

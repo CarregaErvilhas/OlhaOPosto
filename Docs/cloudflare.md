@@ -236,10 +236,19 @@ o pedido, a foto fica oculta logo:
    no `panoramax.*` são purgados (a zona guarda-os em cache).
 
 Um passo que falhe fica no pedido (`hide_failed`) e aparece no painel com um
-botão para repetir. **A purga precisa dos segredos `CF_ZONE_ID` e
-`CF_CACHE_PURGE_TOKEN`** (um token de API só com *Zone → Cache Purge* nesta
-zona): sem eles cada pedido fica com a purga falhada e a foto continua na
-cache do `pictures.*` até 30 dias. No painel, **Remover** apaga o *upload set*
+botão para repetir. **O formulário fica fechado** (mostra o email) enquanto
+faltarem os segredos do Turnstile ou da purga: sem purga, a foto continuaria
+na cache do `pictures.*` até 30 dias. Para o abrir (só o Fernando):
+
+1. Criar um token de API só com *Zone → Cache Purge → Purge*, só na zona
+   `ocarroeletrico.com` (cobre o `pictures.*` e o `panoramax.*`).
+2. `npm run remote -- secret put CF_ZONE_ID` (o ID da zona) e
+   `npm run remote -- secret put CF_CACHE_PURGE_TOKEN` (o token).
+3. Depois do primeiro pedido real, os três URLs do `pictures.*` têm de dar
+   `404` (`curl -sI`), não um `HIT` da cache.
+
+Os mesmos segredos servem a troca da foto principal
+(`PUT /api/v1/selections/{target}`), que até aqui não purgava nada. No painel, **Remover** apaga o *upload set*
 e as cópias do `pictures-staging` (foto `removed`); **Repor** torna o *set*
 público, a foto `published` e volta a preencher os links estáticos que ainda
 estão vazios; **Fechar** encerra um pedido que não corresponde a nenhuma

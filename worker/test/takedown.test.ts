@@ -311,3 +311,16 @@ test('admin panel: anonymous text escaped, the right buttons per request, overdu
   assert.ok(article('k2').includes('Faltam 71 h'));
   assert.ok(article('k3').includes('value="retry"') && article('k3').includes('limpeza da cache'));
 });
+
+test('decided requests older than 2 years are deleted, open ones never', async () => {
+  const w = await world();
+  w.db.sql.exec(`
+    INSERT INTO takedowns (id, asked, reason, status, created_at, decided_at) VALUES
+      ('old', 'x', 'other', 'closed', '2024-01-01T00:00:00.000Z', '2024-01-02T00:00:00.000Z'),
+      ('recent', 'x', 'other', 'closed', '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z'),
+      ('open', 'x', 'other', 'open', '2024-01-01T00:00:00.000Z', NULL);
+  `);
+  await submitTakedown(ask('XYZ-NOPE-1'), w.env, w.fetcher, NOW);
+  const ids = w.db.sql.prepare(`SELECT id FROM takedowns WHERE id IN ('old', 'recent', 'open') ORDER BY id`).all().map((r) => r.id);
+  assert.deepEqual(ids, ['open', 'recent']);
+});

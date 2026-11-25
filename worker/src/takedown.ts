@@ -42,6 +42,10 @@ export const takedownFormPath = (lang: Lang) => (lang === 'pt' ? '/takedown' : '
 export const takedownsPath = (lang: Lang) => (lang === 'pt' ? '/admin/remocoes' : '/en/admin/takedowns');
 export const TAKEDOWN_DECIDE = '/admin/remocao';
 export const DEADLINE_H = 72;
+// Decided requests are kept as the record of the decision, then deleted
+// (the privacy policy says so). No cron: the delete runs when a request
+// arrives or the panel opens, which is often enough for a 2-year limit.
+export const KEEP_DAYS = 730;
 const REASONS = ['face', 'plate', 'property', 'other'] as const;
 type Reason = typeof REASONS[number];
 const MAX_ASKED = 300;
@@ -370,6 +374,7 @@ export async function submitTakedown(request: Request, env: TakedownEnv, fetcher
   const contactRaw = str('contacto', MAX_CONTACT);
   const contact = /^[^\s@]+@[^\s@]+$/.test(contactRaw) ? contactRaw : null;
 
+  await forgetOld(env, now);
   const photoId = await resolvePhoto(env, parseAsked(askedRaw));
   const id = crypto.randomUUID();
   await db(env).prepare(
@@ -386,6 +391,11 @@ export async function submitTakedown(request: Request, env: TakedownEnv, fetcher
       .bind(JSON.stringify(cleared), failed.length ? JSON.stringify(failed) : null, id).run();
   }
   return back('ok=1');
+}
+
+export async function forgetOld(env: PhotoEnv, now: Date): Promise<void> {
+  const cutoff = new Date(now.getTime() - KEEP_DAYS * 86_400_000).toISOString();
+  await db(env).prepare(`DELETE FROM takedowns WHERE status <> 'open' AND decided_at < ?`).bind(cutoff).run().catch(() => {});
 }
 
 // --- Admin panel ---
@@ -490,6 +500,7 @@ export async function takedownsHtml(lang: Lang, request: Request, env: PhotoEnv,
   const user = await currentUser(request, env).catch(() => null);
   if (!user) return redirect(`/auth/osm/login?next=${encodeURIComponent(takedownsPath(lang))}`);
   if (!canModerate(user.role)) return page(lang, forbiddenPage(lang), 403, headers);
+  await forgetOld(env, new Date());
   const open = await db(env).prepare(`${ROW_SQL} WHERE k.status = 'open' ORDER BY k.created_at LIMIT ${LIST_LIMIT}`).all<TakedownRow>();
   const recent = await db(env).prepare(`${ROW_SQL} WHERE k.status <> 'open' ORDER BY k.decided_at DESC LIMIT 20`).all<TakedownRow>();
   const url = new URL(request.url);

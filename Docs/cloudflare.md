@@ -253,7 +253,8 @@ e as cópias do `pictures-staging` (foto `removed`); **Repor** torna o *set*
 público, a foto `published` e volta a preencher os links estáticos que ainda
 estão vazios; **Fechar** encerra um pedido que não corresponde a nenhuma
 foto. Uma decisão fecha todos os pedidos abertos da mesma foto e apaga o
-contacto. O prazo é de 72 horas; o painel mostra o tempo que falta.
+contacto. Os pedidos decididos apagam-se 2 anos depois da decisão (sem
+*cron*: o `DELETE` corre quando chega um pedido ou se abre o painel). O prazo é de 72 horas; o painel mostra o tempo que falta.
 Ainda não se promove outra foto aprovada a principal quando uma é ocultada.
 
 **Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`).

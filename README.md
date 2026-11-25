@@ -15,8 +15,8 @@ O link nunca muda. Muda só a foto para onde aponta.
 > VoltFrame (`worker/`) já publica as páginas dos postos, a pesquisa, a API
 > de postos só de leitura e a política de privacidade, com o import diário
 > dos postos. O login com o OpenStreetMap e a página de envio estão feitos
-> mas desligados; a página prepara a foto no browser, mas o envio para o
-> servidor, a moderação e a publicação ainda não existem.
+> mas fechados; o envio já guarda a foto escondida no Panoramax, mas a
+> moderação e a publicação ainda não existem.
 
 ## Como funciona
 

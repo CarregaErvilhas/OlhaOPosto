@@ -2,7 +2,9 @@
 // person mark faces and number plates, and re-encode it without metadata.
 // Everything here runs on the device; the only requests are station lookups
 // on our own API, with the GPS rounded to about 100 m first (the Worker logs
-// keep the URL). Sending is not wired yet: the page stops at the prepared files.
+// keep the URL). When uploads are open (canSend), the prepared files go to
+// POST /api/v1/photos, which checks them again; otherwise the page stops at
+// the prepared files.
 import { isCleanJpeg, readExif, stripMetadata } from './jpeg.js';
 
 const MAX_BYTES = 40 * 1024 * 1024;
@@ -51,6 +53,7 @@ function init(form, M) {
   let target = null;
   let lookup = 0;
   let urls = [];
+  let sent = false;
 
   form.hidden = false;
 
@@ -101,6 +104,7 @@ function init(form, M) {
   });
 
   function reset() {
+    sent = false;
     base = null;
     meta = null;
     zones = [];
@@ -420,6 +424,8 @@ function init(form, M) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!base) return;
+    // One photo, one upload: a second click would send a re-encoded copy.
+    if (sent) return say(sendStatus, M.sent);
     if (!target) {
       say(sendStatus, M.chooseStation);
       searchInput.focus();
@@ -440,8 +446,12 @@ function init(form, M) {
         if (!clean || !isCleanJpeg(clean)) throw new Error('metadata');
         out.push({ px, w: c.width, h: c.height, blob: new Blob([clean], { type: 'image/jpeg' }) });
       }
-      showResult(out);
-      say(sendStatus, M.ready);
+      if (M.canSend) {
+        await send(out);
+      } else {
+        showResult(out, true);
+        say(sendStatus, M.ready);
+      }
     } catch (err) {
       say(sendStatus, err.message === 'metadata' ? M.notClean : M.failed);
     } finally {
@@ -449,14 +459,45 @@ function init(form, M) {
     }
   });
 
-  function showResult(out) {
+  async function send(out) {
+    say(sendStatus, M.sending);
+    const body = new FormData();
+    out.forEach((o, i) => body.append(['full', 'main', 'thumb'][i], o.blob, `${o.px}.jpg`));
+    // In the body, never the URL: the Worker logs keep URLs.
+    body.append('meta', JSON.stringify({
+      station,
+      target,
+      taken_at: meta?.takenAt ?? null,
+      exif_lat: meta?.lat ?? null,
+      exif_lon: meta?.lon ?? null,
+      license: $('ok-license').checked,
+      no_people: $('ok-privacy').checked,
+    }));
+    let r;
+    try {
+      r = await fetch('/api/v1/photos', { method: 'POST', body });
+    } catch {
+      return say(sendStatus, M.errors.upload_failed);
+    }
+    if (r.ok) {
+      sent = true;
+      showResult(out, false);
+      return say(sendStatus, M.sent);
+    }
+    const code = await r.json().then((j) => j.error).catch(() => null);
+    say(sendStatus, M.errors[code] ?? M.errors.other);
+  }
+
+  function showResult(out, download) {
     const url = (b) => { const u = URL.createObjectURL(b); urls.push(u); return u; };
     const small = out[out.length - 1];
     const img = el('img', { src: url(small.blob), alt: M.resultAlt, width: small.w, height: small.h });
     const list = el('ul', { className: 'plain-list' }, out.map((o) =>
       el('li', {}, fill(M.size, { px: o.px, w: o.w, h: o.h, kb: metres.format(o.blob.size / 1024) }))));
-    const link = el('a', { href: url(out[0].blob), download: `${target}.jpg` }, M.download);
-    result.replaceChildren(img, list, el('p', {}, [link]));
+    result.replaceChildren(img, list);
+    if (download) {
+      result.append(el('p', {}, [el('a', { href: url(out[0].blob), download: `${target}.jpg` }, M.download)]));
+    }
     result.hidden = false;
   }
 }

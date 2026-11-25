@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { isCleanJpeg, readExif, stripMetadata } from '../public/jpeg.js';
+import { isCleanJpeg, jpegSize, readExif, stripMetadata } from '../public/jpeg.js';
 
 // A tiny TIFF writer, enough for the tags the upload reads.
 type Entry = { tag: number; type: number; values: number[] | string };
@@ -178,4 +178,13 @@ test('stripMetadata and isCleanJpeg refuse what is not a well-formed JPEG', () =
     assert.equal(stripMetadata(b), null);
     assert.equal(isCleanJpeg(b), false);
   }
+});
+
+test('jpegSize reads the frame header', () => {
+  // SOF0: precision 8, height 600, width 1024, 3 components.
+  const sof = seg(0xc0, [8, 0x02, 0x58, 0x04, 0x00, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1]);
+  assert.deepEqual(jpegSize(concat(SOI, JFIF, DQT, sof, SCAN)), { width: 1024, height: 600 });
+  // A DHT (C4) is not a frame header.
+  assert.equal(jpegSize(concat(SOI, JFIF, seg(0xc4, [0, 1, 2, 3, 4, 5, 6, 7]), SCAN)), null);
+  assert.equal(jpegSize(new Uint8Array(0)), null);
 });

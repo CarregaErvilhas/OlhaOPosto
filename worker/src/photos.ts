@@ -1,0 +1,285 @@
+// Photo uploads: POST /api/v1/photos and the upload page route.
+//
+// The browser has already blurred the photo, removed its metadata and made
+// three sizes (public/upload.js). The Worker never trusts that: it checks the
+// session, the origin, the daily limit, the target, that every file is a
+// clean JPEG of the right size, and only then stores the photo. The 2048 px
+// master goes to our Panoramax server, hidden (owner-only) until a moderator
+// approves it; the 1024 and 400 px copies wait in the private bucket
+// pictures-staging. The D1 row is written first, so a failure halfway is
+// always traceable and cleaned up.
+//
+// Closed (503) until sign-in is on, the Panoramax token exists and the
+// staging bucket is bound, so this can ship before uploads open.
+import { isCleanJpeg, jpegSize } from '../public/jpeg.js';
+import { currentUser, loginEnabled, page, sameOrigin, type AuthEnv, type Db, type Waiter } from './auth.ts';
+import type { Lang } from './pages.ts';
+import { distanceM, STATION_ID } from './types.ts';
+import { uploadPage } from './upload.ts';
+
+// The slice of R2 used here, so the tests typecheck under Node.
+export interface Bucket {
+  put(key: string, value: Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+  delete(keys: string | string[]): Promise<void>;
+}
+
+export interface PhotoEnv extends AuthEnv {
+  STAGING?: Bucket;
+  PANORAMAX_TOKEN?: string;
+  PANORAMAX_URL?: string;
+}
+
+type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+const PANORAMAX_URL = 'https://panoramax.ocarroeletrico.com';
+// Per person and UTC day. Contributors are moderated anyway; the cap keeps a
+// runaway script or a stolen session from filling the queue.
+export const DAILY_LIMIT: Record<string, number> = { contributor: 50 };
+const DAILY_LIMIT_OTHERS = 500;
+
+// Longest side and largest file for each size the page makes.
+const SIZES = {
+  full: { max: 2048, bytes: 6_000_000 },
+  main: { max: 1024, bytes: 2_000_000 },
+  thumb: { max: 400, bytes: 500_000 },
+} as const;
+type SizeName = keyof typeof SIZES;
+const MAX_BODY = 9_000_000;
+const MIN_SIDE = 100;
+
+export const uploadsOpen = (env: PhotoEnv) => loginEnabled(env) && Boolean(env.PANORAMAX_TOKEN && env.STAGING);
+
+export async function uploadHtml(lang: Lang, request: Request, env: PhotoEnv, headers: Record<string, string>) {
+  const enabled = loginEnabled(env);
+  // A D1 hiccup reads as signed out, never as a 500.
+  const user = enabled ? await currentUser(request, env).catch(() => null) : null;
+  return page(lang, uploadPage(lang, { user, enabled, sending: uploadsOpen(env) }), 200, headers);
+}
+
+const reply = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+  });
+
+export interface PhotoMeta {
+  station: string;
+  target: string;
+  taken_at: string | null;
+  exif_lat: number | null;
+  exif_lon: number | null;
+}
+
+const TAKEN_AT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})([+-]\d{2}:\d{2}|Z)?$/;
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+// The JSON part of the upload. Both consents must be true; the rest is
+// checked for shape here and against D1 later.
+export function parseMeta(raw: unknown, now = new Date()): PhotoMeta | string {
+  if (typeof raw !== 'string' || raw.length > 2000) return 'bad_meta';
+  let m: Record<string, unknown>;
+  try {
+    m = JSON.parse(raw);
+  } catch {
+    return 'bad_meta';
+  }
+  if (!m || typeof m !== 'object') return 'bad_meta';
+  if (m.license !== true || m.no_people !== true) return 'consent_required';
+  if (typeof m.station !== 'string' || !STATION_ID.test(m.station)) return 'bad_target';
+  if (typeof m.target !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(m.target)) return 'bad_target';
+  let taken: string | null = null;
+  if (m.taken_at != null) {
+    if (typeof m.taken_at !== 'string' || !TAKEN_AT.test(m.taken_at)) return 'bad_meta';
+    const t = Date.parse(m.taken_at.length === 19 ? `${m.taken_at}Z` : m.taken_at);
+    // A day of slack for a camera clock in another time zone.
+    if (!Number.isFinite(t) || t > now.getTime() + 86_400_000 || t < Date.UTC(2000, 0, 1)) return 'bad_meta';
+    taken = m.taken_at;
+  }
+  const lat = num(m.exif_lat);
+  const lon = num(m.exif_lon);
+  if ((m.exif_lat != null || m.exif_lon != null) && (lat === null || lon === null)) return 'bad_meta';
+  if (lat !== null && lon !== null && (Math.abs(lat) > 90 || Math.abs(lon) > 180)) return 'bad_meta';
+  return { station: m.station, target: m.target, taken_at: taken, exif_lat: lat, exif_lon: lon };
+}
+
+// One size: a clean JPEG whose longest side fits.
+export function checkImage(bytes: Uint8Array, size: SizeName): { width: number; height: number } | null {
+  if (bytes.length > SIZES[size].bytes || !isCleanJpeg(bytes)) return null;
+  const s = jpegSize(bytes);
+  if (!s) return null;
+  const long = Math.max(s.width, s.height);
+  if (long > SIZES[size].max || Math.min(s.width, s.height) < 1 || long < Math.min(MIN_SIDE, SIZES[size].max)) return null;
+  return s;
+}
+
+// The three sizes must be the same picture: the same shape, within rounding.
+export function sameShape(a: { width: number; height: number }, b: { width: number; height: number }): boolean {
+  return Math.abs(a.width / a.height - b.width / b.height) < 0.02 * (a.width / a.height) + 2 / Math.min(b.width, b.height);
+}
+
+interface StationTarget {
+  lat: number;
+  lon: number;
+  evse_id: string | null;
+}
+
+async function findTarget(db: Db, meta: PhotoMeta): Promise<StationTarget | null> {
+  const station = await db.prepare(
+    `SELECT lat, lon FROM stations WHERE id = ? AND status IN ('active', 'missing_from_nap')`,
+  ).bind(meta.station).first<{ lat: number; lon: number }>();
+  if (!station) return null;
+  if (meta.target === meta.station) return { ...station, evse_id: null };
+  const socket = await db.prepare(
+    'SELECT evse_id FROM evses WHERE station_id = ? AND evse_compact = ? LIMIT 1',
+  ).bind(meta.station, meta.target).first<{ evse_id: string }>();
+  return socket ? { ...station, evse_id: socket.evse_id } : null;
+}
+
+class PanoramaxError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super(`panoramax ${status}`);
+    this.status = status;
+  }
+}
+
+// The upload set API, as in panoramax/trial_upload.sh (Docs/infra.md, section 9).
+async function sendToPanoramax(
+  env: PhotoEnv, fetcher: Fetch, id: string, bytes: Uint8Array,
+  p: { lat: number; lon: number; takenAt: string; semantics: { key: string; value: string }[] },
+  onSet: (setId: string) => void,
+): Promise<string> {
+  const base = env.PANORAMAX_URL ?? PANORAMAX_URL;
+  const auth = { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'pictures (VoltFrame)' };
+  const call = async (path: string, init: RequestInit) => {
+    const r = await fetcher(base + path, { ...init, headers: { ...auth, ...(init.headers ?? {}) } });
+    if (!r.ok) throw new PanoramaxError(r.status);
+    return r.json() as Promise<Record<string, unknown>>;
+  };
+  const set = await call('/api/upload_sets', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ title: `pictures ${id}`, estimated_nb_files: 1, no_split: true, visibility: 'owner-only' }),
+  });
+  const setId = String(set.id ?? '');
+  if (!setId) throw new PanoramaxError(502);
+  onSet(setId);
+  const form = new FormData();
+  // Panoramax only takes .jpg file names.
+  form.append('file', new Blob([bytes], { type: 'image/jpeg' }), `${id}.jpg`);
+  form.append('override_latitude', String(p.lat));
+  form.append('override_longitude', String(p.lon));
+  form.append('override_capture_time', p.takenAt);
+  form.append('isBlurred', 'true');
+  form.append('semantics', new Blob([JSON.stringify(p.semantics)], { type: 'application/json' }));
+  const file = await call(`/api/upload_sets/${encodeURIComponent(setId)}/files`, { method: 'POST', body: form });
+  const pictureId = String(file.picture_id ?? '');
+  if (!pictureId) throw new PanoramaxError(502);
+  await call(`/api/upload_sets/${encodeURIComponent(setId)}/complete`, { method: 'POST' });
+  return pictureId;
+}
+
+export async function submitPhoto(
+  request: Request, env: PhotoEnv, ctx: Waiter, fetcher: Fetch = fetch, now = new Date(),
+): Promise<Response> {
+  if (!uploadsOpen(env)) return reply(503, { error: 'uploads_closed' });
+  // The session cookie is SameSite=Lax, which still lets another site post a
+  // form here; the origin check closes that, as on /auth/logout.
+  if (!sameOrigin(request)) return reply(403, { error: 'cross_site' });
+  const user = await currentUser(request, env).catch(() => null);
+  if (!user) return reply(401, { error: 'sign_in_required' });
+  const length = Number(request.headers.get('content-length') ?? 0);
+  if (length > MAX_BODY) return reply(413, { error: 'too_large' });
+
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return reply(400, { error: 'bad_form' });
+  }
+  const meta = parseMeta(form.get('meta'), now);
+  if (typeof meta === 'string') return reply(400, { error: meta });
+
+  const files = {} as Record<SizeName, Uint8Array>;
+  const shapes = {} as Record<SizeName, { width: number; height: number }>;
+  for (const name of Object.keys(SIZES) as SizeName[]) {
+    const f = form.get(name);
+    if (!f || typeof f === 'string') return reply(400, { error: 'bad_photo' });
+    if (f.size > SIZES[name].bytes) return reply(413, { error: 'too_large' });
+    files[name] = new Uint8Array(await f.arrayBuffer());
+    const s = checkImage(files[name], name);
+    if (!s) return reply(400, { error: 'bad_photo' });
+    shapes[name] = s;
+  }
+  if (!sameShape(shapes.full, shapes.main) || !sameShape(shapes.full, shapes.thumb)) {
+    return reply(400, { error: 'bad_photo' });
+  }
+
+  const target = await findTarget(env.DB, meta);
+  if (!target) return reply(400, { error: 'bad_target' });
+
+  const dayStart = `${now.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  const count = await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM photos WHERE uploader_id = ? AND created_at >= ?',
+  ).bind(user.id, dayStart).first<{ n: number }>();
+  if ((count?.n ?? 0) >= (DAILY_LIMIT[user.role] ?? DAILY_LIMIT_OTHERS)) return reply(429, { error: 'daily_limit' });
+
+  const id = crypto.randomUUID();
+  const createdAt = now.toISOString();
+  const distance = meta.exif_lat !== null && meta.exif_lon !== null
+    ? Math.round(distanceM(meta.exif_lat, meta.exif_lon, target.lat, target.lon))
+    : null;
+  const evse = meta.target === meta.station ? null : meta.target;
+  await env.DB.prepare(
+    `INSERT INTO photos (id, station_id, evse_compact, uploader_id, taken_at, exif_lat, exif_lon, distance_m,
+       credit, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploading', ?)`,
+  ).bind(id, meta.station, evse, user.id, meta.taken_at, meta.exif_lat, meta.exif_lon, distance, user.name, createdAt).run();
+
+  const staged = [`${id}/main.jpg`, `${id}/thumb.jpg`];
+  let setId: string | null = null;
+  try {
+    const jpeg = { httpMetadata: { contentType: 'image/jpeg' } };
+    await env.STAGING!.put(staged[0], files.main, jpeg);
+    await env.STAGING!.put(staged[1], files.thumb, jpeg);
+    const semantics = [
+      ...(target.evse_id ? [{ key: 'osm|ref:EU:EVSE', value: target.evse_id }] : []),
+      { key: 'pictures|site', value: meta.station },
+      { key: 'pictures|author', value: user.name },
+    ];
+    // Panoramax gets the station's position, never the photographer's.
+    const pictureId = await sendToPanoramax(env, fetcher, id, files.full, {
+      lat: target.lat, lon: target.lon, takenAt: captureTime(meta.taken_at, now), semantics,
+    }, (s) => { setId = s; });
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE photos SET status = 'pending', panoramax_set = ?, panoramax_id = ? WHERE id = ?`)
+        .bind(setId, pictureId, id),
+      env.DB.prepare('UPDATE users SET license_accepted_at = COALESCE(license_accepted_at, ?) WHERE id = ?')
+        .bind(createdAt, user.id),
+    ]);
+  } catch (err) {
+    // Leave nothing behind but the failed row.
+    ctx.waitUntil(cleanUp(env, fetcher, staged, setId, id));
+    if (err instanceof PanoramaxError && err.status === 409) return reply(409, { error: 'duplicate' });
+    return reply(502, { error: 'upload_failed' });
+  }
+  return reply(201, { id, status: 'pending' });
+}
+
+// Panoramax wants a time zone. EXIF often has none; then it is the phone's
+// local time, which in Portugal is at most an hour off UTC.
+function captureTime(takenAt: string | null, now: Date): string {
+  if (!takenAt) return now.toISOString();
+  return takenAt.length === 19 ? `${takenAt}Z` : takenAt;
+}
+
+async function cleanUp(env: PhotoEnv, fetcher: Fetch, staged: string[], setId: string | null, id: string) {
+  await env.STAGING!.delete(staged).catch(() => {});
+  if (setId) {
+    await fetcher(`${env.PANORAMAX_URL ?? PANORAMAX_URL}/api/upload_sets/${encodeURIComponent(setId)}`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'pictures (VoltFrame)' },
+    }).catch(() => {});
+  }
+  await env.DB.prepare(`UPDATE photos SET status = 'failed' WHERE id = ?`).bind(id).run().catch(() => {});
+}

@@ -17,7 +17,7 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
    - começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Falta:
    - ligar o login OSM, que já está feito mas desligado ([`cloudflare.md`](cloudflare.md), secção 4): falta registar a aplicação no OSM e pôr os segredos; depois, uma ligação para `/enviar` no cabeçalho (hoje chega-se lá pela conta);
-   - envio de fotos: a página `/enviar` já prepara a foto no browser com a desfocagem à mão; o que falta está no *Fluxo de upload*;
+   - envio de fotos: a página `/enviar` e o `POST /api/v1/photos` estão feitos e fechados até haver moderação, Turnstile e o token do Panoramax ([`cloudflare.md`](cloudflare.md), *Abrir o envio*); o que falta está no *Fluxo de upload*;
    - fila de moderação com promoção manual;
    - foto principal e publicação em `pictures.*`;
    - aliases de postos;
@@ -43,12 +43,11 @@ pictures|author=joao_osm
 
 ## Modelo de dados (D1)
 
-As imagens vivem no Panoramax (originais e tamanhos) e, para as fotos principais, no bucket `pictures`. A D1 guarda metadados, a ligação a postos e tomadas e as escolhas. As tabelas `stations`, `evses`, `users` e `sessions` já existem ([`arquitetura.md`](arquitetura.md), *Postos e tomadas*). Faltam:
+As imagens vivem no Panoramax (originais e tamanhos) e, para as fotos principais, no bucket `pictures`. A D1 guarda metadados, a ligação a postos e tomadas e as escolhas. As tabelas `stations`, `evses`, `users`, `sessions` e `photos` já existem ([`arquitetura.md`](arquitetura.md), *Postos e tomadas*). Faltam:
 
 | Tabela | Colunas principais | Notas |
 | --- | --- | --- |
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP, só à mão; o link antigo responde `301` |
-| `photos` | `id` (UUID), `panoramax_id`, `origin` (`pictures`, `osm_panoramax`, `commons`, `mapillary`), `station_id`, `evse_id` (nulo = foto geral), `uploader_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`pending`, `published`, `hidden`, `removed`), `approved_by`, `created_at` | GPS do EXIF guardado só para moderação, nunca publicado. Fotos externas: só referência |
 | `selections` | `target` (PK: `id` do posto ou EVSE compacto), `photo_id`, `chosen_by`, `chosen_at`, `published_at` | Qual foto o link estático serve; ver *Publicação dos links estáticos* |
 | `review_queue` | `id`, `kind` (`new_station`, `photo`, `takedown`), `payload` (JSON), `submitted_by`, `status`, `decided_by`, `decided_at`, `note` | Fila única para tudo o que precisa de um humano |
 | `points` | `user_id`, `photo_id`, `points`, `reason` (`approved`, `first_photo`, `refresh`), `month` | Ver *Gamificação* |
@@ -66,21 +65,19 @@ Regras:
 
 Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-se e re-codifica-se antes do envio. O servidor nunca recebe o original nem os metadados.
 
-A página `/enviar` já faz a parte do browser: abre um JPEG, lê o EXIF, sugere o posto, deixa marcar zonas à mão, desfoca-as e gera os três tamanhos sem metadados ([`cloudflare.md`](cloudflare.md), secção 4, *Página de envio*). Falta, por ordem do fluxo:
+A página `/enviar` faz a parte do browser (abre um JPEG, lê o EXIF, sugere o posto, deixa marcar zonas à mão, desfoca-as e gera os três tamanhos sem metadados) e o `POST /api/v1/photos` valida, guarda a foto no Panoramax (escondida) e em `pictures-staging`, e regista-a como `pending` ([`cloudflare.md`](cloudflare.md), secção 4, *Página de envio* e *Envio*). Falta, por ordem do fluxo:
 
-1. **Termos e licença.** Na primeira vez, aceitar e guardar `license_accepted_at`. Hoje a página pede as duas confirmações em cada foto, mas não guarda nada.
+1. **Termos.** O `license_accepted_at` já se guarda no primeiro envio; falta uma página de termos para ler antes de aceitar.
 2. **HEIC e várias fotos.** A página aceita um JPEG de cada vez. No iPhone, o seletor converte HEIC para JPEG (falta confirmar num iPhone que o GPS sobrevive à conversão). Nos outros browsers, `heic2any` (libheif em WebAssembly, ver a licença) e um leitor do EXIF dentro do HEIC.
 3. **Mapa** para escolher o posto quando a foto não tem GPS; hoje só há a pesquisa por texto.
 4. **Posto não existe?** Formulário "novo posto": nome, operador, coordenadas (pré-preenchidas pelo GPS) e código se for conhecido. Cria `stations.status=pending_review` e uma entrada em `review_queue`.
 5. **Deteção automática** de caras e matrículas, que pré-desenha as zonas (ver *Desfocagem*).
-6. **Enviar.** `POST /api/v1/photos` com as três imagens e um JSON: alvo, `taken_at`, `exif_lat`/`exif_lon`.
-7. **Validar no Worker.** Sessão, limite de envios (50 fotos/dia para `contributor`), Turnstile, alvo existente, nenhum segmento de metadados nos bytes (o `isCleanJpeg` de `worker/public/jpeg.js`, que a página já usa), `distance_m` ao posto.
-8. **Enviar para o Panoramax** com a conta de serviço: `POST /api/upload_sets`, depois `.../files` com a mestre de 2048 px, as coordenadas do posto, a data do EXIF, `isBlurred=true` e as etiquetas (`osm|ref:EU:EVSE=…`, `pictures|site=…`, `pictures|author=…`), e `.../complete`. Visibilidade `owner-only` até ser aprovada. As versões de 1024 e 400 px ficam num bucket R2 privado (`pictures-staging`) até à aprovação.
-9. **Publicar ou rever.**
+6. **Turnstile** no formulário e verificado no Worker, antes de abrir o envio.
+7. **Publicar ou rever.** Hoje todas as fotos ficam `pending`.
     - Conta `trusted` (promovida à mão), posto `active` e dentro de 300 m → aprovada logo.
     - Conta `contributor` → sempre `pending`, à espera de um moderador. Todas as contas novas começam aqui.
     - Sem GPS, a mais de 300 m ou com posto novo → `pending` mesmo para `trusted`. Estes sinais também ordenam a fila e aparecem como avisos.
-10. **Ao aprovar.** O Worker passa o upload set a `anyone` no Panoramax (`PATCH /api/upload_sets/<id>` com `{"visibility": "anyone"}`; a visibilidade da foto sozinha não chega, porque vale a mais restritiva entre foto e coleção), marca-a `published`, atribui os pontos e, se o alvo não tinha principal, publica-a em `pictures` (ver *Publicação dos links estáticos*).
+8. **Ao aprovar.** O Worker passa o upload set a `anyone` no Panoramax (`PATCH /api/upload_sets/<id>` com `{"visibility": "anyone"}`; a visibilidade da foto sozinha não chega, porque vale a mais restritiva entre foto e coleção), marca-a `published`, atribui os pontos e, se o alvo não tinha principal, publica-a em `pictures` (ver *Publicação dos links estáticos*).
 
 **O que se faz com a localização do EXIF**
 
@@ -190,8 +187,8 @@ O início de sessão já está feito e desligado: como funciona e como se liga e
 **O que falta**
 
 1. Ligá-lo: aplicação registada no OSM e segredos `OSM_CLIENT_ID`/`OSM_CLIENT_SECRET` no Worker.
-2. O token da conta de serviço do Panoramax como segredo do Worker, com o envio.
-3. Proteção do envio: Cloudflare Turnstile no formulário, limite de envios por utilizador (50 fotos/dia para `contributor`) e verificação de origem em cada `POST`, como já faz o `/auth/logout`.
+2. O token da conta de serviço do Panoramax como segredo do Worker, quando o envio abrir.
+3. Cloudflare Turnstile no formulário de envio. O limite diário e a verificação de origem já existem.
 4. Painéis `/admin` (fila de revisão, remoções, postos fora do NAP) atrás de Cloudflare Access, além do papel `moderator` na D1: duas camadas para a parte sensível.
 
 **Papéis**
@@ -239,7 +236,7 @@ A licença das fotos (CC BY-SA 4.0 com autorização ODbL) está em [`licenca.md
 - **Dados de quem envia:** ID e nome do OSM, pseudónimo opcional, papel e GPS das fotos. Sem email.
 - **Pessoas e matrículas nas fotos:** desfocagem obrigatória e caixa a confirmar no envio.
 - **Pedidos de remoção:** formulário público `/takedown` (sem login, com Turnstile). A foto fica `hidden` de imediato (no VoltFrame, no Panoramax e em `pictures`) e um moderador decide em **72 h**.
-- **Política de privacidade:** publicada em `/privacidade`, com o responsável, os registos, o login, os *cookies* e o que a página de envio já pede à API. Falta o envio em si (desfocagem, GPS guardado para a moderação, licença, remoção) antes de o abrir.
+- **Política de privacidade:** publicada em `/privacidade`, com o responsável, os registos, o login, os *cookies* e o envio (o que se guarda, onde, a moderação, a licença). Falta o formulário de remoção quando existir.
 - **Conservação:** o GPS fica na D1 só para moderação; as versões em `pictures-staging` apagam-se ao aprovar ou rejeitar; logs com retenção curta.
 
 **Moderação**

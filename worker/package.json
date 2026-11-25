@@ -11,7 +11,8 @@
     "test": "node --test \"test/**/*.test.ts\"",
     "db:local": "wrangler d1 migrations apply DB --local",
     "import:local": "node scripts/import-stations.ts --local",
-    "remote": "node scripts/remote.ts"
+    "remote": "node scripts/remote.ts",
+    "deploy": "node scripts/deploy.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261110.1",

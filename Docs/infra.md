@@ -158,6 +158,13 @@ secção 8.
   metadados e corre o cron diário de estatísticas. Por isso a API tem
   `PICTURE_PROCESS_THREADS_LIMIT=0`: não processa fotos dentro do pedido.
 
+**Cron (`crontab`, de hora a hora, num só container):** `panoramax_backend
+db refresh` atualiza a grelha agregada (`pictures_grid`), que é o que o mapa
+mostra nos zooms 0 a 6. O Panoramax não a atualiza sozinho. Nos zooms 7 a 14
+o mapa só desenha sequências como linhas, e cada envio do olh'o'posto é uma
+sequência de uma foto, sem linha: nesses zooms as fotos não aparecem. A
+partir do zoom 15 aparecem como pontos.
+
 Os `startCommands` correm em bash (visto no primeiro deploy):
 o `geovisio:create_api()` sem aspas dava `syntax error near unexpected
 token '('`. Caracteres especiais do shell vão entre aspas simples.

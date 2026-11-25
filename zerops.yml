@@ -78,6 +78,14 @@ zerops:
           command: >-
             env -u PANO_DB_SUPERUSER_URL HOME=/tmp
             /opt/venv/bin/panoramax_backend picture-worker
+      # A grelha que o mapa mostra nos zooms 0 a 6 é uma tabela que o
+      # Panoramax só atualiza com `db refresh`: sem isto, uma foto aprovada
+      # só aparece no mapa a partir do zoom 15.
+      crontab:
+        - timing: "17 * * * *"
+          workingDir: /var/www
+          command: env -u PANO_DB_SUPERUSER_URL /opt/venv/bin/panoramax_backend db refresh
+          allContainers: false
       ports:
         - port: 5000
           httpSupport: true

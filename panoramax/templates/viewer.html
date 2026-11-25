@@ -6,11 +6,12 @@
 	<link rel="shortcut icon" href="/favicon.ico" />
 	<link rel="icon" type="image/svg+xml" href="/static/img/panoramax_favicon.svg" />
 	<title>Panoramax</title>
-	{#- geovisio's templates/viewer.html (copy in viewer.upstream.html), with two
+	{#- geovisio's templates/viewer.html (copy in viewer.upstream.html), with our
 	    changes: the web viewer is pinned to the version in viewer/package.json
-	    instead of @~4, and the script below. See panoramax/map_override.py. #}
-	<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@panoramax/web-viewer@{{ viewer_version }}/build/index.css" />
-	<script src="https://cdn.jsdelivr.net/npm/@panoramax/web-viewer@{{ viewer_version }}/build/index.js"></script>
+	    instead of @~4, loaded from the v5 bundle path (v4's build/index.js is
+	    now the demo page and build/index.css no longer exists), and the script
+	    below. See panoramax/map_override.py. #}
+	<script src="https://cdn.jsdelivr.net/npm/@panoramax/web-viewer@{{ viewer_version }}/build/cjs/index.js"></script>
 	<style>
 		#viewer {
 			position: absolute;
@@ -24,9 +25,11 @@
 <body>
 	{#- Closed explicitly: upstream's `/>` does not close a custom element in
 	    HTML, and the script below would end up inside the viewer. #}
+	{#- v5 shows the public metacatalog by default; keep only our API. #}
 	<pnx-viewer
 		id="viewer"
 		endpoint="/api"
+		metacatalog="false"
 	></pnx-viewer>
 	<script>
 		// olh'o'posto: each upload is a sequence of one picture, which has no

@@ -69,7 +69,7 @@ def test_viewer_draws_single_photo_at_zoom_10(base_url):
             if state.get("error"):
                 fail(
                     f"O visualizador {version} já não expõe o mapa em `viewer.map` ({state['error']}; viewer={viewer}).",
-                    "procurar no visualizador novo onde fica o objeto do MapLibre e mudar o script em panoramax/templates/viewer.html.",
+                    "confirmar primeiro que o bundle carrega do CDN e que o componente iniciou; se sim, procurar no visualizador novo onde fica o objeto do MapLibre e mudar o script em panoramax/templates/viewer.html.",
                 )
             fail(
                 f"O visualizador {version} carregou mas não tem nenhuma camada `geovisio…_pictures` do tipo circle.",

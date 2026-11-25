@@ -84,10 +84,17 @@ function pieces(b) {
     out.push({ m, start: i, end: i + 2 + len });
     i += 2 + len;
     if (m === SOS) {
-      // Scan data runs to the next marker that is not a stuffed 0xFF00 or a restart.
+      // Scan data runs to the next marker that is not a stuffed 0xFF00 or a
+      // restart. indexOf is native: the Worker checks megabytes of scan data
+      // inside a 10 ms CPU budget.
       let j = i;
-      while (j + 1 < b.length && !(b[j] === 0xff && b[j + 1] !== 0x00 && (b[j + 1] < 0xd0 || b[j + 1] > 0xd7))) j++;
-      if (j + 1 >= b.length) return null;
+      for (;;) {
+        j = b.indexOf(0xff, j);
+        if (j < 0 || j + 1 >= b.length) return null;
+        const n = b[j + 1];
+        if (n !== 0x00 && (n < 0xd0 || n > 0xd7)) break;
+        j += 2;
+      }
       out.push({ m: -1, start: i, end: j });
       i = j;
     }
@@ -231,4 +238,21 @@ function readTiff(t, out) {
     out.lat = lat;
     out.lon = lon;
   }
+}
+
+/**
+ * Width and height from the frame header (SOFn), or null when there is none.
+ * @param {Uint8Array} b
+ * @returns {{ width: number, height: number } | null}
+ */
+export function jpegSize(b) {
+  /** @type {{ width: number, height: number } | null} */
+  let size = null;
+  walk(b, (m, start) => {
+    // SOF0 to SOF15, except DHT (C4), JPG (C8) and DAC (CC).
+    if (size || m < 0xc0 || m > 0xcf || m === 0xc4 || m === 0xc8 || m === 0xcc) return;
+    if (start + 9 > b.length) return;
+    size = { height: (b[start + 5] << 8) | b[start + 6], width: (b[start + 7] << 8) | b[start + 8] };
+  });
+  return size;
 }

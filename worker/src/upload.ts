@@ -1,7 +1,7 @@
 // The upload page. Everything that touches the photo runs in the browser
 // (public/upload.js): the original and its EXIF never reach the server. This
-// file only renders the form and the messages the script needs. Sending is not
-// wired yet, so the page prepares the photo and stops there.
+// file only renders the form and the messages the script needs. Until uploads
+// open (src/photos.ts), the page prepares the photo and stops there.
 import { accountPath, esc, layout, privacyPath, uploadPath, type AccountView, type Lang } from './pages.ts';
 
 // The URL the photos will get, for the "Link:" line.
@@ -19,6 +19,7 @@ const T = {
     signedIn: 'Sessão iniciada como',
     account: 'Conta',
     building: 'Ainda em construção: a página prepara a foto, mas o envio ainda não está ligado. Nada sai do teu dispositivo.',
+    moderated: 'Cada foto passa pela moderação antes de aparecer.',
     noScript: 'Esta página precisa de JavaScript: a foto é tratada no teu dispositivo, não no servidor.',
     stepPhoto: '1 · Foto',
     photoLabel: 'Escolher a foto',
@@ -43,6 +44,7 @@ const T = {
     okPrivacy: 'Confirmo que não há caras nem matrículas legíveis.',
     okLicense: 'Tirei esta foto e publico-a sob CC BY-SA 4.0, com autorização para dados derivados em ODbL.',
     prepare: 'Preparar a foto',
+    send: 'Enviar a foto',
     // Read by upload.js; {name} is replaced there.
     js: {
       reading: 'A abrir a foto…',
@@ -71,6 +73,17 @@ const T = {
       size: '{px} px: {w} × {h}, {kb} kB',
       download: 'Descarregar a versão de 2048 px',
       resultAlt: 'A foto preparada, em 400 px',
+      sending: 'A enviar…',
+      sent: 'Enviada. Fica à espera da moderação antes de aparecer.',
+      errors: {
+        uploads_closed: 'O envio está fechado neste momento.',
+        sign_in_required: 'A sessão terminou. Inicia sessão outra vez e volta a enviar.',
+        daily_limit: 'Chegaste ao limite de envios de hoje. Tenta amanhã.',
+        duplicate: 'Esta foto já foi enviada.',
+        bad_target: 'O posto ou a tomada já não está disponível. Escolhe outro.',
+        upload_failed: 'Não foi possível guardar a foto. Tenta outra vez daqui a pouco.',
+        other: 'A foto não passou na verificação do servidor. Volta a escolhê-la.',
+      },
     },
   },
   en: {
@@ -84,6 +97,7 @@ const T = {
     signedIn: 'Signed in as',
     account: 'Account',
     building: 'Still being built: the page prepares the photo, but sending is not wired up yet. Nothing leaves your device.',
+    moderated: 'Every photo is moderated before it appears.',
     noScript: 'This page needs JavaScript: the photo is handled on your device, not on the server.',
     stepPhoto: '1 · Photo',
     photoLabel: 'Choose the photo',
@@ -108,6 +122,7 @@ const T = {
     okPrivacy: 'I confirm there are no readable faces or number plates.',
     okLicense: 'I took this photo and publish it under CC BY-SA 4.0, with permission for derived data under ODbL.',
     prepare: 'Prepare the photo',
+    send: 'Send the photo',
     js: {
       reading: 'Opening the photo…',
       notJpeg: 'Couldn’t open this photo. Choose a JPEG.',
@@ -135,6 +150,17 @@ const T = {
       size: '{px} px: {w} × {h}, {kb} kB',
       download: 'Download the 2048 px version',
       resultAlt: 'The prepared photo, at 400 px',
+      sending: 'Sending…',
+      sent: 'Sent. It waits for moderation before it appears.',
+      errors: {
+        uploads_closed: 'Uploads are closed right now.',
+        sign_in_required: 'Your session ended. Sign in again and send it again.',
+        daily_limit: 'You have reached today’s upload limit. Try tomorrow.',
+        duplicate: 'This photo has already been sent.',
+        bad_target: 'That station or socket is no longer available. Choose another.',
+        upload_failed: 'Couldn’t store the photo. Try again in a little while.',
+        other: 'The photo did not pass the server’s checks. Choose it again.',
+      },
     },
   },
 } satisfies Record<Lang, unknown>;
@@ -142,17 +168,19 @@ const T = {
 export interface UploadView {
   user: AccountView | null;
   enabled: boolean;
+  // Uploads open: the form sends. Otherwise it only prepares.
+  sending?: boolean;
 }
 
 // JSON inside <script type="application/json">: a "</script>" in a string
 // must not close the element.
 const scriptJson = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-function form(lang: Lang): string {
+function form(lang: Lang, sending: boolean): string {
   const t = T[lang];
-  return `<p class="notice">${t.building}</p>
+  return `${sending ? `<p class="hint">${t.moderated}</p>` : `<p class="notice">${t.building}</p>`}
 <noscript><p class="notice">${t.noScript}</p></noscript>
-<script type="application/json" id="upload-msg">${scriptJson({ lang, host: PICTURES_HOST, ...t.js })}</script>
+<script type="application/json" id="upload-msg">${scriptJson({ lang, host: PICTURES_HOST, canSend: sending, ...t.js })}</script>
 <form id="upload" class="upload" hidden>
 <section class="card" aria-labelledby="h-photo">
   <h2 id="h-photo">${t.stepPhoto}</h2>
@@ -207,7 +235,7 @@ function form(lang: Lang): string {
   </ul>
   <p class="check"><input type="checkbox" id="ok-privacy" name="ok_privacy" required> <label for="ok-privacy">${t.okPrivacy}</label></p>
   <p class="check"><input type="checkbox" id="ok-license" name="ok_license" required> <label for="ok-license">${t.okLicense}</label></p>
-  <button type="submit" class="button">${t.prepare}</button>
+  <button type="submit" class="button">${sending ? t.send : t.prepare}</button>
   <p id="send-status" class="status" role="status"></p>
   <div id="result" class="result-photo" hidden></div>
 </section>
@@ -231,7 +259,7 @@ export function uploadPage(lang: Lang, p: UploadView): string {
     // The OSM name is the person's own text, in whatever language they chose.
     parts.push(
       `<p class="hint">${t.signedIn} <strong lang="">${esc(p.user.name)}</strong> · <a href="${accountPath(lang)}">${t.account}</a></p>`,
-      form(lang),
+      form(lang, Boolean(p.sending)),
     );
     module = '/upload.js';
   }

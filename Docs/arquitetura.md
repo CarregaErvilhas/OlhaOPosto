@@ -56,11 +56,11 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
               |
    Worker VoltFrame (voltframe.*)          R2 "pictures" (pictures.*)
    páginas, API só de leitura,             links estáticos pela CDN
-   login OSM (desligado), envio no         (vazio até haver fotos)
-   browser (ainda sem enviar), sitemap
+   login OSM e envio (fechados),           (vazio até haver fotos)
+   sitemap
               |
-   D1 "pictures": stations, evses,
-   users, sessions
+   D1 "pictures": stations, evses,         R2 "pictures-staging"
+   users, sessions, photos                 (privado, cópias até à aprovação)
               ^
    GitHub Actions, todos os dias:
    ohmigo_chargers.json (NAP dashboard) --> D1
@@ -71,8 +71,10 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
      conta de serviço "pictures", sem OAuth
 ```
 
-O Worker ainda não fala com o Panoramax: isso chega com o envio de fotos
-([`plan.md`](plan.md)).
+O Worker fala com o Panoramax só no envio, com a conta de serviço
+`pictures`: cria um *upload set* escondido por foto. Enquanto o segredo
+`PANORAMAX_TOKEN` não existir, não fala de todo ([`cloudflare.md`](cloudflare.md),
+*Abrir o envio*).
 
 ## Porque o Panoramax
 
@@ -139,8 +141,9 @@ link de tomada.
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
 | `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `pseudonym`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. Hoje só se escrevem o OSM, o papel `contributor` e as datas; o resto fica para o envio e a moderação |
 | `sessions` | `token_hash` (PK, SHA-256 do *cookie*), `user_id` (FK), `created_at`, `expires_at` | Uma cópia da tabela não abre sessões. As expiradas saem no login seguinte |
+| `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados |
 
-As tabelas das fotos e da moderação estão em [`plan.md`](plan.md), *Modelo de dados*.
+As tabelas da moderação, das seleções e dos pontos estão em [`plan.md`](plan.md), *Modelo de dados*.
 
 ## Site e API
 
@@ -154,8 +157,11 @@ O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês
 
 Tem também o início de sessão com o OpenStreetMap, a conta (`/conta`) e a
 página de envio (`/enviar`), que prepara a foto no browser (EXIF, posto,
-desfocagem à mão, três tamanhos sem metadados) mas ainda não a envia. Estas
-três ficam desligadas até existirem os segredos do OSM. Rotas, cabeçalhos,
+desfocagem à mão, três tamanhos sem metadados), e o envio
+(`POST /api/v1/photos`), que a guarda escondida no Panoramax e em
+`pictures-staging` à espera de moderação. O login fica desligado até
+existirem os segredos do OSM, e o envio até haver também o token do
+Panoramax. Rotas, cabeçalhos,
 acessibilidade e cache em [`cloudflare.md`](cloudflare.md), secção 4.
 
 ## Links estáticos

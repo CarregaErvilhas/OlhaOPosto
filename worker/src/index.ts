@@ -2,7 +2,8 @@
 // read-only API and sign-in with OpenStreetMap (auth.ts). Fonts, CSS and icons in public/ are Workers static assets,
 // served before this code runs. Static photo links are served by the R2
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
-import { accountHtml, callback, login, logout, uploadHtml, type AuthEnv } from './auth.ts';
+import { accountHtml, callback, login, logout } from './auth.ts';
+import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { findEvse, getStation, listStations, nearStations, searchStations, type Env } from './data.ts';
 import {
   evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
@@ -231,11 +232,12 @@ const ROUTES: [RegExp, Handler, () => Response][] = [
 ];
 
 export default {
-  async fetch(request: Request, env: Env & AuthEnv, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env & PhotoEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
-    // The one POST: everything else on this site only reads.
+    // The two POSTs: everything else on this site only reads.
     if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
+    if (request.method === 'POST' && pathname === '/api/v1/photos') return submitPhoto(request, env, ctx);
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json({ error: 'method_not_allowed' }, 405, 'no-store');
     }
@@ -264,4 +266,4 @@ export default {
     const lang: Lang = pathname.startsWith('/en/') ? 'en' : 'pt';
     return pageNotFound(lang, messages(lang).noPage);
   },
-} satisfies ExportedHandler<Env & AuthEnv>;
+} satisfies ExportedHandler<Env & PhotoEnv>;

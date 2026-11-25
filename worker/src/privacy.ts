@@ -41,11 +41,19 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>Ao iniciar sessão passas pelo site do OpenStreetMap, que trata os teus dados segundo a <a href="${LINKS.osmf}">política de privacidade da OpenStreetMap Foundation</a>.</p>
 
 <h2>Envio de fotos</h2>
-<p>Ainda não está aberto. Antes de abrir, esta página passa a explicar o que acontece às fotos: desfocagem de caras e matrículas, localização, licença e remoção.</p>
-<p>Com sessão iniciada, a página de envio já prepara uma foto, mas não a envia: abre-a, lê-a e desfoca-a no teu dispositivo. Se a foto tiver GPS, a página arredonda-o a cerca de 100 metros e pede-nos os postos à volta desse ponto. Esse pedido fica no registo técnico como qualquer outro, com as coordenadas arredondadas. Nada mais da foto sai do teu dispositivo.</p>
+<p>A página de envio trata a foto no teu dispositivo: abre-a, lê a data e o GPS, desfoca as zonas que marcares por cima de caras e matrículas, e faz três tamanhos (2048, 1024 e 400 px) sem metadados. A foto original nunca é enviada. Para sugerir postos, a página arredonda o GPS a cerca de 100 metros e pede-nos os postos à volta desse ponto; esse pedido fica no registo técnico como qualquer outro.</p>
+<p>Enquanto o envio estiver fechado, a página só prepara a foto, e nada dela sai do teu dispositivo além desse pedido de postos. Quando enviares, recebemos os três tamanhos e, à parte, a data e o GPS exato da foto, se os tiver. Guardamos:</p>
+<ul>
+<li>a foto de 2048 px no nosso servidor Panoramax, com as coordenadas do posto (nunca as do GPS da foto), a data da foto e o teu nome no OpenStreetMap como autor;</li>
+<li>as versões de 1024 e 400 px num armazenamento privado;</li>
+<li>na nossa base de dados: o posto ou a tomada, a data e o GPS da foto, a distância ao posto, o nome de autor, quem enviou, quando, e a data em que aceitaste a licença.</li>
+</ul>
+<p>Até um moderador a aprovar, a foto só é visível para a moderação. Ao ser aprovada, fica pública com o nome de autor, a data e a licença CC BY-SA 4.0 (com autorização para dados ODbL), no Panoramax e nos links estáticos. O GPS da foto nunca é publicado: serve só aos moderadores para confirmar o posto, e fica enquanto a foto existir. Uma foto recusada é apagada do Panoramax e do armazenamento privado.</p>
+<p>O fundamento é prestar o serviço que pedes ao enviar (artigo 6.º, n.º 1, alínea b) do RGPD). Contamos os envios por pessoa e por dia, para travar abusos. Para retirar uma foto tua, escreve para ${mail}.</p>
 
 <h2>Onde ficam os dados</h2>
-<p>A Cloudflare, Inc. trata os dados por nossa conta: alojamento, base de dados e registos técnicos. A base de dados fica na União Europeia. A Cloudflare é uma empresa dos Estados Unidos: os pedidos passam pelo centro de dados dela mais próximo de ti, e os registos técnicos podem ficar fora da União Europeia, com as garantias do <a href="${LINKS.cfDpa}">acordo de tratamento de dados da Cloudflare</a>. Ver também a <a href="${LINKS.cfPrivacy}">política de privacidade da Cloudflare</a>.</p>
+<p>A Zerops s.r.o. aloja por nossa conta o servidor Panoramax e a base de dados dele, na República Checa; as imagens desse servidor e o armazenamento privado dos envios ficam na Cloudflare.</p>
+<p>A Cloudflare, Inc. trata os dados por nossa conta: alojamento, base de dados, armazenamento das fotos e registos técnicos. A base de dados fica na União Europeia. A Cloudflare é uma empresa dos Estados Unidos: os pedidos passam pelo centro de dados dela mais próximo de ti, e os registos técnicos podem ficar fora da União Europeia, com as garantias do <a href="${LINKS.cfDpa}">acordo de tratamento de dados da Cloudflare</a>. Ver também a <a href="${LINKS.cfPrivacy}">política de privacidade da Cloudflare</a>.</p>
 <p>Não vendemos dados, não fazemos publicidade nem perfis, e não tomamos decisões automáticas sobre ti.</p>
 
 <h2>Os teus direitos</h2>
@@ -82,11 +90,19 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>Signing in takes you through the OpenStreetMap site, which handles your data under the <a href="${LINKS.osmf}">OpenStreetMap Foundation privacy policy</a>.</p>
 
 <h2>Photo uploads</h2>
-<p>Not open yet. Before they open, this page will explain what happens to photos: blurring of faces and number plates, location, licence and removal.</p>
-<p>When you are signed in, the upload page already prepares a photo, but does not send it: it opens, reads and blurs it on your device. If the photo has GPS, the page rounds it to about 100 metres and asks us for the stations around that point. That request goes into the technical log like any other, with the rounded coordinates. Nothing else from the photo leaves your device.</p>
+<p>The upload page handles the photo on your device: it opens it, reads its date and GPS, blurs the areas you mark over faces and number plates, and makes three sizes (2048, 1024 and 400 px) without metadata. The original photo is never sent. To suggest stations, the page rounds the GPS to about 100 metres and asks us for the stations around that point; that request goes into the technical log like any other.</p>
+<p>While uploads are closed, the page only prepares the photo, and nothing from it leaves your device apart from that station request. When you send a photo, we receive the three sizes and, separately, the photo’s date and exact GPS, if it has them. We keep:</p>
+<ul>
+<li>the 2048 px photo on our Panoramax server, with the station’s coordinates (never the photo’s GPS), the photo’s date and your OpenStreetMap name as the author;</li>
+<li>the 1024 and 400 px versions in private storage;</li>
+<li>in our database: the station or socket, the photo’s date and GPS, the distance to the station, the author name, who sent it, when, and the date you accepted the licence.</li>
+</ul>
+<p>Until a moderator approves it, the photo is visible only to moderators. Once approved, it becomes public with the author name, the date and the CC BY-SA 4.0 licence (with permission for ODbL data), on Panoramax and through the static links. The photo’s GPS is never published: it only helps moderators confirm the station, and it is kept for as long as the photo exists. A rejected photo is deleted from Panoramax and from the private storage.</p>
+<p>The legal basis is providing the service you ask for when you send it (Article 6(1)(b) GDPR). We count uploads per person per day to stop abuse. To take down one of your photos, write to ${mail}.</p>
 
 <h2>Where the data lives</h2>
-<p>Cloudflare, Inc. processes the data on our behalf: hosting, database and technical logs. The database is in the European Union. Cloudflare is a United States company: requests go through its data centre nearest to you, and technical logs may be kept outside the European Union, under the safeguards of the <a href="${LINKS.cfDpa}">Cloudflare data processing agreement</a>. See also the <a href="${LINKS.cfPrivacy}">Cloudflare privacy policy</a>.</p>
+<p>Zerops s.r.o. hosts our Panoramax server and its database on our behalf, in the Czech Republic; that server’s images and the private storage for uploads are with Cloudflare.</p>
+<p>Cloudflare, Inc. processes the data on our behalf: hosting, database, photo storage and technical logs. The database is in the European Union. Cloudflare is a United States company: requests go through its data centre nearest to you, and technical logs may be kept outside the European Union, under the safeguards of the <a href="${LINKS.cfDpa}">Cloudflare data processing agreement</a>. See also the <a href="${LINKS.cfPrivacy}">Cloudflare privacy policy</a>.</p>
 <p>We do not sell data, show ads or build profiles, and we make no automated decisions about you.</p>
 
 <h2>Your rights</h2>

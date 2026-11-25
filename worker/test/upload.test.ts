@@ -48,3 +48,15 @@ test('uploadPage: pt and en carry the same script messages', () => {
   };
   assert.deepEqual(keys('pt'), keys('en'));
 });
+
+test('uploadPage: with uploads open the button sends and the page says so', () => {
+  const closed = uploadPage('pt', { user, enabled: true });
+  const open = uploadPage('pt', { user, enabled: true, sending: true });
+  assert.match(closed, />Preparar a foto</);
+  assert.match(closed, /Ainda em construção/);
+  assert.match(open, />Enviar a foto</);
+  assert.ok(!open.includes('Ainda em construção'));
+  const msg = JSON.parse(open.match(/id="upload-msg">(.*?)<\/script>/s)![1]);
+  assert.equal(msg.canSend, true);
+  assert.equal(typeof msg.errors.daily_limit, 'string');
+});

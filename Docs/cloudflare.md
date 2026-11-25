@@ -11,7 +11,7 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 | O quê | Estado |
 | --- | --- |
 | R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`, vazio |
-| R2 `pictures-staging` | Criado (WEUR), privado, vazio |
+| R2 `pictures-staging` | Criado (WEUR), privado, vazio; ligado ao Worker como `STAGING` |
 | Cache Rule do `pictures.*` | Aplicada e testada |
 | D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0004` aplicadas; a `0005` (proximidade) aplica-se antes do próximo deploy |
 | Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado: páginas dos postos e pesquisa em pt-PT e inglês, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema. A pesquisa por proximidade e a página de envio estão no `main` mas ainda não foram publicadas |
@@ -99,7 +99,8 @@ desligados). Por agora tem:
 | `GET /enviar`, `/en/upload` | Página de envio (`src/upload.ts` e `public/upload.js`), só com sessão; sem ela, o botão para iniciar sessão. Prepara a foto no browser e ainda não envia nada. Lê a sessão: `no-store`, `noindex`, fora do *sitemap*. A CSP desta página acrescenta `connect-src 'self'` (pede postos à API) e `blob:` em `img-src` (mostra a foto preparada) |
 | `GET /auth/osm/login?next=` | `302` para o OpenStreetMap, com `state` e PKCE num *cookie* de 10 minutos. `503` enquanto não houver os segredos do OSM |
 | `GET /auth/osm/callback` | Volta do OpenStreetMap: troca o código, lê o utilizador, cria a sessão e faz `302` para o `next`. Qualquer falha volta à conta com `?erro=` |
-| `POST /auth/logout?next=` | Apaga a sessão e faz `303` para o `next`. `403` se o pedido vier de outro site. É o único `POST`; tudo o resto responde `405` |
+| `POST /auth/logout?next=` | Apaga a sessão e faz `303` para o `next`. `403` se o pedido vier de outro site |
+| `POST /api/v1/photos` | Envio de uma foto, só com sessão e do próprio site (ver *Envio*). `503` `uploads_closed` até o envio abrir. Com este, são os dois `POST`; tudo o resto responde `405` |
 
 As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os
 ficheiros de `worker/public/` (CSS, *scripts*, fontes, ícones) são *static
@@ -191,7 +192,9 @@ produção como *host*; com `--local-upstream 127.0.0.1:8787` o
 `redirect_uri` fica local.
 
 **Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js` e
-`public/jpeg.js`). Tudo corre no browser e ainda não envia nada:
+`public/jpeg.js`). Tudo o que mexe na foto corre no browser. Com o envio
+fechado, a página para no passo 5 e oferece o download para testar; aberto,
+o botão passa a "Enviar a foto" e manda os três tamanhos ao Worker:
 
 1. Abre um JPEG (até 40 MB) com `createImageBitmap`, que aplica a rotação
    do EXIF, e reduz o lado maior a 2048 px.
@@ -213,7 +216,51 @@ produção como *host*; com `--local-upstream 127.0.0.1:8787` o
 
 As duas confirmações (sem caras nem matrículas, licença) são campos
 obrigatórios do formulário. O `jpeg.js` é JavaScript simples para o browser
-o carregar sem *build* e o Worker o importar quando validar os envios.
+o carregar sem *build* e o Worker o importar para validar os envios.
+
+**Envio** (`POST /api/v1/photos`, `src/photos.ts`, migração `0006`). O
+pedido é `multipart`: `full`, `main` e `thumb` (os três JPEG) e `meta` (JSON
+com o posto, o alvo, a data e o GPS da foto e as duas confirmações). O GPS
+vai no corpo, nunca no URL, que fica nos registos. O Worker não confia no
+browser:
+
+1. Sessão, origem do próprio site e o limite diário (50 fotos por dia para
+   `contributor`, 500 para os outros papéis, por dia UTC).
+2. Cada ficheiro: tamanho máximo (6 MB, 2 MB e 500 kB), JPEG limpo
+   (`isCleanJpeg`), lado maior até 2048, 1024 e 400 px, e os três com a
+   mesma forma.
+3. O posto tem de ser público e a tomada tem de ser desse posto. A
+   distância ao posto calcula-se no Worker.
+4. Escreve a linha em `photos` como `uploading` antes de tudo o resto, guarda
+   as versões de 1024 e 400 px em `pictures-staging` (`{id}/main.jpg`,
+   `{id}/thumb.jpg`) e manda a de 2048 ao Panoramax: um *upload set*
+   `owner-only` só com esta foto, com as coordenadas do posto, a data da foto
+   e as etiquetas `osm|ref:EU:EVSE`, `pictures|site` e `pictures|author`.
+   No fim, a linha passa a `pending` com os IDs do Panoramax, e a conta fica
+   com `license_accepted_at`.
+5. Se alguma coisa falhar, apaga o que já tinha guardado (R2 e *upload set*)
+   e a linha fica `failed`. Um `409` do Panoramax (a mesma foto já enviada)
+   dá `409` `duplicate`.
+
+Medido no Node, verificar 1,5 MB de JPEG leva 0,6 ms e ler o formulário com
+as três fotos cerca de 4,5 ms. O plano Free dá 10 ms de CPU por pedido. Falta
+confirmar o tempo real no primeiro envio em produção; se passar, a saída é o
+Workers Paid (5 $/mês, já no orçamento do `plan.md`).
+
+**Abrir o envio** (só o Fernando). Fica fechado enquanto faltar o login, o
+segredo `PANORAMAX_TOKEN` ou a ligação `STAGING`. Antes de pôr o token:
+
+1. Haver moderação: sem ela, as fotos ficam escondidas e ninguém as aprova.
+2. Turnstile no formulário (`plan.md`, *Autenticação*), que obriga a abrir a
+   CSP da página a `challenges.cloudflare.com`.
+3. Confirmar a secção *Envio de fotos* da política de privacidade.
+4. Emitir o token da conta `pictures` ([`infra.md`](infra.md), secção 4) e
+   `npm run remote -- secret put PANORAMAX_TOKEN`.
+5. Enviar uma foto real e confirmar no Panoramax, no `pictures-staging` e na
+   D1, e o tempo de CPU nos registos do Worker.
+
+Em local, `--var PANORAMAX_TOKEN:x --var PANORAMAX_URL:http://127.0.0.1:...`
+aponta para um Panoramax falso; o R2 local guarda as versões.
 
 **A D1 `pictures` está na jurisdição EU**: vai guardar dados de
 utilizadores (RGPD), e a jurisdição só se escolhe ao criar a base.

@@ -187,7 +187,7 @@ O início de sessão já está feito e desligado: como funciona e como se liga e
 1. Ligá-lo: aplicação registada no OSM e segredos `OSM_CLIENT_ID`/`OSM_CLIENT_SECRET` no Worker.
 2. O token da conta de serviço do Panoramax como segredo do Worker, quando o envio abrir.
 3. ~~Turnstile~~: feito; faltam só os segredos ([`cloudflare.md`](cloudflare.md), *Abrir o envio*).
-4. Painéis `/admin` (a fila de revisão e os papéis já existem; faltam remoções e postos fora do NAP) atrás de Cloudflare Access, além do papel `moderator` na D1: duas camadas para a parte sensível.
+4. Painéis `/admin` em falta: remoções e postos fora do NAP. A fila de revisão e os papéis já existem, atrás do Cloudflare Access e do papel na D1 ([`cloudflare.md`](cloudflare.md), secção 4).
 
 **Papéis**
 

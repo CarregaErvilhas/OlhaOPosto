@@ -5,6 +5,7 @@
 // pages.ts never imports this file (its footer uses privacyPath from there),
 // so there is no import cycle.
 import { BRAND, accountPath, homePath, layout, privacyPath, type Lang } from './pages.ts';
+import { DEADLINE_H, takedownFormPath } from './takedown.ts';
 
 const CONTACT = 'info@ocarroeletrico.com';
 const mail = `<a href="mailto:${CONTACT}">${CONTACT}</a>`;
@@ -52,6 +53,10 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 </ul>
 <p>Até um moderador a aprovar, a foto só é visível para a moderação. Ao ser aprovada, fica pública com o nome de autor, a data e a licença CC BY-SA 4.0 (com autorização para dados ODbL), no Panoramax e nos links estáticos. O GPS da foto nunca é publicado: serve só aos moderadores para confirmar o posto, e fica enquanto a foto existir. Uma foto recusada é apagada do Panoramax e do armazenamento privado.</p>
 <p>O fundamento é prestar o serviço que pedes ao enviar (artigo 6.º, n.º 1, alínea b) do RGPD). Contamos os envios por pessoa e por dia, para travar abusos. Para retirar uma foto tua, escreve para ${mail}.</p>
+
+<h2>Pedidos de remoção</h2>
+<p>Se uma foto te mostra a ti, a tua matrícula ou a tua casa, podes pedir que a retiremos no <a href="${takedownFormPath('pt')}">formulário de remoção</a>, sem conta. A foto fica oculta logo que o pedido chega (no site, nos links estáticos e no Panoramax) e um moderador decide em ${DEADLINE_H} horas se a apaga de vez ou a repõe.</p>
+<p>Guardamos o que escreves no formulário: a foto (o código ou o link), o motivo, os detalhes e, se o deres, um email para te respondermos, mais a data do pedido e quem o decidiu e quando. O email apaga-se quando o pedido é decidido; o resto fica como registo da decisão. Só os moderadores e administradores veem os pedidos. O formulário usa o Cloudflare Turnstile como o envio de fotos, e o pedido conta para o limite de pedidos por endereço IP, que não é guardado. O fundamento é cumprir os teus direitos sobre os teus dados (artigos 17.º e 21.º do RGPD) e o nosso interesse legítimo em travar pedidos automáticos (artigo 6.º, n.º 1, alínea f)).</p>
 
 <h2>Onde ficam os dados</h2>
 <p>A Zerops s.r.o. aloja por nossa conta o servidor Panoramax e a base de dados dele, na República Checa; as imagens desse servidor e o armazenamento privado dos envios ficam na Cloudflare.</p>
@@ -102,6 +107,10 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 </ul>
 <p>Until a moderator approves it, the photo is visible only to moderators. Once approved, it becomes public with the author name, the date and the CC BY-SA 4.0 licence (with permission for ODbL data), on Panoramax and through the static links. The photo’s GPS is never published: it only helps moderators confirm the station, and it is kept for as long as the photo exists. A rejected photo is deleted from Panoramax and from the private storage.</p>
 <p>The legal basis is providing the service you ask for when you send it (Article 6(1)(b) GDPR). We count uploads per person per day to stop abuse. To take down one of your photos, write to ${mail}.</p>
+
+<h2>Removal requests</h2>
+<p>If a photo shows you, your number plate or your home, you can ask us to take it down with the <a href="${takedownFormPath('en')}">removal form</a>, without an account. The photo is hidden as soon as the request arrives (on the site, the static links and Panoramax), and a moderator decides within ${DEADLINE_H} hours whether to delete it for good or restore it.</p>
+<p>We keep what you write in the form: the photo (the code or link), the reason, the details and, if you give one, an email address for our reply, plus the date of the request and who decided it and when. The email is deleted once the request is decided; the rest stays as the record of the decision. Only moderators and admins see the requests. The form uses Cloudflare Turnstile like the photo upload, and the request counts towards the per-IP request limit, which is not stored. The legal basis is meeting your rights over your data (GDPR Articles 17 and 21) and our legitimate interest in stopping automated requests (Article 6(1)(f)).</p>
 
 <h2>Where the data lives</h2>
 <p>Zerops s.r.o. hosts our Panoramax server and its database on our behalf, in the Czech Republic; that server’s images and the private storage for uploads are with Cloudflare.</p>

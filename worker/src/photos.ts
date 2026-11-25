@@ -64,7 +64,9 @@ const SITE_HOST = 'olhaoposto.ocarroeletrico.com';
 
 // Turnstile's answer for this token. Tokens are single use and last 300 s;
 // the hostname and action stop a token made for another site or form.
-export async function turnstileOk(env: PhotoEnv, fetcher: Fetch, token: unknown, ip: string | null): Promise<boolean> {
+export async function turnstileOk(
+  env: PhotoEnv, fetcher: Fetch, token: unknown, ip: string | null, action: string = TURNSTILE_ACTION,
+): Promise<boolean> {
   if (typeof token !== 'string' || !token || token.length > 2048) return false;
   const body = new FormData();
   body.append('secret', env.TURNSTILE_SECRET ?? '');
@@ -74,7 +76,7 @@ export async function turnstileOk(env: PhotoEnv, fetcher: Fetch, token: unknown,
     const r = await fetcher(SITEVERIFY, { method: 'POST', body });
     if (!r.ok) return false;
     const out = await r.json() as { success?: boolean; hostname?: string; action?: string };
-    return out.success === true && out.hostname === SITE_HOST && out.action === TURNSTILE_ACTION;
+    return out.success === true && out.hostname === SITE_HOST && out.action === action;
   } catch {
     return false;
   }

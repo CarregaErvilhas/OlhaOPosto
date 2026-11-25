@@ -94,8 +94,8 @@ desligados). Por agora tem:
 
 | Pedido | Devolve |
 | --- | --- |
-| `GET /api/v1/stations/{id}` | Posto e pontos (cada um com o `evse` e o `compact`, o código sem `*` que dá o nome ao link estático), com CORS e `max-age=300`. `404` para ids que não existem e para propostas ou postos rejeitados |
-| `GET /api/v1/evses/{evse}` | Tomada pelo código EVSE, com ou sem os `*` (`PT*EZC*E*AMD*00051*1` ou `PTEZCEAMD000511`), e o posto a que pertence. `300` com a lista `candidates` se o código estiver em mais de um posto |
+| `GET /api/v1/stations/{id}` | Posto e pontos (cada um com o `evse` e o `compact`, o código sem `*` que dá o nome ao link estático), cada um com a foto principal (`photo`, ou `null`), com CORS e `max-age=300`. `404` para ids que não existem e para propostas ou postos rejeitados |
+| `GET /api/v1/evses/{evse}` | Tomada pelo código EVSE, com ou sem os `*` (`PT*EZC*E*AMD*00051*1` ou `PTEZCEAMD000511`), e o posto a que pertence, cada um com a foto principal (`photo`, ou `null`). `300` com a lista `candidates` se o código estiver em mais de um posto |
 | `GET /postos/{id}` | Página do posto: tomadas com o código EVSE, links estáticos de cada tamanho para copiar, ligação ao OSM. `404` em HTML como na API |
 | `GET /tomadas/{evse}` | `302` para `/postos/{id}#t-{evse}`, com a tomada marcada; uma página com a lista se o código estiver em mais de um posto. `302` e não `301`, porque um código pode mudar de posto |
 | `GET /api/v1/stations?q=&limit=` | Pesquisa por texto em `stations_fts` (FTS5): cada palavra tem de aparecer, como prefixo, no código, nome, morada, localidade ou operador; sem acentos (`acores` encontra `Açores`). Postos públicos, os melhores primeiro, `limit` até 50 (20 por omissão). `400` sem uma palavra de pelo menos dois caracteres |
@@ -219,6 +219,34 @@ ainda têm fotos; o moderador escreve o código do posto novo e cria o alias
 (`POST /admin/rekey`). O link antigo responde `301` para o novo (páginas e
 `/api/v1/stations/{id}`). Migração `0009_station_aliases.sql`.
 
+**Pedidos de remoção** (`/takedown` e `/en/takedown`, públicos; `/admin/remocoes` e `/en/admin/takedowns`, só moderadores; `src/takedown.ts`, migração `0010_takedowns.sql`).
+O formulário não pede conta e usa o mesmo widget Turnstile do envio, com a
+ação `takedown` (um código do envio não serve aqui). A pessoa escreve o
+código do posto ou da tomada, ou cola o link da foto, da página ou do
+Panoramax; a página do posto tem um link «Pedir remoção» na legenda da foto
+que já o preenche. A resposta é a mesma quer o pedido corresponda a uma foto
+quer não, para o formulário não servir para sondar o que existe. Ao chegar
+o pedido, a foto fica oculta logo:
+
+1. `photos.status` passa a `hidden`: o site, a API e o `/main-photos` deixam
+   de a mostrar (no máximo 5 minutos de cache).
+2. Cada link estático que ela servia sai do R2 `pictures` e da tabela
+   `selections`, e os três URLs são purgados da cache.
+3. O *upload set* no Panoramax volta a `owner-only` e os URLs das imagens
+   no `panoramax.*` são purgados (a zona guarda-os em cache).
+
+Um passo que falhe fica no pedido (`hide_failed`) e aparece no painel com um
+botão para repetir. **A purga precisa dos segredos `CF_ZONE_ID` e
+`CF_CACHE_PURGE_TOKEN`** (um token de API só com *Zone → Cache Purge* nesta
+zona): sem eles cada pedido fica com a purga falhada e a foto continua na
+cache do `pictures.*` até 30 dias. No painel, **Remover** apaga o *upload set*
+e as cópias do `pictures-staging` (foto `removed`); **Repor** torna o *set*
+público, a foto `published` e volta a preencher os links estáticos que ainda
+estão vazios; **Fechar** encerra um pedido que não corresponde a nenhuma
+foto. Uma decisão fecha todos os pedidos abertos da mesma foto e apaga o
+contacto. O prazo é de 72 horas; o painel mostra o tempo que falta.
+Ainda não se promove outra foto aprovada a principal quando uma é ocultada.
+
 **Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`).
 Só para moderadores e administradores. Mostra as fotos `pending` da mais
 antiga para a mais recente (50 de cada vez), com o posto, quem enviou, a
@@ -277,6 +305,7 @@ essa já é do `/mcp` do ohmigo. Por isso os limites ficam no Worker, com o
 | `UPLOAD_LIMIT` | conta | 6 por minuto | `POST /api/v1/photos`, antes de ler o corpo; `429` `too_fast` |
 | `LOGIN_LIMIT` | IP | 10 por minuto | `/auth/osm/login` e `/auth/osm/callback` |
 | `SEARCH_LIMIT` | IP | 60 por minuto | `/api/v1/stations` (texto e proximidade), `/pesquisa`, `/en/search` |
+| `TAKEDOWN_LIMIT` | IP | 5 por minuto | `POST /takedown`; volta ao formulário com `erro=limit` |
 
 Acima do limite: `429` com `Retry-After: 60` (JSON na API, uma linha em
 pt e en nas páginas). Os contadores são por localização da Cloudflare e

@@ -14,6 +14,7 @@ export interface RateEnv {
   UPLOAD_LIMIT?: RateLimiter;   // per signed-in user
   LOGIN_LIMIT?: RateLimiter;    // per IP, OSM sign-in start and callback
   SEARCH_LIMIT?: RateLimiter;   // per IP, text and nearby search (page and API)
+  TAKEDOWN_LIMIT?: RateLimiter; // per IP, the public removal form
 }
 
 // Missing binding (tests, local dev without it) or a limiter error: let the

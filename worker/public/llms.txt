@@ -14,11 +14,11 @@ Pages are in European Portuguese, with English under /en/. Station and socket da
 
 Read-only JSON, open CORS, no key.
 
-- `GET /api/v1/stations/{station id}`: the station, its operator, address, coordinates, OSM element and sockets. Each socket has its EVSE code as published (`evse`) and without the `*` (`compact`), which is the name of its static link.
+- `GET /api/v1/stations/{station id}`: the station, its operator, address, coordinates, OSM element and sockets. Each socket has its EVSE code as published (`evse`) and without the `*` (`compact`), which is the name of its static link. The station and each socket carry `photo` (or `null`): credit, licence, a ready-to-paste `attribution`, the three sizes (`thumb`, `main`, `full`, each with `url` and `maxPx`, the longest side), the station page and the Panoramax viewer link.
 - `GET /api/v1/stations?q={words}&limit={1-50}`: full-text search over station code, name, address, town and operator. Every word must match, as a prefix, accents ignored. Public stations only, best match first.
 - `GET /api/v1/stations?lat={deg}&lon={deg}&radius={metres, default 500, max 5000}&limit={1-50}`: public stations near a point, nearest first, each with `distance_m`. Use either `q` or `lat`/`lon`, not both.
 - `GET /api/v1/main-photos`: every published main photo (station or socket) with its credit, the three sizes on pictures.ocarroeletrico.com, the station page and the Panoramax picture id. Licence CC BY-SA 4.0: credit the author.
-- `GET /api/v1/evses/{EVSE code}`: the socket and its station. 300 with `candidates` when the NAP lists the same code at more than one station, 404 when unknown.
+- `GET /api/v1/evses/{EVSE code}`: the socket and its station, each with `photo` (or `null`) as above. 300 with `candidates` when the NAP lists the same code at more than one station, 404 when unknown.
 - `GET /api/v1/ranking?period=month|all`: top contributors by points (month = current month, UTC).
 
 ## Static photo links
@@ -35,3 +35,4 @@ Read-only JSON, open CORS, no key.
 
 - [Sitemap](https://olhaoposto.ocarroeletrico.com/sitemap.xml)
 - [Privacy policy](https://olhaoposto.ocarroeletrico.com/en/privacy) (pt-PT: /privacidade)
+- [Ask for a photo to be removed](https://olhaoposto.ocarroeletrico.com/en/takedown) (pt-PT: /takedown): no account; the photo is hidden at once and a moderator decides within 72 hours. Each API `photo` has a prefilled `takedown` link.

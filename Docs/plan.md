@@ -180,7 +180,7 @@ O início de sessão já está feito e desligado: como funciona e como se liga e
 1. Ligá-lo: aplicação registada no OSM e segredos `OSM_CLIENT_ID`/`OSM_CLIENT_SECRET` no Worker.
 2. O token da conta de serviço do Panoramax como segredo do Worker, quando o envio abrir.
 3. Turnstile: feito; faltam só os segredos ([`cloudflare.md`](cloudflare.md), *Abrir o envio*).
-4. Painéis `/admin` em falta: remoções e postos fora do NAP. A fila de revisão e os papéis já existem, atrás do Cloudflare Access e do papel na D1 ([`cloudflare.md`](cloudflare.md), secção 4).
+4. ~~Painéis `/admin` de remoções e postos fora do NAP~~: feitos ([`cloudflare.md`](cloudflare.md), secção 4, *Pedidos de remoção* e *Aliases de postos*).
 
 **Papéis**
 
@@ -225,8 +225,8 @@ A licença das fotos (CC BY-SA 4.0 com autorização ODbL) está em [`licenca.md
 
 - **Dados de quem envia:** ID e nome do OSM, pseudónimo opcional, papel e GPS das fotos. Sem email.
 - **Pessoas e matrículas nas fotos:** desfocagem obrigatória e caixa a confirmar no envio.
-- **Pedidos de remoção:** formulário público `/takedown` (sem login, com Turnstile). A foto fica `hidden` de imediato (no olh'o'posto, no Panoramax e em `pictures`) e um moderador decide em **72 h**.
-- **Política de privacidade:** publicada em `/privacidade`, com o responsável, os registos, o login, os *cookies* e o envio (o que se guarda, onde, a moderação, a licença). Falta o formulário de remoção quando existir.
+- **Pedidos de remoção:** feitos ([`cloudflare.md`](cloudflare.md), secção 4, *Pedidos de remoção*). Falta pôr os segredos da purga (`CF_ZONE_ID`, `CF_CACHE_PURGE_TOKEN`) e promover a seguinte foto aprovada a principal quando uma é ocultada.
+- **Política de privacidade:** publicada em `/privacidade`, com o responsável, os registos, o login, os *cookies* e o envio (o que se guarda, onde, a moderação, a licença). Inclui o formulário de remoção.
 - **Conservação:** o GPS fica na D1 só para moderação; as versões em `pictures-staging` apagam-se ao aprovar ou rejeitar; logs com retenção curta.
 
 **Moderação**

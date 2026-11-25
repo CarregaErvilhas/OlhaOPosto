@@ -9,12 +9,12 @@ Ficha Type 2 com os 7 pinos, a objetiva no pino de terra, o obturador e o flash 
 | Corpo | `#F2B33D` |
 | Face | `#15201C` |
 | Destaque (obturador, raios) | `#2C4A6B` |
-| Objetiva | `#93AAD6` |
+| Objetiva | `#E6E9EE` |
 | Pinos | `#FCE3A6` |
 | Olhos, janela do flash | `#FFFFFF` |
 | Fundo dos ícones de app | `#FBF3E2` |
 
-Em tema escuro, o `favicon.svg` e o `svg/pic-icon.svg` mudam o obturador para `#93AAD6` (o azul do tema escuro do site): o `#2C4A6B` desaparece contra um fundo escuro. A objetiva é sempre `#93AAD6`, nos dois temas: está sobre a face escura, onde o azul escuro não se vê. O `.ico` e os PNG não mudam.
+Em tema escuro, o `favicon.svg` e o `svg/pic-icon.svg` mudam o obturador para `#93AAD6` (o azul do tema escuro do site): o `#2C4A6B` desaparece contra um fundo escuro. A objetiva é sempre `#E6E9EE` (branco gelo), nos dois temas: está sobre a face escura, onde o azul escuro não se vê. O `.ico` e os PNG não mudam.
 
 ## Ficheiros
 

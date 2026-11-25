@@ -69,7 +69,7 @@ def test_viewer_draws_single_photo_at_zoom_10(base_url):
             if state.get("error"):
                 fail(
                     f"O visualizador {version} já não expõe o mapa em `viewer.map` ({state['error']}; viewer={viewer}).",
-                    "procurar no visualizador novo onde fica o objeto do MapLibre e mudar o script em panoramax/templates/viewer.html.",
+                    "confirmar primeiro que o bundle carrega do CDN e que o componente iniciou; se sim, procurar no visualizador novo onde fica o objeto do MapLibre e mudar o script em panoramax/templates/viewer.html.",
                 )
             fail(
                 f"O visualizador {version} carregou mas não tem nenhuma camada `geovisio…_pictures` do tipo circle.",
@@ -107,17 +107,20 @@ def test_viewer_draws_single_photo_at_zoom_10(base_url):
                     ctx.drawImage(canvas, 0, 0);
                     const r = Math.round(8 * ratio);
                     const px = ctx.getImageData(Math.round(at.x * ratio) - r, Math.round(at.y * ratio) - r, 2 * r + 1, 2 * r + 1).data;
-                    let orange = 0;
+                    let visible = 0;
                     for (let i = 0; i < px.length; i += 4) {
-                        if (px[i] > 200 && px[i + 1] > 70 && px[i + 1] < 160 && px[i + 2] < 90) orange += 1;
+                        // v4 draws orange dots; v5 uses the purple default palette.
+                        const orange = px[i] > 200 && px[i + 1] > 70 && px[i + 1] < 160 && px[i + 2] < 90;
+                        const purple = px[i] > 60 && px[i] < 130 && px[i + 1] < 80 && px[i + 2] > 110 && px[i + 2] < 180;
+                        if (orange || purple) visible += 1;
                     }
-                    return { features: features.length, orange };
+                    return { features: features.length, visible };
                 };
                 let last = null;
                 const deadline = Date.now() + 45000;
                 const tick = () => {
                     last = look();
-                    if ((last.features && last.orange >= 4) || Date.now() > deadline) resolve(last);
+                    if ((last.features && last.visible >= 4) || Date.now() > deadline) resolve(last);
                     else { map.triggerRepaint(); setTimeout(tick, 300); }
                 };
                 tick();
@@ -130,8 +133,8 @@ def test_viewer_draws_single_photo_at_zoom_10(base_url):
             f"Ao zoom {ZOOM} a foto de teste não chega ao mapa do visualizador {version} (tile 10/{PICTURE['x']}/{PICTURE['y']}).",
             "ver se o visualizador novo filtra as fotos por zoom de outra forma (por exemplo minzoom na camada) e ajustar o script em panoramax/templates/viewer.html.",
         )
-    if found["orange"] < 4:
+    if found["visible"] < 4:
         fail(
-            f"Ao zoom {ZOOM} a foto de teste está no mapa mas não se vê ({found['orange']} píxeis laranja onde ela está).",
+            f"Ao zoom {ZOOM} a foto de teste está no mapa mas não se vê ({found['visible']} píxeis da cor da camada onde ela está).",
             "ver o raio, a opacidade e a cor da camada das fotos no visualizador novo e ajustar o PAINT em panoramax/templates/viewer.html.",
         )

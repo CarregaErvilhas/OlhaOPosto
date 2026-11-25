@@ -181,11 +181,14 @@ mapa não mostrava nada entre o zoom 7 e o ~16,5.
   tiles, que volta a ser 15. Com 7, o MapLibre esticava os tiles do zoom 7
   até à rua e os pontos ficavam até ~76 m ao lado.
 - **`/viewer`:** é o nosso `panoramax/templates/viewer.html`, uma cópia do
-  do geovisio (`viewer.upstream.html`) com duas mudanças. O visualizador
+  do geovisio (`viewer.upstream.html`) com as nossas mudanças. O visualizador
   fica fixo na versão do `panoramax/viewer/package.json`, em vez do `@~4`
-  que mudava sozinho no CDN. Um *script* põe a opacidade e o raio da
-  camada das fotos visíveis a partir do zoom 7. O `/viewer` vai com
-  `max-age=0`, para um deploy chegar logo aos browsers.
+  que mudava sozinho no CDN, e é carregado do bundle da v5 (`build/cjs/index.js`;
+  o `build/index.js` da v4 é agora a página de demonstração e o
+  `build/index.css` já não existe). O metacatalogo vem desligado, para o mapa
+  mostrar só a nossa API. Um *script* põe a opacidade e o raio da camada das
+  fotos visíveis a partir do zoom 7. O `/viewer` vai com `max-age=0`, para um
+  deploy chegar logo aos browsers.
 
 O `apply()` confirma primeiro tudo aquilo de que depende e só depois muda o
 que for preciso, tudo de uma vez. Se alguma coisa não bater em produção, o
@@ -205,14 +208,16 @@ isto falha antes do merge. Sem base de dados, verifica:
   fixada;
 - que o `viewer.html` do geovisio não mudou desde a nossa cópia;
 - num Chromium, com o visualizador do CDN: uma foto de teste
-  (`tests/fixtures/picture.mvt`) aparece em píxeis laranja ao zoom 10.
+  (`tests/fixtures/picture.mvt`) aparece como ponto visível ao zoom 10
+  (laranja na v4, roxo na v5).
 
 **Quando falha:** a mensagem diz o que deixou de bater e o que fazer.
 
 - Se for o **`viewer.html` do geovisio**: passar a mudança para a nossa
   cópia e copiar o novo para o `viewer.upstream.html`.
-- Se for o **visualizador**: os nomes de que o *script* depende são
-  `viewer.map` e as camadas `geovisio…_pictures`. Ajustar o *script* no
+- Se for o **visualizador**: confirmar primeiro se o bundle ainda carrega do
+  CDN (o caminho muda entre versões); depois, os nomes de que o *script*
+  depende são `viewer.map` e as camadas `geovisio…_pictures`. Ajustar o
   `templates/viewer.html`.
 - Se for o **geovisio**: ver no `web/map.py` novo como se escolhem as
   camadas por zoom e ajustar o `map_override.py`.

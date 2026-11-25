@@ -16,7 +16,6 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
    - medir o custo mensal no Zerops (ponto 6 do ensaio, [`infra.md`](infra.md), secção 9);
    - começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Falta:
-   - uma ligação para `/enviar` no cabeçalho (o login OSM já está ligado; hoje chega-se lá pela conta);
    - envio de fotos: a página `/enviar` e o `POST /api/v1/photos` estão feitos e fechados até haver moderação, Turnstile e o token do Panoramax ([`cloudflare.md`](cloudflare.md), *Abrir o envio*); o que falta está no *Fluxo de upload*;
    - fila de moderação com promoção manual;
    - foto principal e publicação em `pictures.*`;

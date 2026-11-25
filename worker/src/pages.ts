@@ -346,6 +346,7 @@ ${p.script ? '<script src="/site.js" defer></script>\n' : ''}${p.module ? `<scri
       <img src="/pic-icon.svg" alt="" width="34" height="34">
       <span class="brand-name"><span aria-hidden="true">${BRAND}</span><span class="sr-only" lang="pt-PT">${BRAND_SPOKEN}</span></span>
     </a>
+    <a class="header-link" href="${uploadPath(p.lang)}">${t.uploadLink}</a>
     <div class="theme" hidden>
       <label for="theme">${t.theme}</label>
       <select id="theme">

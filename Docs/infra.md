@@ -160,10 +160,70 @@ secção 8.
 
 **Cron (`crontab`, de hora a hora, num só container):** `panoramax_backend
 db refresh` atualiza a grelha agregada (`pictures_grid`), que é o que o mapa
-mostra nos zooms 0 a 6. O Panoramax não a atualiza sozinho. Nos zooms 7 a 14
-o mapa só desenha sequências como linhas, e cada envio do olh'o'posto é uma
-sequência de uma foto, sem linha: nesses zooms as fotos não aparecem. A
-partir do zoom 15 aparecem como pontos.
+mostra nos zooms 0 a 6. O Panoramax não a atualiza sozinho. Do zoom 7 para
+cima as fotos aparecem como pontos, por uma alteração nossa (secção
+seguinte).
+
+### Mapa: fotos de uma só foto
+
+**O problema.** O Panoramax foi feito para sequências de rua: do zoom 7 ao
+14 desenha cada sequência como uma linha, e as fotos como pontos só a partir
+do 15 (o visualizador deixa-as com raio 0 até ~16,5). Cada envio do
+olh'o'posto é uma sequência de uma foto, que não tem linha. Sem alteração, o
+mapa não mostrava nada entre o zoom 7 e o ~16,5.
+
+**O que mudámos** (`panoramax/map_override.py`, chamado pelo `wsgi.py`):
+
+- **Tiles:** o `ZOOM_PICTURES` do geovisio passa de 15 para 7, e os tiles
+  levam a camada `pictures` a partir do zoom 7. Os filtros de visibilidade
+  são os do geovisio: as fotos à espera de moderação continuam de fora.
+- **`style.json`:** o mesmo `ZOOM_PICTURES` dá o `maxzoom` da fonte dos
+  tiles, que volta a ser 15. Com 7, o MapLibre esticava os tiles do zoom 7
+  até à rua e os pontos ficavam até ~76 m ao lado.
+- **`/viewer`:** é o nosso `panoramax/templates/viewer.html`, uma cópia do
+  do geovisio (`viewer.upstream.html`) com duas mudanças. O visualizador
+  fica fixo na versão do `panoramax/viewer/package.json`, em vez do `@~4`
+  que mudava sozinho no CDN. Um *script* põe a opacidade e o raio da
+  camada das fotos visíveis a partir do zoom 7. O `/viewer` vai com
+  `max-age=0`, para um deploy chegar logo aos browsers.
+
+O `apply()` confirma primeiro tudo aquilo de que depende e só depois muda o
+que for preciso, tudo de uma vez. Se alguma coisa não bater em produção, o
+`pano` arranca na mesma, com o Panoramax sem alterações, e o registo da
+`api` diz `map_override not applied` e o porquê.
+
+**O teste de drift.** O job `panoramax` do `checks.yml` corre em todos os
+PRs (`panoramax/tests/`), com o geovisio do `requirements.txt` e o
+visualizador do `package.json`. É assim que um PR do Dependabot que parta
+isto falha antes do merge. Sem base de dados, verifica:
+
+- que o geovisio ainda tem o que o `map_override.py` usa (o
+  `ZOOM_PICTURES`, o `get_style_json`, o `_get_query`, a rota `/viewer`);
+- que os tiles dos zooms 7 a 15 levam as fotos e que os anónimos só veem
+  as públicas;
+- o `maxzoom` 15 do `style.json`, e que o `/viewer` é o nosso, com a versão
+  fixada;
+- que o `viewer.html` do geovisio não mudou desde a nossa cópia;
+- num Chromium, com o visualizador do CDN: uma foto de teste
+  (`tests/fixtures/picture.mvt`) aparece em píxeis laranja ao zoom 10.
+
+**Quando falha:** a mensagem diz o que deixou de bater e o que fazer.
+
+- Se for o **`viewer.html` do geovisio**: passar a mudança para a nossa
+  cópia e copiar o novo para o `viewer.upstream.html`.
+- Se for o **visualizador**: os nomes de que o *script* depende são
+  `viewer.map` e as camadas `geovisio…_pictures`. Ajustar o *script* no
+  `templates/viewer.html`.
+- Se for o **geovisio**: ver no `web/map.py` novo como se escolhem as
+  camadas por zoom e ajustar o `map_override.py`.
+- Se o Panoramax passar a desenhar as fotos soltas sozinho: retirar a
+  parte que já não for precisa.
+
+Correr os testes à mão: `pip install -r requirements.txt -r
+requirements-test.txt`, `python -m playwright install chromium` e
+`python -m pytest tests` dentro de `panoramax/`. No macOS, o `pyexiv2` do
+PyPI não carrega; os testes não o usam, por isso basta um módulo `pyexiv2`
+vazio no `PYTHONPATH`. O `tests/make_fixture.py` refaz o tile de teste.
 
 Os `startCommands` correm em bash (visto no primeiro deploy):
 o `geovisio:create_api()` sem aspas dava `syntax error near unexpected
@@ -440,7 +500,8 @@ zcli push -P <project-id> --service-id <id-do-pano> --setup pano
    entre as versões, à procura de migrações e variáveis novas ou retiradas
    (o `config_app.py` recusa arrancar com algumas antigas).
 2. Mudar `geovisio==` no `requirements.in`. O Dependabot abre o PR
-   (ecossistema `pip`, pasta `/panoramax`).
+   (ecossistema `pip`, pasta `/panoramax`). O job `panoramax` do PR testa
+   as nossas alterações ao mapa (secção 3, «Mapa: fotos de uma só foto»).
    Depois de mudar o `requirements.in`, regenerar o lock
    (`requirements.txt`, secção 3) e fazer commit dos dois.
 3. Se a versão nova trouxer migrações: fazer um backup da `db` antes, e

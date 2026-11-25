@@ -1,0 +1,166 @@
+{
+ "conformsTo": [
+  "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core",
+  "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson",
+  "http://www.opengis.net/spec/ogcapi-common-2/1.0/conf/simple-query",
+  "https://api.stacspec.org/v1.0.0/core",
+  "https://api.stacspec.org/v1.0.0/browseable",
+  "https://api.stacspec.org/v1.0.0/collections",
+  "https://api.stacspec.org/v1.0.0/ogcapi-features",
+  "https://api.stacspec.org/v1.0.0/item-search",
+  "https://api.stacspec.org/v1.0.0/collection-search"
+ ],
+ "contacts": [
+  {
+   "emails": [
+    {
+     "value": "OlhaOPosto@ocarroeletrico.com"
+    }
+   ],
+   "name": "olh'o'posto — EV charger photos"
+  }
+ ],
+ "description": "Photos of EV charging stations in Portugal, uploaded through olh'o'posto",
+ "extent": {
+  "spatial": {
+   "bbox": [
+    [
+     -9.1427001953125,
+     38.73689651489258,
+     -8.536284446716309,
+     41.182350158691406
+    ]
+   ]
+  },
+  "temporal": {
+   "interval": [
+    [
+     "2026-11-22T16:31:27+00:00",
+     "2026-11-24T15:54:56+00:00"
+    ]
+   ]
+  }
+ },
+ "geovisio_version": "2.17.0",
+ "id": "geovisio",
+ "links": [
+  {
+   "href": "{base}/api/",
+   "rel": "self",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/",
+   "rel": "root",
+   "title": "Instance catalog",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/docs/specs.json",
+   "rel": "service-desc",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/docs/swagger",
+   "rel": "service-doc",
+   "type": "text/html"
+  },
+  {
+   "href": "{base}/api/conformance",
+   "rel": "conformance",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/collections",
+   "rel": "data",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/users/",
+   "rel": "child",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/collections?format=rss",
+   "rel": "data",
+   "type": "application/rss+xml"
+  },
+  {
+   "href": "{base}/api/search",
+   "rel": "search",
+   "type": "application/geo+json"
+  },
+  {
+   "href": "{base}/api/map/{z}/{x}/{y}.mvt",
+   "rel": "xyz",
+   "title": "Pictures and sequences vector tiles",
+   "type": "application/vnd.mapbox-vector-tile"
+  },
+  {
+   "href": "{base}/api/queryables",
+   "rel": "http://www.opengis.net/def/rel/ogc/1.0/queryables",
+   "title": "Queryables",
+   "type": "application/schema+json"
+  },
+  {
+   "href": "{base}/api/map/style.json",
+   "rel": "xyz-style",
+   "title": "MapLibre Style JSON",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/users/{userId}/map/{z}/{x}/{y}.mvt",
+   "rel": "user-xyz",
+   "title": "Pictures and sequences vector tiles for a given user",
+   "type": "application/vnd.mapbox-vector-tile"
+  },
+  {
+   "href": "{base}/api/users/{userId}/map/style.json",
+   "rel": "user-xyz-style",
+   "title": "MapLibre Style JSON",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/collections/{id}/thumb.jpg",
+   "rel": "collection-preview",
+   "title": "Thumbnail URL for a given sequence",
+   "type": "image/jpeg"
+  },
+  {
+   "href": "{base}/api/pictures/{id}/thumb.jpg",
+   "rel": "item-preview",
+   "title": "Thumbnail URL for a given picture",
+   "type": "image/jpeg"
+  },
+  {
+   "href": "{base}/api/users/",
+   "rel": "users",
+   "title": "List of users",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/users/search",
+   "rel": "user-search",
+   "title": "Search users",
+   "type": "application/json"
+  },
+  {
+   "href": "{base}/api/reports",
+   "rel": "report",
+   "title": "Post feedback/report about picture or sequence",
+   "type": "application/json"
+  },
+  {
+   "href": "https://creativecommons.org/licenses/by-sa/4.0/",
+   "rel": "license",
+   "title": "License for this object (CC-BY-SA-4.0)"
+  }
+ ],
+ "stac_extensions": [
+  "https://stac-extensions.github.io/web-map-links/v1.0.0/schema.json",
+  "https://stac-extensions.github.io/contacts/v0.1.1/schema.json"
+ ],
+ "stac_version": "1.0.0",
+ "title": "olh'o'posto — EV charger photos",
+ "type": "Catalog"
+}

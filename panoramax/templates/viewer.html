@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+	<link rel="shortcut icon" href="/favicon.ico" />
+	<link rel="icon" type="image/svg+xml" href="/static/img/panoramax_favicon.svg" />
+	<title>Panoramax</title>
+	{#- geovisio's templates/viewer.html (copy in viewer.upstream.html), with two
+	    changes: the web viewer is pinned to the version in viewer/package.json
+	    instead of @~4, and the script below. See panoramax/map_override.py. #}
+	<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@panoramax/web-viewer@{{ viewer_version }}/build/index.css" />
+	<script src="https://cdn.jsdelivr.net/npm/@panoramax/web-viewer@{{ viewer_version }}/build/index.js"></script>
+	<style>
+		#viewer {
+			position: absolute;
+			top: 0;
+			bottom: 0;
+			left: 0;
+			right: 0;
+		}
+	</style>
+</head>
+<body>
+	{#- Closed explicitly: upstream's `/>` does not close a custom element in
+	    HTML, and the script below would end up inside the viewer. #}
+	<pnx-viewer
+		id="viewer"
+		endpoint="/api"
+	></pnx-viewer>
+	<script>
+		// olh'o'posto: each upload is a sequence of one picture, which has no
+		// line to draw, and the viewer only draws picture dots from about
+		// zoom 16.5. The tiles carry the pictures from zoom {{ pictures_from_zoom }}
+		// (map_override.py); this makes those dots visible from there too.
+		// The viewer sets the paint again when it rebuilds its layers, so it
+		// is reapplied on every style change, only where it differs (setting
+		// a paint property fires another style change).
+		(function () {
+			var FROM = {{ pictures_from_zoom }};
+			var PAINT = {
+				"circle-opacity": 1,
+				"circle-radius": ["interpolate", ["linear"], ["zoom"], FROM, 3, 11, 4, 14, 5, 17, 5, 18, 6, 20, 7]
+			};
+			var state = { version: "{{ viewer_version }}", from: FROM, applied: 0, layers: [] };
+			window.oopMapOverride = state;
+
+			function restyle(map) {
+				var layers = (map.getStyle().layers || []).filter(function (l) {
+					return l.type === "circle" && /^geovisio.*_pictures$/.test(l.id);
+				});
+				layers.forEach(function (l) {
+					Object.keys(PAINT).forEach(function (k) {
+						if (JSON.stringify(map.getPaintProperty(l.id, k)) !== JSON.stringify(PAINT[k])) {
+							map.setPaintProperty(l.id, k, PAINT[k]);
+						}
+					});
+				});
+				if (layers.length) {
+					state.applied += 1;
+					state.layers = layers.map(function (l) { return l.id; });
+				}
+			}
+
+			var viewer = document.getElementById("viewer");
+			(function hook(tries) {
+				var map = viewer && viewer.map;
+				if (map && typeof map.on === "function" && map.getStyle()) {
+					map.on("styledata", function () { restyle(map); });
+					restyle(map);
+				} else if (tries < 300) {
+					setTimeout(function () { hook(tries + 1); }, 100);
+				} else {
+					state.error = "viewer.map not found";
+				}
+			})(0);
+		})();
+	</script>
+</body>
+</html>

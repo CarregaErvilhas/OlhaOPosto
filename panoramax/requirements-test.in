@@ -1,0 +1,4 @@
+# Drift tests (tests/, map_override.py) in CI. Lock with hashes:
+#   uv pip compile requirements-test.in -c requirements.txt --generate-hashes --python-version 3.14 -o requirements-test.txt
+pytest
+playwright

@@ -22,6 +22,7 @@ updates:
           - "patch"
   # Panoramax (pacote `geovisio`). Subir a versão pode trazer migrações da BD:
   # ler o changelog antes do merge (Docs/infra.md, «Atualizar o Panoramax»).
+  # O job `panoramax` do checks.yml testa as nossas alterações ao mapa.
   - package-ecosystem: "pip"
     directory: "/panoramax"
     schedule:
@@ -36,6 +37,24 @@ updates:
       - "panoramax"
     commit-message:
       prefix: "deps(panoramax)"
+      include: "scope"
+  # Versão do visualizador do Panoramax que o /viewer carrega do CDN
+  # (panoramax/map_override.py). Nada é instalado: o package.json existe para
+  # haver PR, e o job `panoramax` do checks.yml testa a versão nova.
+  - package-ecosystem: "npm"
+    directory: "/panoramax/viewer"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+      - "panoramax"
+    commit-message:
+      prefix: "deps(viewer)"
       include: "scope"
   # Worker (worker/): wrangler, workerd e tipos. O workerd muda com a
   # compatibility_date; confirmar que o `npm test` e o `wrangler dev` passam.

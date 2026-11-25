@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+	<link rel="shortcut icon" href="/favicon.ico" />
+	<link rel="icon" type="image/svg+xml" href="/static/img/panoramax_favicon.svg" />
+	<title>Panoramax</title>
+	<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@panoramax/web-viewer@~4/build/index.css" />
+	<script src="https://cdn.jsdelivr.net/npm/@panoramax/web-viewer@~4/build/index.js"></script>
+	<style>
+		#viewer {
+			position: absolute;
+			top: 0;
+			bottom: 0;
+			left: 0;
+			right: 0;
+		}
+	</style>
+</head>
+<body>
+	<pnx-viewer
+		id="viewer"
+		endpoint="/api"
+	/>
+</body>
+</html>

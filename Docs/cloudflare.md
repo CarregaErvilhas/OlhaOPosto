@@ -201,8 +201,7 @@ entre `contributor` e `trusted`, e nunca mexe em moderadores ou
 administradores. Ninguém muda o próprio papel, para o último administrador
 não se trancar fora. Cada mudança guarda `promoted_by` e `promoted_at`, e só
 escreve se o papel ainda for o que a página mostrava. O primeiro
-administrador foi promovido à mão na D1. Ainda sem Cloudflare Access à frente
-(`plan.md`, *Autenticação*).
+administrador foi promovido à mão na D1. Antes do Worker há uma segunda porta, o Cloudflare Access (*Acesso de administração*, abaixo).
 
 **Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`).
 Só para moderadores e administradores. Mostra as fotos `pending` da mais
@@ -237,6 +236,16 @@ segredos, o envio fica fechado. A CSP só da página de envio abre
 `script-src` e `frame-src` a `https://challenges.cloudflare.com`. Em local,
 as chaves de teste da Cloudflare (*site key* `1x00000000000000000000AA`)
 geram um token falso, que o `siteverify` real não aceita.
+
+**Acesso de administração (Cloudflare Access).** Uma aplicação Access
+(Zero Trust Free) cobre `/admin`, `/admin/*`, `/en/admin` e `/en/admin/*`:
+antes de chegar ao Worker, quem abre estas paths recebe o ecrã de login da
+Cloudflare e um código de uso único no email. Só passam os emails da regra
+*Moderadores*; a sessão dura 24 h. Depois, o Worker ainda pede o login OSM
+e o papel `moderator` ou `admin`. Nomear um moderador são dois passos: o
+email na regra do Access e o papel em `/admin/utilizadores`. Os emails
+vivem só na Cloudflare, nunca no repositório. O resto do site não passa
+pelo Access.
 
 **Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js` e
 `public/jpeg.js`). Tudo o que mexe na foto corre no browser. Com o envio

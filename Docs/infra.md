@@ -355,7 +355,8 @@ Como está:
 | Cloudflare, zona `ocarroeletrico.com` | `panoramax  AAAA  <IPv6 dedicado do projeto>`, proxy ON (o IPv6 está no Zerops, *Public access* do `pano`). A zona já estava em SSL *Full (strict)* |
 | Zerops, roda dentada do domínio → *Access Policy* | *Default Policy* `deny`; *CIDR Blocks* = as gamas da Cloudflare, uma por linha |
 | Zerops, subdomínio `zerops.app` | Desligado: ficava fora da Cloudflare |
-| Cloudflare, Cache Rule «panoramax: origin TTLs, 4xx never stored» | `http.host eq "panoramax.ocarroeletrico.com"`: os TTLs são os do Panoramax, mas um 4xx nunca fica em cache. O Panoramax manda `Cache-Control: public` até nos `404` das imagens, e uma foto escondida responde `404`: sem esta regra, esse `404` ficava na cache depois de a foto ser aprovada |
+| Cloudflare, Cache Rule «panoramax pictures: origin TTLs, 4xx never stored» | Só as imagens (`/api/pictures/….jpg` em `panoramax.ocarroeletrico.com`): ficam em cache com os TTLs do Panoramax, mas um 4xx nunca. O Panoramax manda `Cache-Control: public` até nos `404` das imagens, e uma foto escondida responde `404`: sem esta regra, esse `404` ficava na cache depois de a foto ser aprovada |
+| Cloudflare, Cache Rule «panoramax: API, map tiles and pages never cached» | Tudo o resto do `panoramax.*` passa sem cache. O Panoramax manda `Cache-Control: public` sem prazo também na API, nas tiles do mapa e nas páginas, e a Cloudflare guardava-as: uma foto aprovada não aparecia no mapa e a página do visualizador podia ficar presa a uma versão antiga |
 
 O `A` partilhado do Zerops não se usa, e o CNAME que o Zerops
 também propõe não traz nada: com o IPv4 partilhado excluído, aponta para o

@@ -15,6 +15,7 @@
 import { currentUser, page, sameOrigin, type SessionUser } from './auth.ts';
 import { BRAND, accountPath, esc, layout, stationPath, type Lang } from './pages.ts';
 import { PANORAMAX_URL, type PhotoEnv } from './photos.ts';
+import { FAR_M } from './types.ts';
 import { publishMain } from './publish.ts';
 
 export const queuePath = (lang: Lang) => (lang === 'pt' ? '/admin/fila' : '/en/admin/queue');
@@ -25,8 +26,7 @@ export const STAGING_PREFIX = '/admin/staging/';
 
 export const canModerate = (role: string) => role === 'moderator' || role === 'admin';
 
-// Beyond this the photo may be of another station (Docs/plan.md).
-export const FAR_M = 300;
+export { FAR_M };
 const QUEUE_LIMIT = 50;
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
@@ -249,8 +249,8 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
   if (!env.PANORAMAX_TOKEN) return back('erro=closed');
 
   const photo = await db(env).prepare(
-    `SELECT panoramax_set FROM photos WHERE id = ? AND status = 'pending'`,
-  ).bind(id).first<{ panoramax_set: string | null }>();
+    `SELECT panoramax_set, station_id, evse_compact FROM photos WHERE id = ? AND status = 'pending'`,
+  ).bind(id).first<{ panoramax_set: string | null; station_id: string; evse_compact: string | null }>();
   if (!photo) return back('erro=stale');
 
   const base = env.PANORAMAX_URL ?? PANORAMAX_URL;
@@ -277,6 +277,24 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
   ).bind(status, user.id, now.toISOString(), id).run();
   if (res.meta.changes !== 1) return back('erro=stale');
   if (action === 'approve') {
+    // Award points (Docs/plan.md, *Gamificação*).
+    try {
+      const target = photo.evse_compact ?? photo.station_id;
+      const others = await db(env).prepare(
+        `SELECT COUNT(*) AS n FROM photos WHERE station_id = ? AND evse_compact IS ? AND id <> ? AND status = 'published'`,
+      ).bind(photo.station_id, photo.evse_compact, id).first<{ n: number }>();
+      const isFirst = (others?.n ?? 0) === 0;
+      const month = now.toISOString().slice(0, 7);
+      const stmts = [db(env).prepare(
+        `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 1, 'approved', ?, ?)`,
+      ).bind(user.id, id, month, now.toISOString())];
+      if (isFirst) stmts.push(db(env).prepare(
+        `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 3, 'first_photo', ?, ?)`,
+      ).bind(user.id, id, month, now.toISOString()));
+      await db(env).batch(stmts);
+    } catch {
+      // Points are best-effort; never block an approval.
+    }
     // Main photo of its socket and station when they have none (src/publish.ts).
     // The approval stands either way; a failed publish only loses the link.
     try {

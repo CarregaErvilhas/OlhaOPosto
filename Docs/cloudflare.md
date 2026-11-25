@@ -213,6 +213,12 @@ não se trancar fora. Cada mudança guarda `promoted_by` e `promoted_at`, e só
 escreve se o papel ainda for o que a página mostrava. O primeiro
 administrador foi promovido à mão na D1. Antes do Worker há uma segunda porta, o Cloudflare Access (*Acesso de administração*, abaixo).
 
+**Aliases de postos** (`/admin/postos-fora-do-nap` e `/en/admin/stations-missing`, `src/aliases.ts`).
+Só para moderadores e administradores. Lista os postos `missing_from_nap` que
+ainda têm fotos; o moderador escreve o código do posto novo e cria o alias
+(`POST /admin/rekey`). O link antigo responde `301` para o novo (páginas e
+`/api/v1/stations/{id}`). Migração `0009_station_aliases.sql`.
+
 **Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`).
 Só para moderadores e administradores. Mostra as fotos `pending` da mais
 antiga para a mais recente (50 de cada vez), com o posto, quem enviou, a

@@ -143,8 +143,9 @@ link de tomada.
 | `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `pseudonym`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. Hoje só se escrevem o OSM, o papel `contributor` e as datas; o resto fica para o envio e a moderação |
 | `sessions` | `token_hash` (PK, SHA-256 do *cookie*), `user_id` (FK), `created_at`, `expires_at` | Uma cópia da tabela não abre sessões. As expiradas saem no login seguinte |
 | `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados |
-
-As tabelas da moderação, das seleções e dos pontos estão em [`plan.md`](plan.md), *Modelo de dados*.
+| `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica |
+| `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP: o link antigo responde `301` para o novo |
+| `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação: +1 approved, +3 first_photo, +2 refresh |
 
 ## Site e API
 
@@ -193,3 +194,11 @@ Trocar a principal ainda não existe ([`plan.md`](plan.md)).
 - **Ligações entre os sites:** a página de cada posto aponta para o NAP dashboard (`nap.ocarroeletrico.com/?posto={código}`, só para postos que o NAP ainda publica) e, quando há foto principal, para ela no mapa do Panoramax (`/viewer?focus=map&map=19/{lat}/{lon}&pic={id}`).
 - **Sem foto:** o R2 responde `404`, para cada app decidir o que mostrar.
 - **Cache:** Edge TTL de 30 dias e `404` nunca em cache na Cache Rule, sem query strings na chave ([`cloudflare.md`](cloudflare.md), secção 3).
+
+## Publicação e gestão de fotos
+
+- **Publicação direta:** contas `trusted` publicam logo no envio, quando o posto está `active` e a foto foi tirada a ≤300 m dele. Caso contrário (contributor, sem GPS, >300 m, posto novo) fica `pending` para a fila.
+- **Pontos:** +1 por foto aprovada, +3 pela primeira foto de um alvo, +2 por substituir uma principal com mais de 12 meses. Guardados em `points`; o ranking agrega por utilizador (com opt-out).
+- **Trocar a principal:** `PUT /api/v1/selections/{target}` com `{ "photo": "<id>" }` (trusted/moderator/admin) copia os 3 tamanhos por cima e faz purge de cache. A atribuição de +2 refresh aplica-se quando a principal anterior tinha mais de 12 meses.
+- **Aliases (re-key):** quando o NAP muda o código de um posto, o antigo fica `missing_from_nap`. O moderador cria um alias em `/admin/utilizadores`/`/admin/rekey`; o link antigo responde `301` para o novo.
+- **Ranking:** `/ranking` (e `/en/ranking`) lista os top contribuidores; `/api/v1/ranking?period=month|all`.

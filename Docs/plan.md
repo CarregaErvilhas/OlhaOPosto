@@ -13,14 +13,9 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
 ## Fases
 
 1. **Panoramax.** Falta:
-   - medir o custo mensal no Zerops (ponto 6 do ensaio, [`infra.md`](infra.md), secção 9);
    - começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Falta:
    - envio de fotos: a página `/enviar` e o `POST /api/v1/photos` estão feitos, com moderação e Turnstile, e fechados até haver os segredos do Turnstile e o token do Panoramax ([`cloudflare.md`](cloudflare.md), *Abrir o envio*); o que falta está no *Fluxo de upload*;
-   - publicação direta para contas `trusted` (passo 6 do *Fluxo de upload*); a fila de moderação já existe;
-   - trocar a foto principal (escolha de um moderador ou `trusted`, com purga da cache);
-   - aliases de postos;
-   - ranking e medalhas;
    - fotos na API;
    - link manual "acrescentar ao OSM";
    - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
@@ -46,7 +41,6 @@ As imagens vivem no Panoramax (originais e tamanhos) e, para as fotos principais
 
 | Tabela | Colunas principais | Notas |
 | --- | --- | --- |
-| `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP, só à mão; o link antigo responde `301` |
 | `review_queue` | `id`, `kind` (`new_station`, `photo`, `takedown`), `payload` (JSON), `submitted_by`, `status`, `decided_by`, `decided_at`, `note` | Fila única para tudo o que precisa de um humano |
 | `points` | `user_id`, `photo_id`, `points`, `reason` (`approved`, `first_photo`, `refresh`), `month` | Ver *Gamificação* |
 | `osm_edits` | `osm_element`, `key`, `value`, `photo_id`, `changeset`, `written_at` | O que o bot escreveu no OSM, para só alterar valores dele |
@@ -74,7 +68,7 @@ A página `/enviar` faz a parte do browser (abre um JPEG, lê o EXIF, sugere o p
     - Conta `trusted` (promovida à mão), posto `active` e dentro de 300 m → aprovada logo.
     - Conta `contributor` → sempre `pending`, à espera de um moderador. Todas as contas novas começam aqui.
     - Sem GPS, a mais de 300 m ou com posto novo → `pending` mesmo para `trusted`. Estes sinais também ordenam a fila e aparecem como avisos.
-7. **Ao aprovar.** A fila (`/admin/fila`) já passa o upload set a `anyone` no Panoramax e marca a foto `published` ([`cloudflare.md`](cloudflare.md), secção 4, *Fila de moderação*). Se o alvo não tinha principal, já a publica em `pictures` ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta atribuir os pontos.
+7. **Ao aprovar.** A fila (`/admin/fila`) já passa o upload set a `anyone` no Panoramax e marca a foto `published` ([`cloudflare.md`](cloudflare.md), secção 4, *Fila de moderação*). Se o alvo não tinha principal, já a publica em `pictures` ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Os pontos são atribuídos na aprovação (+1 approved, +3 first_photo) e na troca de principal (+2 refresh).
 
 **O que se faz com a localização do EXIF**
 
@@ -145,7 +139,6 @@ Já existem `GET /stations?q=` (pesquisa por texto), `GET /stations?lat=&lon=&ra
 | `GET /stations?opc=&has_photo=` | Juntar às pesquisas por texto e por proximidade: operador ou falta de foto | — |
 | `GET /photos/{id}` | Metadados: autor, licença, data, URLs | — |
 | `GET /photos.json` | Exportação diária completa | — |
-| `GET /ranking?period=month\|all` | Top de contribuidores | — |
 | `POST /photos` | Envio (multipart: imagens + JSON de metadados) | `photos:write` |
 | `PUT /selections/{target}` | Escolher a foto principal de um posto ou tomada | `trusted` |
 | `POST /stations` | Propor posto novo (vai para a fila) | `photos:write` |
@@ -186,7 +179,7 @@ O início de sessão já está feito e desligado: como funciona e como se liga e
 
 1. Ligá-lo: aplicação registada no OSM e segredos `OSM_CLIENT_ID`/`OSM_CLIENT_SECRET` no Worker.
 2. O token da conta de serviço do Panoramax como segredo do Worker, quando o envio abrir.
-3. ~~Turnstile~~: feito; faltam só os segredos ([`cloudflare.md`](cloudflare.md), *Abrir o envio*).
+3. Turnstile: feito; faltam só os segredos ([`cloudflare.md`](cloudflare.md), *Abrir o envio*).
 4. Painéis `/admin` em falta: remoções e postos fora do NAP. A fila de revisão e os papéis já existem, atrás do Cloudflare Access e do papel na D1 ([`cloudflare.md`](cloudflare.md), secção 4).
 
 **Papéis**
@@ -221,7 +214,6 @@ Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
   - +3 pela primeira foto de um posto ou tomada;
   - +2 por substituir uma foto principal com mais de 12 meses;
   - a mesma pessoa no mesmo alvo dentro de 30 dias conta uma vez.
-- **Ranking:** top 5 do mês na página inicial e uma página "desde sempre".
 - **Nome:** o crédito da pessoa (nome OSM ou pseudónimo). Opção no perfil para sair do ranking; as fotos continuam a contar pontos.
 - **Prémios:** só medalhas no site, sem prémios. Prémios convidam a fazer batota e um sorteio pode cair nas regras dos sorteios promocionais.
 

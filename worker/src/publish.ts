@@ -22,7 +22,8 @@
 
 import { isCleanJpeg, stripMetadata } from '../public/jpeg.js';
 import { PANORAMAX_URL, type PhotoEnv } from './photos.ts';
-import { SITE, stationPath } from './pages.ts';
+import { PICTURES, SITE, stationPath } from './pages.ts';
+import { STATION_ID } from './types.ts';
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -167,4 +168,114 @@ export async function publishMain(
     }
     throw err;
   }
+}
+
+// Choose (or replace) the main photo of a target. Trusted or moderator only
+// (enforced by the caller). Copies the three sizes over the existing keys and
+// purges the cache. Returns the targets published.
+export async function chooseMain(
+  env: PublishEnv, target: string, photoId: string, userId: string,
+  fetcher: Fetch = fetch, now = new Date(),
+): Promise<string[]> {
+  if (!env.PICTURES || !env.STAGING) return [];
+  // Resolve the station for this target.
+  let stationId: string;
+  let evseCompact: string | null;
+  if (STATION_ID.test(target)) {
+    stationId = target;
+    evseCompact = null;
+  } else {
+    const row = await db(env).prepare(
+      `SELECT station_id FROM evses WHERE evse_compact = ? LIMIT 1`,
+    ).bind(target).first<{ station_id: string }>();
+    if (!row) return [];
+    stationId = row.station_id;
+    evseCompact = target;
+  }
+  const p = await db(env).prepare(
+    `SELECT id, station_id, evse_compact, credit, panoramax_id FROM photos WHERE id = ? AND status = 'published'`,
+  ).bind(photoId).first<Approved>();
+  if (!p || p.station_id !== stationId || (p.evse_compact ?? null) !== evseCompact) return [];
+
+  const old = await db(env).prepare(
+    `SELECT photo_id, published_at FROM selections WHERE target = ?`,
+  ).bind(target).first<{ photo_id: string; published_at: string | null }>();
+
+  const targets = [target];
+  const pictures = env.PICTURES as PublicBucket;
+  const staging = env.STAGING as unknown as StagingBucket;
+  const written: string[] = [];
+  try {
+    const bytes: Record<string, Uint8Array> = {};
+    for (const size of SIZES) {
+      if (size.staged) {
+        const obj = await staging.get(`${p.id}/${size.staged}.jpg`);
+        if (!obj) throw new Error(`staging ${size.staged} missing`);
+        bytes[size.suffix] = new Uint8Array(await obj.arrayBuffer());
+      } else {
+        if (!p.panoramax_id) throw new Error('no panoramax id');
+        const base = env.PANORAMAX_URL ?? PANORAMAX_URL;
+        const r = await fetcher(`${base}/api/pictures/${encodeURIComponent(p.panoramax_id)}/hd.jpg`, {
+          headers: { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'OlhaOPosto' },
+        });
+        if (!r.ok) throw new Error(`panoramax hd ${r.status}`);
+        const clean = stripMetadata(new Uint8Array(await r.arrayBuffer()));
+        if (!clean || !isCleanJpeg(clean)) throw new Error('panoramax hd not clean');
+        bytes[size.suffix] = clean;
+      }
+    }
+    const packet = xmpPacket({ author: p.credit ?? 'olh\'o\'posto', stationId: p.station_id });
+    for (const t of targets) {
+      for (const size of SIZES) {
+        const key = `${t}${size.suffix}.jpg`;
+        await pictures.put(key, withXmp(bytes[size.suffix], packet), {
+          httpMetadata: { contentType: 'image/jpeg', cacheControl: CACHE_CONTROL },
+        });
+        written.push(key);
+      }
+    }
+    const nowIso = now.toISOString();
+    await db(env).prepare(
+      `INSERT INTO selections (target, station_id, photo_id, chosen_by, chosen_at, published_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(target) DO UPDATE SET photo_id=excluded.photo_id, chosen_by=excluded.chosen_by, chosen_at=excluded.chosen_at, published_at=excluded.published_at`,
+    ).bind(target, stationId, photoId, userId, nowIso, nowIso).run();
+
+    // Purge the cache for the three keys.
+    await purgeCache(env, targets, fetcher).catch(() => {});
+
+    // Refresh bonus: replacing a main photo older than 12 months.
+    if (old && old.photo_id !== photoId && old.published_at) {
+      const age = now.getTime() - new Date(old.published_at).getTime();
+      if (age > 365 * 24 * 3600 * 1000) {
+        try {
+          const month = now.toISOString().slice(0, 7);
+          await db(env).prepare(
+            `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 2, 'refresh', ?, ?)`,
+          ).bind(userId, photoId, month, nowIso).run();
+        } catch {
+          // best-effort
+        }
+      }
+    }
+    return targets;
+  } catch (err) {
+    await pictures.delete(written).catch(() => {});
+    throw err;
+  }
+}
+
+async function purgeCache(env: PublishEnv, targets: string[], fetcher: Fetch): Promise<void> {
+  if (!env.CF_ZONE_ID || !env.CF_CACHE_PURGE_TOKEN) return;
+  const files: string[] = [];
+  for (const t of targets) {
+    files.push(`${PICTURES}/${encodeURIComponent(t)}.jpg`);
+    files.push(`${PICTURES}/${encodeURIComponent(t)}.thumb.jpg`);
+    files.push(`${PICTURES}/${encodeURIComponent(t)}.full.jpg`);
+  }
+  await fetcher(`https://api.cloudflare.com/client/v4/zones/${env.CF_ZONE_ID}/purge_cache`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${env.CF_CACHE_PURGE_TOKEN}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ files }),
+  });
 }

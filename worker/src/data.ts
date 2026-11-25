@@ -124,3 +124,55 @@ export async function nearStations(env: Env, q: NearQuery, limit: number): Promi
     .slice(0, limit);
 }
 
+
+// Top contributors by points. Period 'month' = current UTC month, 'all' = all time.
+// Users with ranking_opt_out=1 are excluded; their points still count for totals.
+export interface RankingRow {
+  name: string;
+  points: number;
+}
+
+export async function ranking(env: Env, period: 'month' | 'all'): Promise<RankingRow[]> {
+  const month = new Date().toISOString().slice(0, 7);
+  const where = period === 'month' ? 'AND p.month = ?' : '';
+  const binds = period === 'month' ? [month] : [];
+  const { results } = await env.DB.prepare(
+    `SELECT COALESCE(u.pseudonym, u.osm_name) AS name, SUM(p.points) AS points
+       FROM points p JOIN users u ON u.id = p.user_id
+      WHERE u.ranking_opt_out = 0 ${where}
+      GROUP BY u.id
+      ORDER BY points DESC, name ASC
+      LIMIT 50`,
+  ).bind(...binds).all<RankingRow>();
+  return results.map((r) => ({ name: r.name, points: Number(r.points) }));
+}
+
+// Stations that left the NAP but still have photos: candidates for a re-key.
+export interface MissingStationRow {
+  id: string;
+  name: string | null;
+  operator: string | null;
+  photo_count: number;
+  alias: string | null;
+}
+
+export async function listMissingStationsWithPhotos(env: Env): Promise<MissingStationRow[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT s.id, s.name, s.operator,
+            (SELECT COUNT(*) FROM photos p WHERE p.station_id = s.id) AS photo_count,
+            a.new_id AS alias
+       FROM stations s
+       LEFT JOIN station_aliases a ON a.old_id = s.id
+      WHERE s.status = 'missing_from_nap'
+        AND EXISTS (SELECT 1 FROM photos p WHERE p.station_id = s.id)
+      ORDER BY s.id`,
+  ).all<MissingStationRow>();
+  return results;
+}
+
+export async function getStationAlias(env: Env, oldId: string): Promise<string | null> {
+  const row = await env.DB.prepare(
+    `SELECT new_id FROM station_aliases WHERE old_id = ?`,
+  ).bind(oldId).first<{ new_id: string }>();
+  return row?.new_id ?? null;
+}

@@ -11,12 +11,12 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 | O quê | Estado |
 | --- | --- |
 | R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`, vazio |
-| R2 `pictures-staging` | Criado (WEUR), privado, vazio; ligado ao Worker como `STAGING` |
+| R2 `pictures-staging` | Criado (WEUR), privado, vazio; a ligação `STAGING` está no `main`, por publicar |
 | Cache Rule do `pictures.*` | Aplicada e testada |
-| D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0005` aplicadas |
-| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, e o login e a página de envio (desligados até haver os segredos do OSM) |
+| D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0005` aplicadas; a `0006` (`photos`) aplica-se antes do próximo deploy |
+| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, e o login e a página de envio (desligados até haver os segredos do OSM). O envio (`POST /api/v1/photos`) está no `main`, por publicar, e fica fechado até haver o `PANORAMAX_TOKEN` |
 | Início de sessão com o OSM | Feito e desligado: faltam a aplicação no OSM e os segredos (secção 4) |
-| Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos |
+| Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos. Correu à mão; o agendamento diário ainda não correu nenhuma vez |
 
 ## 2. R2
 

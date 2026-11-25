@@ -26,7 +26,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p><strong>Responsável:</strong> O Carro Elétrico / Fernando Miguel, ${mail}.</p>
 
 <h2>Ao visitar o site</h2>
-<p>O site é servido pela Cloudflare. Cada pedido fica num registo técnico com o teu endereço IP, o que a Cloudflare deduz dele (por exemplo, país, região, cidade, código postal aproximado e operador de rede), o navegador, a hora e a página pedida, incluindo o texto de uma pesquisa. Os <i>cookies</i> não ficam no registo.</p>
+<p>O site é servido pela Cloudflare. Cada pedido fica num registo técnico com o teu endereço IP, o que a Cloudflare deduz dele (por exemplo, país, região, cidade, código postal aproximado e operador de rede), o navegador, a hora e a página pedida, incluindo o texto de uma pesquisa. Os <i>cookies</i> não ficam no registo. Para travar abusos, a pesquisa e o início de sessão contam os pedidos de cada endereço IP durante um minuto, e o envio conta os de cada conta; esses contadores não são guardados.</p>
 <p>Usamos estes registos só para encontrar erros e abusos (interesse legítimo, artigo 6.º, n.º 1, alínea f) do RGPD). Apagam-se sozinhos ao fim de 7 dias, no máximo.</p>
 <p>Para ver o site não usamos <i>cookies</i>. Se escolheres um tema no seletor (claro ou escuro), o navegador guarda essa escolha no armazenamento local: fica só no teu navegador e nunca nos é enviada. As fontes, os estilos e os <i>scripts</i> vêm deste site; as fotos vêm de <code>pictures.ocarroeletrico.com</code>, que também é nosso.</p>
 
@@ -76,7 +76,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p><strong>Controller:</strong> O Carro Elétrico / Fernando Miguel, ${mail}.</p>
 
 <h2>When you visit the site</h2>
-<p>The site is served by Cloudflare. Each request is kept in a technical log with your IP address, what Cloudflare derives from it (for example, country, region, city, approximate postcode and network operator), your browser, the time and the page requested, including the text of a search. Cookies are not kept in the log.</p>
+<p>The site is served by Cloudflare. Each request is kept in a technical log with your IP address, what Cloudflare derives from it (for example, country, region, city, approximate postcode and network operator), your browser, the time and the page requested, including the text of a search. Cookies are not kept in the log. To stop abuse, search and sign-in count the requests from each IP address over one minute, and uploads count those of each account; these counters are not stored.</p>
 <p>We use these logs only to find errors and abuse (legitimate interest, GDPR Article 6(1)(f)). They are deleted automatically after 7 days at most.</p>
 <p>To browse the site we use no cookies. If you pick a theme in the picker (light or dark), your browser keeps that choice in local storage: it stays in your browser and is never sent to us. Fonts, styles and scripts come from this site; photos come from <code>pictures.ocarroeletrico.com</code>, which is also ours.</p>
 

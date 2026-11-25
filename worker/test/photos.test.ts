@@ -211,6 +211,16 @@ test('submitPhoto: refuses other sites, bad photos, unknown targets and the dail
   assert.equal(f.rows.size, 0);
 });
 
+test('submitPhoto: too many uploads in a minute from one account', async () => {
+  const f = fakes();
+  const keys: string[] = [];
+  (f.env as unknown as Record<string, unknown>).UPLOAD_LIMIT = { async limit({ key }: { key: string }) { keys.push(key); return { success: false }; } };
+  assert.deepEqual(await run(f, upload()), { status: 429, body: { error: 'too_fast' } });
+  assert.deepEqual(keys, ['u1']);
+  assert.equal(f.verified.length, 0);
+  assert.equal(f.rows.size, 0);
+});
+
 test('submitPhoto: Turnstile is checked before anything is written', async () => {
   const f = fakes();
   await run(f, upload());

@@ -43,9 +43,10 @@ ou Python com OpenSSL antigo. Se alguma app ou mapa se queixar, baixar para
 
 - **Edge TTL de 30 dias**, ignorando o `Cache-Control` do objeto. A frescura
   vem da purga que o Worker faz ao mudar a foto principal, não do TTL.
-- **4xx: 1 h; 5xx: não fica em cache.** Um posto sem foto dá `404` e esse
-  `404` fica 1 h na cache. Ao publicar a primeira foto, o Worker tem de
-  purgar o URL também, senão o link só aparece 1 h depois.
+- **4xx e 5xx: nunca ficam em cache** (4xx em *no-store*). Um posto sem
+  foto dá `404` e esse `404` não fica guardado, por isso uma primeira foto
+  aparece logo, sem purga. O custo é que cada pedido de um posto sem foto
+  chega ao R2 (uma leitura Classe B).
 - **Browser TTL: o do objeto.** O Worker grava cada objeto com
   `Cache-Control: public, max-age=86400` (`httpMetadata.cacheControl` no
   `put`). Sem isso o browser não recebe `Cache-Control` nenhum.
@@ -61,7 +62,7 @@ também quando vem da cache (HIT).
 Verificar:
 
 ```bash
-# sem foto: 404; à segunda vez, cf-cache-status: HIT
+# sem foto: 404, cf-cache-status: BYPASS (o 404 não fica em cache)
 curl -sI https://pictures.ocarroeletrico.com/NAO-EXISTE.jpg | grep -iE '^(HTTP|cf-cache-status)'
 # TLS 1.2 tem de ser recusado (000); o pedido normal, em 1.3, dá 404
 curl -s -o /dev/null -w '%{http_code}\n' --tls-max 1.2 https://pictures.ocarroeletrico.com/NAO-EXISTE.jpg
@@ -246,6 +247,24 @@ e o papel `moderator` ou `admin`. Nomear um moderador são dois passos: o
 email na regra do Access e o papel em `/admin/utilizadores`. Os emails
 vivem só na Cloudflare, nunca no repositório. O resto do site não passa
 pelo Access.
+
+**Limites de pedidos** (`src/ratelimit.ts`, `ratelimits` no `wrangler.json`).
+A zona está no plano Free, que só tem uma regra de *rate limiting* na WAF, e
+essa já é do `/mcp` do ohmigo. Por isso os limites ficam no Worker, com o
+*binding* de *rate limiting* dos Workers (grátis):
+
+| Binding | Chave | Limite | Onde |
+| --- | --- | --- | --- |
+| `UPLOAD_LIMIT` | conta | 6 por minuto | `POST /api/v1/photos`, antes de ler o corpo; `429` `too_fast` |
+| `LOGIN_LIMIT` | IP | 10 por minuto | `/auth/osm/login` e `/auth/osm/callback` |
+| `SEARCH_LIMIT` | IP | 60 por minuto | `/api/v1/stations` (texto e proximidade), `/pesquisa`, `/en/search` |
+
+Acima do limite: `429` com `Retry-After: 60` (JSON na API, uma linha em
+pt e en nas páginas). Os contadores são por localização da Cloudflare e
+aproximados: travam scripts e enxurradas, não um ataque espalhado por muitas
+localizações. O limite exato continua a ser o diário da D1 (50 envios por dia
+para contribuidores). Se o *binding* faltar ou falhar, o pedido passa. As
+páginas dos postos não têm limite, para não travar os motores de busca.
 
 **Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js` e
 `public/jpeg.js`). Tudo o que mexe na foto corre no browser. Com o envio

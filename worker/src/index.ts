@@ -7,9 +7,9 @@ import { DECIDE_ACTION, STAGING_PREFIX, decide, queueHtml, stagingImage } from '
 import { accountHtml, callback, login, logout } from './auth.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
-import { findEvse, getStation, listStations, nearStations, searchStations, type Env } from './data.ts';
+import { findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
 import {
-  evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
+  PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
 import { sitemapXml } from './sitemap.ts';
@@ -129,6 +129,31 @@ async function evseJson(env: Env, raw: string): Promise<Response> {
   // list the candidates instead of picking one at random.
   if (results.length > 1) return json({ error: 'ambiguous', candidates: results.map(evseBody) }, 300);
   return json(evseBody(results[0]));
+}
+
+// Every published main photo, for sites that copy the thumbnails with their
+// credit (the NAP dashboard reads this once a day). A few hundred rows at most
+// for a long while; the five minutes of browser cache match the other JSON.
+async function mainPhotosJson(env: Env): Promise<Response> {
+  const rows = await listMainPhotos(env);
+  return json({
+    license: 'CC-BY-SA-4.0',
+    photos: rows.map((r) => {
+      const base = `${PICTURES}/${encodeURIComponent(r.target)}`;
+      const anchor = r.target === r.station_id ? '' : socketAnchor(r.target);
+      return {
+        target: r.target,
+        station: { id: r.station_id, code: r.code },
+        credit: r.credit,
+        thumb: `${base}.thumb.jpg`,
+        main: `${base}.jpg`,
+        full: `${base}.full.jpg`,
+        page: `${SITE}${stationPath('pt', r.station_id)}${anchor}`,
+        panoramax: r.panoramax_id,
+        publishedAt: r.published_at,
+      };
+    }),
+  });
 }
 
 function stationHtml(lang: Lang) {
@@ -268,6 +293,7 @@ export default {
       const value = param(m[1]);
       return value === null ? bad() : handler(env, value);
     }
+    if (pathname === '/api/v1/main-photos') return mainPhotosJson(env);
     if (pathname === '/api/v1/stations' || pathname === '/pesquisa' || pathname === '/en/search') {
       if (!(await allowed(env.SEARCH_LIMIT, clientIp(request)))) return tooMany(pathname);
       if (pathname === '/api/v1/stations') return searchJson(env, url);

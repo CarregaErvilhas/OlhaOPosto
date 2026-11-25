@@ -153,7 +153,7 @@ O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês
 (`/tomadas/{evse}`, `/en/sockets/{evse}`), a pesquisa de postos (`/pesquisa`,
 `/en/search`, também no formulário da página inicial), a API só de leitura
 (`/api/v1/stations?q=`, `/api/v1/stations?lat=&lon=`, `/api/v1/stations/{id}`,
-`/api/v1/evses/{evse}`), a política de privacidade (`/privacidade`), o
+`/api/v1/evses/{evse}`, `/api/v1/main-photos`), a política de privacidade (`/privacidade`), o
 `sitemap.xml`, o `robots.txt` e o `llms.txt`.
 
 Tem também o início de sessão com o OpenStreetMap, a conta (`/conta`) e a
@@ -189,5 +189,7 @@ Trocar a principal ainda não existe ([`plan.md`](plan.md)).
 
 - **Sem query strings.** O R2 ignora-as, por isso cada tamanho tem a sua chave.
 - **Galerias e metadados** ficam na API: `olhaoposto.ocarroeletrico.com/api/v1/stations/{id}`.
+- **Lista das fotos principais:** `olhaoposto.ocarroeletrico.com/api/v1/main-photos`, com o autor, os três tamanhos, a página do posto e o id da foto no Panoramax. O NAP dashboard copia as miniaturas uma vez por dia e mostra-as com o crédito, como faz com as do OSM.
+- **Ligações entre os sites:** a página de cada posto aponta para o NAP dashboard (`nap.ocarroeletrico.com/?posto={código}`, só para postos que o NAP ainda publica) e, quando há foto principal, para ela no mapa do Panoramax (`/viewer?focus=map&map=19/{lat}/{lon}&pic={id}`).
 - **Sem foto:** o R2 responde `404`, para cada app decidir o que mostrar.
 - **Cache:** Edge TTL de 30 dias e `404` nunca em cache na Cache Rule, sem query strings na chave ([`cloudflare.md`](cloudflare.md), secção 3).

@@ -135,4 +135,14 @@ export function boundingBox(q: NearQuery): { minLat: number; maxLat: number; min
 
 // Published main photos of a station and its sockets, by target (station id
 // or compact EVSE code).
-export type MainPhotos = Record<string, { credit: string | null }>;
+export type MainPhotos = Record<string, { credit: string | null; panoramax_id?: string | null }>;
+
+// One published main photo, for apps that copy them (nap.ocarroeletrico.com).
+export type MainPhotoRow = {
+  target: string;
+  station_id: string;
+  code: string | null;
+  credit: string | null;
+  panoramax_id: string | null;
+  published_at: string;
+};

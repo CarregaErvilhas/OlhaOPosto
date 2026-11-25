@@ -13,8 +13,8 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 | R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`, vazio |
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio |
 | Cache Rule do `pictures.*` | Aplicada e testada |
-| D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0004` aplicadas; a `0005` (proximidade) aplica-se antes do próximo deploy |
-| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado: páginas dos postos e pesquisa em pt-PT e inglês, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema. A pesquisa por proximidade e a página de envio estão no `main` mas ainda não foram publicadas |
+| D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0005` aplicadas |
+| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, e o login e a página de envio (desligados até haver os segredos do OSM) |
 | Início de sessão com o OSM | Feito e desligado: faltam a aplicação no OSM e os segredos (secção 4) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos |
 
@@ -275,19 +275,31 @@ primeiros resultados; um código de posto completo lê 2. Um `LIKE` leria os
 cerca de 9 mil postos em cada pesquisa. Do lado das escritas, os *triggers*
 somam ao import duas linhas por posto alterado (a entrada antiga do índice
 sai, a nova entra) e uma por posto novo; um import que reescreva todos os
-postos escreve perto de 27 mil linhas só nos postos (mais as cerca de 20
-mil das tomadas), ainda dentro do limite diário.
+postos escreve perto de 36 mil linhas só nos postos (as 27 mil dos
+*triggers* e da tabela, mais uma por posto no índice `stations_lat_lon`) e
+cerca de 20 mil nas tomadas: perto de 56 mil, ainda dentro do limite diário
+de 100 mil.
 
-**Custo da pesquisa por proximidade.** O índice `(lat, lon)` percorre a faixa
-de latitude do pedido e só vai à tabela pelos postos dentro da caixa. Com os
-dados reais, no centro de Lisboa (o caso mais denso), a faixa tem cerca de
-280 entradas a 500 m e cerca de 1500 a 5 km: é essa a ordem das linhas lidas
-(por medir na D1 de produção depois da `0005`). Criar o índice escreve uma
-linha por posto; não juntar com um import que reescreva tudo.
+**Custo da pesquisa por proximidade, medido na D1 de produção.** O índice
+`(lat, lon)` percorre a faixa de latitude do pedido e só vai à tabela pelos
+postos dentro da caixa. Linhas lidas por pedido:
+
+| Ponto | Raio | Postos na caixa | Linhas lidas |
+| --- | --- | --- | --- |
+| Centro de Lisboa | 500 m | 7 | 146 |
+| Centro de Lisboa | 5 km | 670 | 1 712 |
+| Centro do Porto | 500 m | 27 | 90 |
+| Centro de Coimbra | 500 m | 3 | 16 |
+| Centro de Faro | 500 m | 8 | 21 |
+
+Lisboa é o pior caso: a faixa de latitude atravessa a cidade inteira. Do
+lado das escritas, um *upsert* de um posto com os mesmos valores escreve 4
+linhas, mais uma do que antes da `0005`, porque o import reescreve `lat` e
+`lon`.
 
 Quem chamar com a localização de uma pessoa deve arredondar as coordenadas
 a 3 casas decimais (cerca de 100 m) antes do pedido: os registos do Worker
-guardam o URL completo. A página de envio vai fazer isso.
+guardam o URL completo. A página de envio já o faz.
 
 ## 5. Importação dos postos
 

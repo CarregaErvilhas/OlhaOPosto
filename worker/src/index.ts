@@ -6,6 +6,7 @@ import { ROLE_ACTION, setRole, usersHtml } from './admin.ts';
 import { DECIDE_ACTION, STAGING_PREFIX, decide, queueHtml, stagingImage } from './moderation.ts';
 import { accountHtml, callback, login, logout } from './auth.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
+import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
 import { findEvse, getStation, listStations, nearStations, searchStations, type Env } from './data.ts';
 import {
   evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
@@ -47,6 +48,20 @@ const UPLOAD_HEADERS = {
     .replace("default-src 'none';", "default-src 'none'; connect-src 'self'; frame-src https://challenges.cloudflare.com;")
     .replace("script-src 'self'", "script-src 'self' https://challenges.cloudflare.com"),
 };
+
+// 429 from the request limits (src/ratelimit.ts): JSON for the API, a short
+// bilingual line for pages (the page may be the OSM callback, with no language).
+function tooMany(pathname: string): Response {
+  const headers = { 'cache-control': 'no-store', 'retry-after': RETRY_AFTER };
+  if (pathname.startsWith('/api/')) {
+    return new Response(JSON.stringify({ error: 'rate_limited' }), {
+      status: 429, headers: { ...headers, 'content-type': 'application/json; charset=utf-8' },
+    });
+  }
+  return new Response('Demasiados pedidos: tenta outra vez daqui a um minuto.\nToo many requests: try again in a minute.\n', {
+    status: 429, headers: { ...headers, 'content-type': 'text/plain; charset=utf-8' },
+  });
+}
 
 function json(body: unknown, status = 200, cache = 'public, max-age=300'): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...JSON_HEADERS, 'cache-control': cache } });
@@ -236,7 +251,7 @@ const ROUTES: [RegExp, Handler, () => Response][] = [
 ];
 
 export default {
-  async fetch(request: Request, env: Env & PhotoEnv, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env & PhotoEnv & RateEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
     // The POSTs: everything else on this site only reads.
@@ -253,9 +268,11 @@ export default {
       const value = param(m[1]);
       return value === null ? bad() : handler(env, value);
     }
-    if (pathname === '/api/v1/stations') return searchJson(env, url);
-    if (pathname === '/pesquisa') return searchHtml('pt', env, url);
-    if (pathname === '/en/search') return searchHtml('en', env, url);
+    if (pathname === '/api/v1/stations' || pathname === '/pesquisa' || pathname === '/en/search') {
+      if (!(await allowed(env.SEARCH_LIMIT, clientIp(request)))) return tooMany(pathname);
+      if (pathname === '/api/v1/stations') return searchJson(env, url);
+      return searchHtml(pathname === '/pesquisa' ? 'pt' : 'en', env, url);
+    }
     if (pathname === '/') return html('pt', homePage('pt'));
     if (pathname === '/en/') return html('en', homePage('en'));
     if (pathname === '/en') return new Response(null, { status: 301, headers: { location: '/en/' } });
@@ -270,8 +287,11 @@ export default {
     if (pathname === '/en/admin/users') return usersHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
     if (pathname === '/en/upload') return uploadHtml('en', request, env, UPLOAD_HEADERS);
-    if (pathname === '/auth/osm/login') return login(request, env, HTML_HEADERS);
-    if (pathname === '/auth/osm/callback') return callback(request, env, ctx, HTML_HEADERS);
+    if (pathname === '/auth/osm/login' || pathname === '/auth/osm/callback') {
+      if (!(await allowed(env.LOGIN_LIMIT, clientIp(request)))) return tooMany(pathname);
+      if (pathname === '/auth/osm/login') return login(request, env, HTML_HEADERS);
+      return callback(request, env, ctx, HTML_HEADERS);
+    }
     if (pathname === '/sitemap.xml') return sitemap(request, env, ctx);
     if (pathname.startsWith('/api/')) return notFound();
     const lang: Lang = pathname.startsWith('/en/') ? 'en' : 'pt';

@@ -16,6 +16,7 @@ import { currentUser, loginEnabled, page, sameOrigin, type AuthEnv, type Db, typ
 import type { Lang } from './pages.ts';
 import { distanceM, STATION_ID } from './types.ts';
 import { TURNSTILE_ACTION, uploadPage } from './upload.ts';
+import { allowed, type RateEnv } from './ratelimit.ts';
 
 // The slice of R2 used here, so the tests typecheck under Node.
 export interface Bucket {
@@ -23,7 +24,7 @@ export interface Bucket {
   delete(keys: string | string[]): Promise<void>;
 }
 
-export interface PhotoEnv extends AuthEnv {
+export interface PhotoEnv extends AuthEnv, RateEnv {
   STAGING?: Bucket;
   PANORAMAX_TOKEN?: string;
   PANORAMAX_URL?: string;
@@ -216,6 +217,8 @@ export async function submitPhoto(
   if (!sameOrigin(request)) return reply(403, { error: 'cross_site' });
   const user = await currentUser(request, env).catch(() => null);
   if (!user) return reply(401, { error: 'sign_in_required' });
+  // Before the body is read: a burst of uploads from one account is a script.
+  if (!(await allowed(env.UPLOAD_LIMIT, user.id))) return reply(429, { error: 'too_fast' });
   const length = Number(request.headers.get('content-length') ?? 0);
   if (length > MAX_BODY) return reply(413, { error: 'too_large' });
 

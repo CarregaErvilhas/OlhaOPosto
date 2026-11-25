@@ -190,4 +190,4 @@ Trocar a principal ainda não existe ([`plan.md`](plan.md)).
 - **Sem query strings.** O R2 ignora-as, por isso cada tamanho tem a sua chave.
 - **Galerias e metadados** ficam na API: `olhaoposto.ocarroeletrico.com/api/v1/stations/{id}`.
 - **Sem foto:** o R2 responde `404`, para cada app decidir o que mostrar.
-- **Cache:** Edge TTL de 30 dias e `404` de 1 h na Cache Rule, sem query strings na chave ([`cloudflare.md`](cloudflare.md), secção 3).
+- **Cache:** Edge TTL de 30 dias e `404` nunca em cache na Cache Rule, sem query strings na chave ([`cloudflare.md`](cloudflare.md), secção 3).

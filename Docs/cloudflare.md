@@ -222,6 +222,22 @@ Se o Panoramax falhar, nada muda. `approved_by` e `approved_at` guardam
 quem decidiu e quando, nos dois casos, e só se escreve se a foto ainda
 estiver `pending`.
 
+**Turnstile** (`src/photos.ts`, `src/upload.ts`, `public/upload.js`). Um
+widget no modo *managed*, só para `olhaoposto.ocarroeletrico.com`. Com o
+envio aberto, a página carrega o script do Turnstile e põe o widget no passo
+de envio (aparece só se o Turnstile precisar de uma interação); o
+`upload.js` manda o token no campo `turnstile` e faz *reset* ao widget
+depois de cada tentativa, porque cada token só serve uma vez e dura 300 s.
+O Worker confirma o token no `siteverify` antes de ler a foto ou escrever
+alguma coisa, com o IP de quem envia, e exige `hostname`
+`olhaoposto.ocarroeletrico.com` e `action` `upload`; senão responde `403`
+`turnstile`. A *site key* também é um segredo do Worker
+(`TURNSTILE_SITEKEY`), para o ID não ficar no repositório; sem os dois
+segredos, o envio fica fechado. A CSP só da página de envio abre
+`script-src` e `frame-src` a `https://challenges.cloudflare.com`. Em local,
+as chaves de teste da Cloudflare (*site key* `1x00000000000000000000AA`)
+geram um token falso, que o `siteverify` real não aceita.
+
 **Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js` e
 `public/jpeg.js`). Tudo o que mexe na foto corre no browser. Com o envio
 fechado, a página para no passo 5 e oferece o download para testar; aberto,
@@ -279,11 +295,13 @@ confirmar o tempo real no primeiro envio em produção; se passar, a saída é o
 Workers Paid (5 $/mês, já no orçamento do `plan.md`).
 
 **Abrir o envio** (só o Fernando). Fica fechado enquanto faltar o login, o
-segredo `PANORAMAX_TOKEN` ou a ligação `STAGING`. Antes de pôr o token:
+segredo `PANORAMAX_TOKEN`, os segredos do Turnstile ou a ligação `STAGING`. Antes de pôr o token:
 
 1. ~~Haver moderação~~: feita (*Fila de moderação*).
-2. Turnstile no formulário (`plan.md`, *Autenticação*), que obriga a abrir a
-   CSP da página a `challenges.cloudflare.com`.
+2. ~~Turnstile~~: feito (*Turnstile*, abaixo). Faltam os dois segredos:
+   `npm run remote -- secret put TURNSTILE_SITEKEY` (a *site key* do widget
+   "olh'o'posto upload") e `npm run remote -- secret put TURNSTILE_SECRET`
+   (a *secret key*, no painel: Turnstile → o widget → Settings).
 3. Confirmar a secção *Envio de fotos* da política de privacidade.
 4. Emitir o token da conta `OlhaOPosto` ([`infra.md`](infra.md), secção 4) e
    `npm run remote -- secret put PANORAMAX_TOKEN`.

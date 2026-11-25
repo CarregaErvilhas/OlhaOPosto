@@ -315,7 +315,7 @@ há dois containers, e um envio recebido num pode ser processado pelo
   **tal como foi enviado, com o EXIF todo**. Os tamanhos ficam em
   `data/derivatives/…/<uuid>/` e são só `sd.jpg` e `thumb.jpg`: o `hd.jpg`
   da API é o próprio original. Por isso o Worker tem de tirar o EXIF e
-  reduzir para 2048 px **antes** de enviar (`plan.md`, *Fluxo de upload*, passo 8).
+  reduzir para 2048 px **antes** de enviar (`plan.md`, *Fluxo de upload*).
 - Uma foto de 4,4 MB deu `sd` de 400 kB e `thumb` de 29 kB.
 - Apagar um upload set pela API apaga também os ficheiros no R2, em
   segundo plano, pelo *worker* (o bucket ficou vazio em menos de um minuto).

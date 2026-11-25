@@ -1,5 +1,5 @@
 // The moderation queue: moderators and admins see the pending photos and
-// approve or reject them (Docs/plan.md, *Fluxo de upload*, step 8).
+// approve or reject them (Docs/plan.md, *Fluxo de upload*, step 7).
 //
 // Approve: the photo's upload set becomes public on Panoramax (the picture's
 // own visibility is not enough, the stricter of set and picture wins), then

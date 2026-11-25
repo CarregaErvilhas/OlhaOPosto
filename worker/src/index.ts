@@ -37,13 +37,15 @@ const HTML_HEADERS = {
   'strict-transport-security': 'max-age=31536000',
 };
 
-// The upload page also asks our API for stations (connect-src) and shows the
-// prepared photo from a blob: URL. Only that page gets these.
+// The upload page also asks our API for stations (connect-src), shows the
+// prepared photo from a blob: URL and loads Turnstile (its script and its
+// iframe). Only that page gets these.
 const UPLOAD_HEADERS = {
   ...HTML_HEADERS,
   'content-security-policy': HTML_HEADERS['content-security-policy']
     .replace("img-src 'self'", "img-src 'self' blob:")
-    .replace("default-src 'none';", "default-src 'none'; connect-src 'self';"),
+    .replace("default-src 'none';", "default-src 'none'; connect-src 'self'; frame-src https://challenges.cloudflare.com;")
+    .replace("script-src 'self'", "script-src 'self' https://challenges.cloudflare.com"),
 };
 
 function json(body: unknown, status = 200, cache = 'public, max-age=300'): Response {

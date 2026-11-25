@@ -55,7 +55,7 @@ test('stations gone from the NAP say so', () => {
 });
 
 test('a repeated EVSE code lists every station', () => {
-  const m = { station_id: 'A-1', name: null, opc: null, operator: null, point_id: '1', evse_id: 'PT*X*E1', evse_compact: 'PTXE1', connector: null, max_kw: null, dc: 0, status: 'active', updated_at: '' };
+  const m = { station_id: 'A-1', name: null, opc: null, operator: null, point_id: '1', evse_id: 'PT*X*E1', evse_compact: 'PTXE1', connector: null, max_kw: null, dc: 0, status: 'active', updated_at: '', lat: 0, lon: 0, socket_photo: 0, socket_credit: null, socket_pano: null, station_photo: 0, station_credit: null, station_pano: null };
   const page = evseChoicePage('pt', 'PTXE1', [m, { ...m, station_id: 'B-1' }]);
   assert.ok(page.includes('href="/postos/A-1#t-PTXE1"') && page.includes('href="/postos/B-1#t-PTXE1"'));
 });
@@ -91,7 +91,7 @@ test('English page: English UI, NAP text marked as Portuguese', () => {
 });
 
 test('pages that should not be indexed have no canonical', () => {
-  const m = { station_id: 'A-1', name: null, opc: null, operator: null, point_id: '1', evse_id: 'PT*X*E1', evse_compact: 'PTXE1', connector: null, max_kw: null, dc: 0, status: 'active', updated_at: '' };
+  const m = { station_id: 'A-1', name: null, opc: null, operator: null, point_id: '1', evse_id: 'PT*X*E1', evse_compact: 'PTXE1', connector: null, max_kw: null, dc: 0, status: 'active', updated_at: '', lat: 0, lon: 0, socket_photo: 0, socket_credit: null, socket_pano: null, station_photo: 0, station_credit: null, station_pano: null };
   const choice = evseChoicePage('en', 'PTXE1', [m, m]);
   assert.ok(choice.includes('<meta name="robots" content="noindex">') && !choice.includes('rel="canonical"'));
   assert.ok(choice.includes('href="/en/stations/A-1#t-PTXE1"'));

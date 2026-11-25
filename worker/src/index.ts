@@ -15,6 +15,8 @@ import {
   PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, rankingPage, rankingPath, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
+import { photoLink } from './photolinks.ts';
+import { TAKEDOWN_DECIDE, decideTakedown, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
 import {
   compactCode, ftsQuery, MAX_QUERY, NEAR_MAX_M, parseNear, STATION_ID, type EvseMatch, type SearchRow,
@@ -93,7 +95,13 @@ async function stationJson(env: Env, id: string): Promise<Response> {
   if (alias) return new Response(null, { status: 301, headers: { location: `/api/v1/stations/${encodeURIComponent(alias)}`, 'cache-control': 'no-store' } });
   const found = await getStation(env, id);
   if (!found) return notFound();
-  const { station: s, points } = found;
+  const { station: s, points, mains } = found;
+  const photo = (target: string | null) => {
+    const m = target ? mains[target] : undefined;
+    return m && target
+      ? photoLink({ target, stationId: s.id, credit: m.credit, panoramaxId: m.panoramax_id, lat: s.lat, lon: s.lon })
+      : null;
+  };
   return json({
     id: s.id,
     code: s.code,
@@ -106,6 +114,7 @@ async function stationJson(env: Env, id: string): Promise<Response> {
     lon: s.lon,
     status: s.status,
     osm: s.osm_ref,
+    photo: photo(s.id),
     points: points.map((p) => ({
       id: p.point_id,
       evse: p.evse_id,
@@ -114,18 +123,26 @@ async function stationJson(env: Env, id: string): Promise<Response> {
       kw: p.max_kw,
       dc: p.dc === 1,
       status: p.status,
+      photo: photo(p.evse_compact),
     })),
     updatedAt: s.updated_at,
   });
 }
 
-const evseBody = (e: EvseMatch) => ({
-  evse: e.evse_id,
-  compact: e.evse_compact,
-  station: { id: e.station_id, name: e.name, operator: { id: e.opc, name: e.operator } },
-  point: { id: e.point_id, connector: e.connector, kw: e.max_kw, dc: e.dc === 1, status: e.status },
-  updatedAt: e.updated_at,
-});
+const evseBody = (e: EvseMatch) => {
+  const at = { stationId: e.station_id, lat: e.lat, lon: e.lon };
+  return {
+    evse: e.evse_id,
+    compact: e.evse_compact,
+    station: {
+      id: e.station_id, name: e.name, operator: { id: e.opc, name: e.operator },
+      photo: e.station_photo ? photoLink({ ...at, target: e.station_id, credit: e.station_credit, panoramaxId: e.station_pano }) : null,
+    },
+    point: { id: e.point_id, connector: e.connector, kw: e.max_kw, dc: e.dc === 1, status: e.status },
+    photo: e.socket_photo ? photoLink({ ...at, target: e.evse_compact, credit: e.socket_credit, panoramaxId: e.socket_pano }) : null,
+    updatedAt: e.updated_at,
+  };
+};
 
 async function evseJson(env: Env, raw: string): Promise<Response> {
   const results = await findEvse(env, raw);
@@ -323,7 +340,7 @@ async function setSelection(request: Request, env: Env & PhotoEnv, ctx: Executio
 }
 
 export default {
-  async fetch(request: Request, env: Env & PhotoEnv & RateEnv, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env & TakedownEnv & RateEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
     // The POSTs: everything else on this site only reads.
@@ -332,6 +349,8 @@ export default {
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
     if (request.method === 'POST' && pathname === '/api/v1/photos') return submitPhoto(request, env, ctx);
+    if (request.method === 'POST' && pathname === '/takedown') return submitTakedown(request, env);
+    if (request.method === 'POST' && pathname === TAKEDOWN_DECIDE) return decideTakedown(request, env);
     if (request.method === 'PUT') {
       const m = pathname.match(/^\/api\/v1\/selections\/([^/]+)$/);
       if (m) {
@@ -370,6 +389,11 @@ export default {
     if (pathname === '/en/admin/users') return usersHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/admin/postos-fora-do-nap' || pathname === '/admin/aliases' || pathname === '/admin/rekeys' || pathname === '/admin/rekey') return aliasesHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/stations-missing' || pathname === '/en/admin/aliases' || pathname === '/en/admin/rekeys' || pathname === '/en/admin/rekey') return aliasesHtml('en', request, env, HTML_HEADERS);
+    // The takedown form loads Turnstile, like the upload page.
+    if (pathname === '/takedown') return takedownHtml('pt', request, env, UPLOAD_HEADERS);
+    if (pathname === '/en/takedown') return takedownHtml('en', request, env, UPLOAD_HEADERS);
+    if (pathname === '/admin/remocoes') return takedownsHtml('pt', request, env, HTML_HEADERS);
+    if (pathname === '/en/admin/takedowns') return takedownsHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
     if (pathname === '/en/upload') return uploadHtml('en', request, env, UPLOAD_HEADERS);
     if (pathname === '/auth/osm/login' || pathname === '/auth/osm/callback') {
@@ -389,4 +413,4 @@ export default {
     const lang: Lang = pathname.startsWith('/en/') ? 'en' : 'pt';
     return pageNotFound(lang, messages(lang).noPage);
   },
-} satisfies ExportedHandler<Env & PhotoEnv>;
+} satisfies ExportedHandler<Env & TakedownEnv>;

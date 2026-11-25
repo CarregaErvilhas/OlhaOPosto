@@ -65,6 +65,7 @@ const T = {
     emptySend: 'Envia a primeira',
     hasPhoto: 'Com foto',
     photoBy: 'Foto:',
+    askRemoval: 'Pedir remoção',
     photoAlt: (id: string) => `Foto principal do posto ${id}`,
     hint: 'A foto principal é escolhida pela comunidade. O link estático continua o mesmo quando ela muda.',
     linksTitle: 'Links estáticos',
@@ -143,6 +144,8 @@ const T = {
     logout: 'Terminar sessão',
     uploadLink: 'Enviar fotos',
     manageUsers: 'Gerir utilizadores e papéis',
+    takedowns: 'Pedidos de remoção',
+    missingStations: 'Postos fora do NAP',
     moderationQueue: 'Fila de moderação',
     loginErrors: {
       denied: 'O início de sessão foi cancelado no OpenStreetMap.',
@@ -170,6 +173,7 @@ const T = {
     emptySend: 'Send the first one',
     hasPhoto: 'Has a photo',
     photoBy: 'Photo:',
+    askRemoval: 'Ask for removal',
     photoAlt: (id: string) => `Main photo of station ${id}`,
     hint: 'The community picks the main photo. The static link stays the same when it changes.',
     linksTitle: 'Static links',
@@ -248,6 +252,8 @@ const T = {
     logout: 'Sign out',
     uploadLink: 'Upload photos',
     manageUsers: 'Manage users and roles',
+    takedowns: 'Removal requests',
+    missingStations: 'Stations missing from the NAP',
     moderationQueue: 'Moderation queue',
     loginErrors: {
       denied: 'Signing in was cancelled on OpenStreetMap.',
@@ -467,7 +473,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
     ${main
       ? `<figure class="main-photo">
       <a href="${PICTURES}/${encodeURIComponent(s.id)}.full.jpg"><img src="${PICTURES}/${encodeURIComponent(s.id)}.jpg" alt="${esc(t.photoAlt(s.id))}"></a>
-      <figcaption>${t.photoBy} <span lang="">${esc(main.credit ?? BRAND)}</span> · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">CC BY-SA 4.0</a></figcaption>
+      <figcaption>${t.photoBy} <span lang="">${esc(main.credit ?? BRAND)}</span> · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">CC BY-SA 4.0</a> · <a href="${lang === 'pt' ? '/takedown' : '/en/takedown'}?alvo=${encodeURIComponent(s.id)}" rel="nofollow">${t.askRemoval}</a></figcaption>
     </figure>`
       : `<div class="empty-photo">
       ${ICON_CAMERA}
@@ -590,6 +596,8 @@ export function accountPage(
         ? [
           `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/fila' : '/en/admin/queue'}">${t.moderationQueue}</a></p>`,
           `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/utilizadores' : '/en/admin/users'}">${t.manageUsers}</a></p>`,
+          `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/remocoes' : '/en/admin/takedowns'}">${t.takedowns}</a></p>`,
+          `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/postos-fora-do-nap' : '/en/admin/stations-missing'}">${t.missingStations}</a></p>`,
         ]
         : []),
       `<form method="post" action="/auth/logout?next=${encodeURIComponent(here)}">` +

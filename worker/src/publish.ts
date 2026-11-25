@@ -177,25 +177,17 @@ export async function chooseMain(
   env: PublishEnv, target: string, photoId: string, userId: string,
   fetcher: Fetch = fetch, now = new Date(),
 ): Promise<string[]> {
-  if (!env.PICTURES || !env.STAGING) return [];
-  // Resolve the station for this target.
-  let stationId: string;
-  let evseCompact: string | null;
-  if (STATION_ID.test(target)) {
-    stationId = target;
-    evseCompact = null;
-  } else {
-    const row = await db(env).prepare(
-      `SELECT station_id FROM evses WHERE evse_compact = ? LIMIT 1`,
-    ).bind(target).first<{ station_id: string }>();
-    if (!row) return [];
-    stationId = row.station_id;
-    evseCompact = target;
-  }
+  if (!env.PICTURES || !env.STAGING || !STATION_ID.test(target)) return [];
   const p = await db(env).prepare(
     `SELECT id, station_id, evse_compact, credit, panoramax_id FROM photos WHERE id = ? AND status = 'published'`,
   ).bind(photoId).first<Approved>();
-  if (!p || p.station_id !== stationId || (p.evse_compact ?? null) !== evseCompact) return [];
+  // The target comes from the photo, not from its shape: a compact EVSE code
+  // (PTEZCEAMD000511) also passes STATION_ID. A station takes only a photo of
+  // the station in general; a socket, only a photo of that socket.
+  if (!p) return [];
+  const stationId = p.station_id;
+  const ok = p.evse_compact ? target === p.evse_compact : target === p.station_id;
+  if (!ok) return [];
 
   const old = await db(env).prepare(
     `SELECT photo_id, published_at FROM selections WHERE target = ?`,
@@ -265,17 +257,28 @@ export async function chooseMain(
   }
 }
 
+// The three public URLs of a target on pictures.*.
+export const pictureUrls = (target: string) =>
+  SIZES.map((size) => `${PICTURES}/${encodeURIComponent(target)}${size.suffix}.jpg`);
+
 async function purgeCache(env: PublishEnv, targets: string[], fetcher: Fetch): Promise<void> {
-  if (!env.CF_ZONE_ID || !env.CF_CACHE_PURGE_TOKEN) return;
-  const files: string[] = [];
-  for (const t of targets) {
-    files.push(`${PICTURES}/${encodeURIComponent(t)}.jpg`);
-    files.push(`${PICTURES}/${encodeURIComponent(t)}.thumb.jpg`);
-    files.push(`${PICTURES}/${encodeURIComponent(t)}.full.jpg`);
+  await purgeUrls(env, targets.flatMap(pictureUrls), fetcher);
+}
+
+// Purges URLs from the zone's edge cache. False when the secrets are missing
+// or Cloudflare says no: the caller decides whether that matters (a takedown
+// records it, since the Cache Rule keeps a 200 for 30 days).
+export async function purgeUrls(env: PublishEnv, files: string[], fetcher: Fetch): Promise<boolean> {
+  if (!env.CF_ZONE_ID || !env.CF_CACHE_PURGE_TOKEN) return false;
+  if (files.length === 0) return true;
+  try {
+    const r = await fetcher(`https://api.cloudflare.com/client/v4/zones/${env.CF_ZONE_ID}/purge_cache`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${env.CF_CACHE_PURGE_TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ files }),
+    });
+    return r.ok;
+  } catch {
+    return false;
   }
-  await fetcher(`https://api.cloudflare.com/client/v4/zones/${env.CF_ZONE_ID}/purge_cache`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${env.CF_CACHE_PURGE_TOKEN}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ files }),
-  });
 }

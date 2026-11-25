@@ -145,6 +145,7 @@ link de tomada.
 | `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados |
 | `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica |
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP: o link antigo responde `301` para o novo |
+| `takedowns` | `id` (UUID), `asked` (o que a pessoa escreveu), `photo_id` (FK, nulo se não correspondeu a nada), `reason`, `details`, `contact`, `status` (`open`, `removed`, `restored`, `closed`), `cleared`, `hide_failed`, `created_at`, `decided_by`, `decided_at` | Pedidos de remoção do `/takedown`. O contacto apaga-se na decisão |
 | `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação: +1 approved, +3 first_photo, +2 refresh |
 
 ## Site e API

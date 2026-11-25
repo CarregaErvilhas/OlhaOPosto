@@ -60,9 +60,19 @@ export async function findEvse(env: Env, raw: string): Promise<EvseMatch[]> {
   const code = compactCode(raw);
   if (!code) return [];
   const { results } = await env.DB.prepare(
-    `SELECT e.station_id, s.name, s.opc, s.operator, e.point_id, e.evse_id, e.evse_compact,
-            e.connector, e.max_kw, e.dc, e.status, e.updated_at
+    // The main photos of the socket and of its station ride along. The photo
+    // status sits in the ON clause: in WHERE it would drop every socket
+    // without a photo. A socket target is matched with its station too,
+    // because the NAP can repeat a code across stations.
+    `SELECT e.station_id, s.name, s.opc, s.operator, s.lat, s.lon, e.point_id, e.evse_id, e.evse_compact,
+            e.connector, e.max_kw, e.dc, e.status, e.updated_at,
+            ps.id IS NOT NULL AS socket_photo, ps.credit AS socket_credit, ps.panoramax_id AS socket_pano,
+            pt.id IS NOT NULL AS station_photo, pt.credit AS station_credit, pt.panoramax_id AS station_pano
        FROM evses e JOIN stations s ON s.id = e.station_id
+       LEFT JOIN selections ss ON ss.target = e.evse_compact AND ss.station_id = e.station_id AND ss.published_at IS NOT NULL
+       LEFT JOIN photos ps ON ps.id = ss.photo_id AND ps.status = 'published'
+       LEFT JOIN selections st ON st.target = e.station_id AND st.published_at IS NOT NULL
+       LEFT JOIN photos pt ON pt.id = st.photo_id AND pt.status = 'published'
       WHERE e.evse_compact = ? AND s.status IN ('active', 'missing_from_nap')
       ORDER BY e.station_id, e.point_id`,
   ).bind(code).all<EvseMatch>();

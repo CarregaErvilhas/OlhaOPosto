@@ -331,6 +331,19 @@ label[for="photo"], .station-search label { font-weight: 600; }
 .check input { flex: none; width: 1.25rem; height: 1.25rem; margin: 2px 0 0; }
 .upload button[type="submit"] { margin-top: 8px; width: 100%; }
 .upload button:disabled { opacity: 0.6; cursor: progress; }
+
+/* The public removal form (/takedown). */
+.takedown { max-width: 40rem; accent-color: var(--accent); }
+.takedown > p { color: inherit; font-size: inherit; }
+.takedown fieldset { border: 0; margin: 12px 0; padding: 0; min-width: 0; }
+.takedown legend { padding: 0; margin-bottom: 4px; }
+.takedown input:not([type="radio"]), .takedown textarea {
+  box-sizing: border-box; width: 100%; min-height: 48px; margin-top: 6px; padding: 10px 14px; font: inherit; font-size: max(1rem, 1em);
+  color: var(--text); background: var(--surface); border: 1px solid var(--control); border-radius: 10px;
+}
+.takedown textarea { resize: vertical; }
+.takedown .hint { margin-top: -8px; }
+.takedown button[type="submit"] { width: 100%; }
 .result-photo { margin-top: 16px; }
 .result-photo img { display: block; max-width: 100%; height: auto; border-radius: 8px; }
 .result-photo .plain-list { margin-top: 8px; font-size: 0.875rem; }

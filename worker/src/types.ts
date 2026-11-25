@@ -40,6 +40,16 @@ export interface EvseMatch {
   dc: number;
   status: string;
   updated_at: string;
+  // The station's position, for the Panoramax viewer link.
+  lat: number;
+  lon: number;
+  // Main photos of the socket and of its station (0/1 from SQLite).
+  socket_photo: number;
+  socket_credit: string | null;
+  socket_pano: string | null;
+  station_photo: number;
+  station_credit: string | null;
+  station_pano: string | null;
 }
 
 // Station ids seen in the NAP: letters, digits, dashes and underscores

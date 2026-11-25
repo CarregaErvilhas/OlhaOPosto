@@ -372,3 +372,9 @@ table.users th { font-weight: 600; color: var(--muted); font-size: 0.875rem; }
 .queue-actions form { margin: 0; }
 @media (max-width: 560px) { .queue-item { grid-template-columns: minmax(0, 1fr); } }
 .muted { color: var(--muted); }
+
+/* Station main photo */
+.main-photo { margin: 0; }
+.main-photo img { display: block; width: 100%; height: auto; border-radius: 12px; background: var(--empty); }
+.main-photo figcaption { margin-top: 8px; font-size: 0.875rem; color: var(--muted); }
+img.thumb { object-fit: cover; height: 48px; border-style: solid; }

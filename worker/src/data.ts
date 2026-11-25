@@ -3,17 +3,18 @@
 import {
   boundingBox, compactCode, distanceM, ftsQuery, isPublic, STATION_ID,
   type EvseMatch, type NearQuery, type PointRow, type SearchRow, type StationRow,
+  type MainPhotos,
 } from './types.ts';
 
 export interface Env {
   DB: D1Database;
 }
 
-export async function getStation(env: Env, id: string): Promise<{ station: StationRow; points: PointRow[] } | null> {
+export async function getStation(env: Env, id: string): Promise<{ station: StationRow; points: PointRow[]; mains: MainPhotos } | null> {
   if (!STATION_ID.test(id)) return null;
   // One round trip for both queries: the D1 primary is in the EU jurisdiction
   // (Eastern Europe), so every extra query is another trip from the edge.
-  const [station, points] = await env.DB.batch([
+  const [station, points, mains] = await env.DB.batch([
     env.DB.prepare(
       `SELECT id, code, opc, operator, name, address, municipality, region, lat, lon,
               status, osm_ref, updated_at
@@ -23,10 +24,17 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
       `SELECT point_id, evse_id, evse_compact, connector, max_kw, dc, status
          FROM evses WHERE station_id = ? ORDER BY point_id`,
     ).bind(id),
+    env.DB.prepare(
+      `SELECT sel.target, p.credit
+         FROM selections sel JOIN photos p ON p.id = sel.photo_id
+        WHERE sel.station_id = ? AND sel.published_at IS NOT NULL AND p.status = 'published'`,
+    ).bind(id),
   ]);
   const s = (station.results as StationRow[])[0];
   if (!s || !isPublic(s)) return null;
-  return { station: s, points: points.results as PointRow[] };
+  const byTarget: MainPhotos = {};
+  for (const m of mains.results as { target: string; credit: string | null }[]) byTarget[m.target] = { credit: m.credit };
+  return { station: s, points: points.results as PointRow[], mains: byTarget };
 }
 
 // Every public socket with this code. Usually one; the NAP does not promise it.

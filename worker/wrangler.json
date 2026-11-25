@@ -29,6 +29,10 @@
     {
       "binding": "STAGING",
       "bucket_name": "pictures-staging"
+    },
+    {
+      "binding": "PICTURES",
+      "bucket_name": "pictures"
     }
   ]
 }

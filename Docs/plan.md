@@ -18,7 +18,7 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
 2. **O site para pessoas.** Falta:
    - envio de fotos: a página `/enviar` e o `POST /api/v1/photos` estão feitos, com moderação e Turnstile, e fechados até haver os segredos do Turnstile e o token do Panoramax ([`cloudflare.md`](cloudflare.md), *Abrir o envio*); o que falta está no *Fluxo de upload*;
    - publicação direta para contas `trusted` (passo 6 do *Fluxo de upload*); a fila de moderação já existe;
-   - foto principal e publicação em `pictures.*`;
+   - trocar a foto principal (escolha de um moderador ou `trusted`, com purga da cache);
    - aliases de postos;
    - ranking e medalhas;
    - fotos na API;
@@ -42,12 +42,11 @@ OlhaOPosto|author=joao_osm
 
 ## Modelo de dados (D1)
 
-As imagens vivem no Panoramax (originais e tamanhos) e, para as fotos principais, no bucket `pictures`. A D1 guarda metadados, a ligação a postos e tomadas e as escolhas. As tabelas `stations`, `evses`, `users`, `sessions` e `photos` já existem ([`arquitetura.md`](arquitetura.md), *Postos e tomadas*). Faltam:
+As imagens vivem no Panoramax (originais e tamanhos) e, para as fotos principais, no bucket `pictures`. A D1 guarda metadados, a ligação a postos e tomadas e as escolhas. As tabelas `stations`, `evses`, `users`, `sessions`, `photos` e `selections` já existem ([`arquitetura.md`](arquitetura.md), *Postos e tomadas*). Faltam:
 
 | Tabela | Colunas principais | Notas |
 | --- | --- | --- |
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP, só à mão; o link antigo responde `301` |
-| `selections` | `target` (PK: `id` do posto ou EVSE compacto), `photo_id`, `chosen_by`, `chosen_at`, `published_at` | Qual foto o link estático serve; ver *Publicação dos links estáticos* |
 | `review_queue` | `id`, `kind` (`new_station`, `photo`, `takedown`), `payload` (JSON), `submitted_by`, `status`, `decided_by`, `decided_at`, `note` | Fila única para tudo o que precisa de um humano |
 | `points` | `user_id`, `photo_id`, `points`, `reason` (`approved`, `first_photo`, `refresh`), `month` | Ver *Gamificação* |
 | `osm_edits` | `osm_element`, `key`, `value`, `photo_id`, `changeset`, `written_at` | O que o bot escreveu no OSM, para só alterar valores dele |
@@ -75,7 +74,7 @@ A página `/enviar` faz a parte do browser (abre um JPEG, lê o EXIF, sugere o p
     - Conta `trusted` (promovida à mão), posto `active` e dentro de 300 m → aprovada logo.
     - Conta `contributor` → sempre `pending`, à espera de um moderador. Todas as contas novas começam aqui.
     - Sem GPS, a mais de 300 m ou com posto novo → `pending` mesmo para `trusted`. Estes sinais também ordenam a fila e aparecem como avisos.
-7. **Ao aprovar.** A fila (`/admin/fila`) já passa o upload set a `anyone` no Panoramax e marca a foto `published` ([`cloudflare.md`](cloudflare.md), secção 4, *Fila de moderação*). Falta atribuir os pontos e, se o alvo não tinha principal, publicá-la em `pictures` (ver *Publicação dos links estáticos*); até lá, as cópias de 1024 e 400 px ficam no `pictures-staging`.
+7. **Ao aprovar.** A fila (`/admin/fila`) já passa o upload set a `anyone` no Panoramax e marca a foto `published` ([`cloudflare.md`](cloudflare.md), secção 4, *Fila de moderação*). Se o alvo não tinha principal, já a publica em `pictures` ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta atribuir os pontos.
 
 **O que se faz com a localização do EXIF**
 
@@ -87,10 +86,11 @@ A página `/enviar` faz a parte do browser (abre um JPEG, lê o EXIF, sugere o p
 
 ## Publicação dos links estáticos
 
-O formato dos URLs, o bucket e a cache já existem ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta a publicação: a resolução código → foto acontece **na escrita, não no pedido**. Quando a foto principal muda, o Worker copia-a para a chave pública no bucket `pictures` e faz *purge* desse URL na cache.
+A primeira foto aprovada de cada alvo já é publicada ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta:
 
-- **Cache:** cada objeto gravado com `Cache-Control: public, max-age=86400`; *purge* ao mudar a principal (também na primeira foto, por causa do `404` em cache). No pior caso, um browser mostra a foto antiga durante 24 h.
-- **Atribuição:** o R2 não devolve cabeçalhos próprios, por isso o autor e a licença vão no **XMP/IPTC** da cópia pública (sem GPS), escritos pelo Worker ao publicar. O Panoramax mostra sempre a conta de serviço (`OlhaOPosto`) como produtor (ponto 5 do ensaio), por isso o crédito do autor é este. O crédito completo fica em `olhaoposto.ocarroeletrico.com/p/{photo_id}`, que a CC BY-SA exige.
+- **Trocar a principal:** um moderador ou uma conta `trusted` escolhe outra foto aprovada; o Worker copia-a por cima das três chaves e faz *purge* desses URLs (a Cache Rule guarda um `200` 30 dias; precisa de um token de API com *Cache Purge* como segredo do Worker). No pior caso, um browser mostra a foto antiga durante 24 h.
+- **Tirar a principal** quando a foto é removida (pedido de remoção): apagar as três chaves, *purge*, e passar a seguinte aprovada a principal, se houver.
+- **Página de crédito** `olhaoposto.ocarroeletrico.com/p/{photo_id}`, com o autor, a data e a licença. Hoje o XMP aponta para a página do posto.
 - **Re-keys:** o `301` do código antigo é uma regra de redirect da Cloudflare gerada a partir de `station_aliases`.
 - **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
 

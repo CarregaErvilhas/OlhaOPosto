@@ -42,7 +42,7 @@ Responsável (RGPD): O Carro Elétrico. Passar para uma associação fica como s
 | Host | O que serve hoje | Como |
 | --- | --- | --- |
 | `olhaoposto.ocarroeletrico.com` | Páginas dos postos e pesquisa (pt-PT e inglês), API `/api/v1` só de leitura, política de privacidade, conta e página de envio (desligadas até ao login OSM), `sitemap.xml`, `robots.txt`, `llms.txt` | Worker `olhaoposto` + D1 ([`cloudflare.md`](cloudflare.md), secção 4) |
-| `pictures.ocarroeletrico.com` | Links estáticos (`/<id>.jpg` e tamanhos); por agora todos dão `404` | Custom domain do bucket R2 `pictures`, servido pela CDN **sem Worker** ([`cloudflare.md`](cloudflare.md), secção 3) |
+| `pictures.ocarroeletrico.com` | Links estáticos (`/<id>.jpg` e tamanhos): a foto principal de cada posto e tomada, ou `404` | Custom domain do bucket R2 `pictures`, servido pela CDN **sem Worker** ([`cloudflare.md`](cloudflare.md), secção 3) |
 | `panoramax.ocarroeletrico.com` | Servidor Panoramax (API, visualizador, imagens), fora da federação | Zerops, com o bucket R2 `panoramax` como armazenamento ([`infra.md`](infra.md)) |
 
 O `pictures.*` não tem Worker à frente de propósito: um Worker corre antes da
@@ -57,7 +57,7 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
               |
    Worker olhaoposto (olhaoposto.*)        R2 "pictures" (pictures.*)
    páginas, API só de leitura,             links estáticos pela CDN
-   login OSM e envio (fechados),           (vazio até haver fotos)
+   login OSM, envio, moderação             (fotos principais)
    sitemap
               |
    D1 "pictures": stations, evses,         R2 "pictures-staging"
@@ -167,8 +167,18 @@ acessibilidade e cache em [`cloudflare.md`](cloudflare.md), secção 4.
 
 ## Links estáticos
 
-O URL é o ID e nunca muda. O bucket, o domínio e a cache já existem; as
-fotos ainda não (a publicação está em [`plan.md`](plan.md)).
+O URL é o ID e nunca muda. A resolução código → foto acontece **na escrita,
+não no pedido**: quando um moderador aprova uma foto e o alvo (a tomada, ou
+o posto para uma foto do posto em geral) ainda não tem principal, o Worker
+(`src/publish.ts`) regista-a na tabela `selections` e copia três tamanhos
+para o bucket `pictures`. Uma foto de uma tomada também passa a principal do
+posto, se o posto não tiver nenhuma. As cópias de 1024 e 400 px vêm do
+`pictures-staging`; a de 2048 px vem do Panoramax, sem o EXIF que o
+Panoramax lhe escreve. Cada cópia leva um XMP com o autor, a licença
+CC BY-SA 4.0 e o link da página do posto (o R2 não manda cabeçalhos
+próprios), sem GPS, e `Cache-Control: public, max-age=86400`. A página do
+posto mostra a foto principal com o crédito, e as miniaturas das tomadas.
+Trocar a principal ainda não existe ([`plan.md`](plan.md)).
 
 | URL (`pictures.ocarroeletrico.com`) | Devolve |
 | --- | --- |

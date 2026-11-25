@@ -120,7 +120,7 @@ function stationHtml(lang: Lang) {
   return async (env: Env, id: string): Promise<Response> => {
     const found = await getStation(env, id);
     if (!found) return pageNotFound(lang, messages(lang).noStation(id));
-    return html(lang, stationPage(lang, found.station, found.points));
+    return html(lang, stationPage(lang, found.station, found.points, found.mains));
   };
 }
 

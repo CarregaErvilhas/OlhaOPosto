@@ -60,3 +60,12 @@ test('uploadPage: with uploads open the button sends and the page says so', () =
   assert.equal(msg.canSend, true);
   assert.equal(typeof msg.errors.daily_limit, 'string');
 });
+
+test('uploadPage: the Turnstile widget only while sending is open', () => {
+  const user = { name: 'Ana', role: 'contributor' };
+  const open = uploadPage('pt', { user, enabled: true, sending: true, sitekey: 'k"x' });
+  assert.ok(open.includes('class="cf-turnstile" data-sitekey="k&quot;x" data-action="upload" data-language="pt-pt"'));
+  assert.ok(open.includes('https://challenges.cloudflare.com/turnstile/v0/api.js'));
+  const closed = uploadPage('en', { user, enabled: true, sending: false, sitekey: 'k' });
+  assert.ok(!closed.includes('cf-turnstile') && !closed.includes('challenges.cloudflare.com'));
+});

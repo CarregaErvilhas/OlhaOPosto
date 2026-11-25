@@ -77,6 +77,7 @@ const T = {
       sent: 'Enviada. Fica à espera da moderação antes de aparecer.',
       errors: {
         uploads_closed: 'O envio está fechado neste momento.',
+        turnstile: 'A verificação de segurança falhou ou ainda não terminou. Espera uns segundos e volta a enviar.',
         sign_in_required: 'A sessão terminou. Inicia sessão outra vez e volta a enviar.',
         daily_limit: 'Chegaste ao limite de envios de hoje. Tenta amanhã.',
         duplicate: 'Esta foto já foi enviada.',
@@ -154,6 +155,7 @@ const T = {
       sent: 'Sent. It waits for moderation before it appears.',
       errors: {
         uploads_closed: 'Uploads are closed right now.',
+        turnstile: 'The security check failed or has not finished yet. Wait a few seconds and send again.',
         sign_in_required: 'Your session ended. Sign in again and send it again.',
         daily_limit: 'You have reached today’s upload limit. Try tomorrow.',
         duplicate: 'This photo has already been sent.',
@@ -170,13 +172,18 @@ export interface UploadView {
   enabled: boolean;
   // Uploads open: the form sends. Otherwise it only prepares.
   sending?: boolean;
+  // Turnstile site key, only while sending is open.
+  sitekey?: string;
 }
+
+// Must match what the Worker expects back from siteverify (src/photos.ts).
+export const TURNSTILE_ACTION = 'upload';
 
 // JSON inside <script type="application/json">: a "</script>" in a string
 // must not close the element.
 const scriptJson = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-function form(lang: Lang, sending: boolean): string {
+function form(lang: Lang, sending: boolean, sitekey?: string): string {
   const t = T[lang];
   return `${sending ? `<p class="hint">${t.moderated}</p>` : `<p class="notice">${t.building}</p>`}
 <noscript><p class="notice">${t.noScript}</p></noscript>
@@ -235,6 +242,8 @@ function form(lang: Lang, sending: boolean): string {
   </ul>
   <p class="check"><input type="checkbox" id="ok-privacy" name="ok_privacy" required> <label for="ok-privacy">${t.okPrivacy}</label></p>
   <p class="check"><input type="checkbox" id="ok-license" name="ok_license" required> <label for="ok-license">${t.okLicense}</label></p>
+  ${sending && sitekey ? `<div class="cf-turnstile" data-sitekey="${esc(sitekey)}" data-action="${TURNSTILE_ACTION}" data-language="${lang === 'pt' ? 'pt-pt' : 'en'}" data-size="flexible" data-appearance="interaction-only"></div>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>` : ''}
   <button type="submit" class="button">${sending ? t.send : t.prepare}</button>
   <p id="send-status" class="status" role="status"></p>
   <div id="result" class="result-photo" hidden></div>
@@ -259,7 +268,7 @@ export function uploadPage(lang: Lang, p: UploadView): string {
     // The OSM name is the person's own text, in whatever language they chose.
     parts.push(
       `<p class="hint">${t.signedIn} <strong lang="">${esc(p.user.name)}</strong> · <a href="${accountPath(lang)}">${t.account}</a></p>`,
-      form(lang, Boolean(p.sending)),
+      form(lang, Boolean(p.sending), p.sitekey),
     );
     module = '/upload.js';
   }

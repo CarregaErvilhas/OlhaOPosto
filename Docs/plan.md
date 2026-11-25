@@ -16,8 +16,8 @@ passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
    - medir o custo mensal no Zerops (ponto 6 do ensaio, [`infra.md`](infra.md), secção 9);
    - começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Falta:
-   - envio de fotos: a página `/enviar` e o `POST /api/v1/photos` estão feitos e fechados até haver moderação, Turnstile e o token do Panoramax ([`cloudflare.md`](cloudflare.md), *Abrir o envio*); o que falta está no *Fluxo de upload*;
-   - publicação direta para contas `trusted` (passo 7 do *Fluxo de upload*); a fila de moderação já existe;
+   - envio de fotos: a página `/enviar` e o `POST /api/v1/photos` estão feitos, com moderação e Turnstile, e fechados até haver os segredos do Turnstile e o token do Panoramax ([`cloudflare.md`](cloudflare.md), *Abrir o envio*); o que falta está no *Fluxo de upload*;
+   - publicação direta para contas `trusted` (passo 6 do *Fluxo de upload*); a fila de moderação já existe;
    - foto principal e publicação em `pictures.*`;
    - aliases de postos;
    - ranking e medalhas;
@@ -71,12 +71,11 @@ A página `/enviar` faz a parte do browser (abre um JPEG, lê o EXIF, sugere o p
 3. **Mapa** para escolher o posto quando a foto não tem GPS; hoje só há a pesquisa por texto.
 4. **Posto não existe?** Formulário "novo posto": nome, operador, coordenadas (pré-preenchidas pelo GPS) e código se for conhecido. Cria `stations.status=pending_review` e uma entrada em `review_queue`.
 5. **Deteção automática** de caras e matrículas, que pré-desenha as zonas (ver *Desfocagem*).
-6. **Turnstile** no formulário e verificado no Worker, antes de abrir o envio.
-7. **Publicar ou rever.** Hoje todas as fotos ficam `pending`.
+6. **Publicar ou rever.** Hoje todas as fotos ficam `pending`.
     - Conta `trusted` (promovida à mão), posto `active` e dentro de 300 m → aprovada logo.
     - Conta `contributor` → sempre `pending`, à espera de um moderador. Todas as contas novas começam aqui.
     - Sem GPS, a mais de 300 m ou com posto novo → `pending` mesmo para `trusted`. Estes sinais também ordenam a fila e aparecem como avisos.
-8. **Ao aprovar.** A fila (`/admin/fila`) já passa o upload set a `anyone` no Panoramax e marca a foto `published` ([`cloudflare.md`](cloudflare.md), secção 4, *Fila de moderação*). Falta atribuir os pontos e, se o alvo não tinha principal, publicá-la em `pictures` (ver *Publicação dos links estáticos*); até lá, as cópias de 1024 e 400 px ficam no `pictures-staging`.
+7. **Ao aprovar.** A fila (`/admin/fila`) já passa o upload set a `anyone` no Panoramax e marca a foto `published` ([`cloudflare.md`](cloudflare.md), secção 4, *Fila de moderação*). Falta atribuir os pontos e, se o alvo não tinha principal, publicá-la em `pictures` (ver *Publicação dos links estáticos*); até lá, as cópias de 1024 e 400 px ficam no `pictures-staging`.
 
 **O que se faz com a localização do EXIF**
 
@@ -187,8 +186,8 @@ O início de sessão já está feito e desligado: como funciona e como se liga e
 
 1. Ligá-lo: aplicação registada no OSM e segredos `OSM_CLIENT_ID`/`OSM_CLIENT_SECRET` no Worker.
 2. O token da conta de serviço do Panoramax como segredo do Worker, quando o envio abrir.
-3. Cloudflare Turnstile no formulário de envio. O limite diário e a verificação de origem já existem.
-4. Painéis `/admin` (a fila de revisão e os papéis já existem; faltam remoções e postos fora do NAP) atrás de Cloudflare Access, além do papel `moderator` na D1: duas camadas para a parte sensível.
+3. ~~Turnstile~~: feito; faltam só os segredos ([`cloudflare.md`](cloudflare.md), *Abrir o envio*).
+4. Painéis `/admin` em falta: remoções e postos fora do NAP. A fila de revisão e os papéis já existem, atrás do Cloudflare Access e do papel na D1 ([`cloudflare.md`](cloudflare.md), secção 4).
 
 **Papéis**
 

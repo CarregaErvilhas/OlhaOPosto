@@ -5,6 +5,7 @@ Docs/infra.md, secção «Mapa: fotos de uma só foto».
 """
 
 import json
+import re
 from pathlib import Path
 
 import geovisio
@@ -111,7 +112,9 @@ def test_viewer_page(patched_app):
         "O /viewer não é o nosso template (panoramax/templates/viewer.html): o map_override.py não "
         f"substituiu a rota. Mais em {DOC}."
     )
-    assert f"@panoramax/web-viewer@{version}/build/index.js" in html and "@~" not in html, (
+    sources = re.findall(r'<script[^>]+src="([^"]+)"', html)
+    viewer_sources = [src for src in sources if "@panoramax/web-viewer@" in src]
+    assert len(viewer_sources) == 1 and f"@panoramax/web-viewer@{version}/" in viewer_sources[0] and "@~" not in html, (
         f"O /viewer não carrega o visualizador na versão fixada ({version}, de panoramax/viewer/package.json)."
     )
     assert "max-age=0" in resp.headers.get("Cache-Control", ""), (

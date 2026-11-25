@@ -208,7 +208,8 @@ isto falha antes do merge. Sem base de dados, verifica:
   fixada;
 - que o `viewer.html` do geovisio não mudou desde a nossa cópia;
 - num Chromium, com o visualizador do CDN: uma foto de teste
-  (`tests/fixtures/picture.mvt`) aparece em píxeis laranja ao zoom 10.
+  (`tests/fixtures/picture.mvt`) aparece como ponto visível ao zoom 10
+  (laranja na v4, roxo na v5).
 
 **Quando falha:** a mensagem diz o que deixou de bater e o que fazer.
 

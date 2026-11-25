@@ -36,7 +36,7 @@ Responsável (RGPD): O Carro Elétrico. Passar para uma associação fica como s
 
 - **Marca:** "olh'o'posto" (lê-se "Olha o posto"). Só apresentação: logótipo, títulos e `display_name` da app OAuth do OSM. Leitores de ecrã: "Olha o posto" (`aria-label` dos SVG e texto escondido no cabeçalho). No código, `BRAND` e `BRAND_SPOKEN` em `worker/src/pages.ts`. Ficheiros e cores em `Design/marca/`.
 - **Repositório:** `CarregaErvilhas/OlhaOPosto`.
-- **Slug técnica:** `olhaoposto` (ASCII, minúsculas), usada no subdomínio, nome do servidor MCP, User-Agent, conta de serviço do Panoramax, etiquetas `olhaoposto|…` e Worker. Os apóstrofos nunca entram num identificador técnico.
+- **Slug técnica:** `OlhaOPosto` onde as maiúsculas se mantêm e alguém o lê (conta de serviço e produtor no Panoramax, etiquetas `OlhaOPosto|…`, User-Agent, nome do servidor MCP, título dos *upload sets*), para não se ler "Olhão". `olhaoposto` em minúsculas só onde tem de ser ou onde as maiúsculas se perdem: subdomínio e URLs, nome do Worker, pacote npm, `photos.origin`. Os apóstrofos nunca entram num identificador técnico.
 - **Nomes que ficam `pictures`:** o bucket R2 `pictures` (e `pictures.ocarroeletrico.com`, o host dos links estáticos), o `pictures-staging` e a D1 `pictures`. São internos ou já estão em links, e mudar a D1 obriga a criar outra base.
 
 | Host | O que serve hoje | Como |
@@ -69,11 +69,11 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
    Panoramax (panoramax.*, Zerops)
      PostgreSQL+PostGIS, worker de imagens
      R2 "panoramax" (originais e tamanhos)
-     conta de serviço "olhaoposto", sem OAuth
+     conta de serviço "OlhaOPosto", sem OAuth
 ```
 
 O Worker fala com o Panoramax só no envio, com a conta de serviço
-`olhaoposto`: cria um *upload set* escondido por foto. Enquanto o segredo
+`OlhaOPosto`: cria um *upload set* escondido por foto. Enquanto o segredo
 `PANORAMAX_TOKEN` não existir, não fala de todo ([`cloudflare.md`](cloudflare.md),
 *Abrir o envio*).
 
@@ -95,7 +95,7 @@ se a OSM Portugal e a equipa do Panoramax concordarem, e pode crescer para
 isso mais tarde.
 
 **Sem logins no Panoramax.** O olh'o'posto envia tudo com uma única conta de
-serviço (`olhaoposto`, que não é admin); o registo no Panoramax está fechado,
+serviço (`OlhaOPosto`, que não é admin); o registo no Panoramax está fechado,
 como no servidor do MapComplete. Os contribuidores só entram no olh'o'posto,
 com OSM. Isto garante que só entram fotos de postos e que a moderação é a do
 olh'o'posto. O visualizador, as páginas das fotos e a API de leitura do

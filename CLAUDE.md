@@ -19,11 +19,11 @@ Estado: fase 1 quase feita. O servidor Panoramax está em produção em `panoram
 
 ## Stack
 
-- Servidor Panoramax próprio (só postos), no Zerops (Python 3.14 em Ubuntu, PostgreSQL 18 gerido), com armazenamento no R2: guarda as fotos. Sem logins nem OAuth; o olh'o'posto envia com a conta de serviço `olhaoposto`, que não é admin. Em produção.
+- Servidor Panoramax próprio (só postos), no Zerops (Python 3.14 em Ubuntu, PostgreSQL 18 gerido), com armazenamento no R2: guarda as fotos. Sem logins nem OAuth; o olh'o'posto envia com a conta de serviço `OlhaOPosto`, que não é admin. Em produção.
 - Cloudflare Worker (`olhaoposto.ocarroeletrico.com`) + D1: postos, pesquisa, login OSM, envio e API; mais tarde seleções, moderação, ranking e MCP.
 - R2 `pictures` em `pictures.ocarroeletrico.com`, sem Worker: links estáticos.
 - Cron diário lê o `ohmigo_chargers.json` do NAP dashboard.
-- Marca "olh'o'posto" (lê-se "Olha o posto") só na apresentação; slug técnica `olhaoposto`. Ficam `pictures` só o R2 (`pictures`, `pictures-staging`) e a D1.
+- Marca "olh'o'posto" (lê-se "Olha o posto") só na apresentação; slug técnica `OlhaOPosto` onde as maiúsculas se veem (Panoramax, etiquetas, User-Agent, MCP) e `olhaoposto` onde têm de ser minúsculas (domínio, Worker, npm, `photos.origin`); detalhe em `Docs/arquitetura.md`. Ficam `pictures` só o R2 (`pictures`, `pictures-staging`) e a D1.
 
 ## Princípios (não negociar sem falar com o Fernando)
 

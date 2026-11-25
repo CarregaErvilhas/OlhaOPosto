@@ -41,7 +41,7 @@ const target: Target = values.remote ? 'remote' : 'local';
 
 async function loadFeed(src: string): Promise<unknown> {
   if (!/^https?:\/\//.test(src)) return JSON.parse(readFileSync(src, 'utf8'));
-  const res = await fetch(src, { headers: { 'user-agent': 'olhaoposto-import' } });
+  const res = await fetch(src, { headers: { 'user-agent': 'OlhaOPosto-import' } });
   if (!res.ok) throw new Error(`feed: HTTP ${res.status} from ${src}`);
   return res.json();
 }

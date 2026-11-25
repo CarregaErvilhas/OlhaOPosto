@@ -7,7 +7,8 @@
 import { MAX_QUERY, type EvseMatch, type PointRow, type SearchRow, type StationRow } from './types.ts';
 
 // The brand as written. The apostrophes keep it out of every technical name
-// (the slug is olhaoposto) and screen readers get the spelled-out name.
+// (olhaoposto, or OlhaOPosto where case shows, so it is not read as Olhão),
+// and screen readers get the spelled-out name.
 export const BRAND = "olh'o'posto";
 export const BRAND_SPOKEN = 'Olha o posto';
 export const SITE = 'https://olhaoposto.ocarroeletrico.com';

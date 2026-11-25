@@ -235,7 +235,7 @@ browser:
    as versões de 1024 e 400 px em `pictures-staging` (`{id}/main.jpg`,
    `{id}/thumb.jpg`) e manda a de 2048 ao Panoramax: um *upload set*
    `owner-only` só com esta foto, com as coordenadas do posto, a data da foto
-   e as etiquetas `osm|ref:EU:EVSE`, `olhaoposto|site` e `olhaoposto|author`.
+   e as etiquetas `osm|ref:EU:EVSE`, `OlhaOPosto|site` e `OlhaOPosto|author`.
    No fim, a linha passa a `pending` com os IDs do Panoramax, e a conta fica
    com `license_accepted_at`.
 5. Se alguma coisa falhar, apaga o que já tinha guardado (R2 e *upload set*)
@@ -254,7 +254,7 @@ segredo `PANORAMAX_TOKEN` ou a ligação `STAGING`. Antes de pôr o token:
 2. Turnstile no formulário (`plan.md`, *Autenticação*), que obriga a abrir a
    CSP da página a `challenges.cloudflare.com`.
 3. Confirmar a secção *Envio de fotos* da política de privacidade.
-4. Emitir o token da conta `olhaoposto` ([`infra.md`](infra.md), secção 4) e
+4. Emitir o token da conta `OlhaOPosto` ([`infra.md`](infra.md), secção 4) e
    `npm run remote -- secret put PANORAMAX_TOKEN`.
 5. Enviar uma foto real e confirmar no Panoramax, no `pictures-staging` e na
    D1, e o tempo de CPU nos registos do Worker.

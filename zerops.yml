@@ -101,13 +101,13 @@ zerops:
           "en": "Photos of EV charging stations in Portugal, uploaded through olh'o'posto"},
           "geo_coverage": {"pt": "Portugal\nSó postos de carregamento, enviados pelo olh'o'posto.",
           "en": "Portugal\nCharging stations only, uploaded through olh'o'posto."},
-          "email": "olhaoposto@ocarroeletrico.com",
+          "email": "OlhaOPosto@ocarroeletrico.com",
           "color": "#2C4A6B"}
         API_WEBSITE_URL: "false"
         API_PICTURES_LICENSE_SPDX_ID: CC-BY-SA-4.0
         API_PICTURES_LICENSE_URL: https://creativecommons.org/licenses/by-sa/4.0/
         # --- Contas e envio: sem OAuth. O olh'o'posto envia com a conta
-        # `olhaoposto` (papel `user`), criada por panoramax/service_account.py. ---
+        # `OlhaOPosto` (papel `user`), criada por panoramax/service_account.py. ---
         API_REGISTRATION_IS_OPEN: "false"
         API_FORCE_AUTH_ON_UPLOAD: "true"
         # Fica gravado na BD no primeiro arranque; mudar aqui depois não tem

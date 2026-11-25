@@ -35,8 +35,8 @@ Cada foto enviada leva etiquetas `chave=valor` ([sintaxe](https://docs.panoramax
 
 ```
 osm|ref:EU:EVSE=PT*TRK*E*VNT*00005*01
-olhaoposto|site=TRK-VNT-00005
-olhaoposto|author=joao_osm
+OlhaOPosto|site=TRK-VNT-00005
+OlhaOPosto|author=joao_osm
 ```
 
 **Federação.** Abre-se um pedido no repositório do catálogo federado e os operadores acrescentam o servidor ao *harvester* ([como](https://docs.panoramax.fr/how-to-contribute/hosting-instance/)). Só depois da conversa com a OSM Portugal e com a equipa do Panoramax; até lá o servidor fica privado.
@@ -92,7 +92,7 @@ A página `/enviar` faz a parte do browser (abre um JPEG, lê o EXIF, sugere o p
 O formato dos URLs, o bucket e a cache já existem ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta a publicação: a resolução código → foto acontece **na escrita, não no pedido**. Quando a foto principal muda, o Worker copia-a para a chave pública no bucket `pictures` e faz *purge* desse URL na cache.
 
 - **Cache:** cada objeto gravado com `Cache-Control: public, max-age=86400`; *purge* ao mudar a principal (também na primeira foto, por causa do `404` em cache). No pior caso, um browser mostra a foto antiga durante 24 h.
-- **Atribuição:** o R2 não devolve cabeçalhos próprios, por isso o autor e a licença vão no **XMP/IPTC** da cópia pública (sem GPS), escritos pelo Worker ao publicar. O Panoramax mostra sempre a conta de serviço (`olhaoposto`) como produtor (ponto 5 do ensaio), por isso o crédito do autor é este. O crédito completo fica em `olhaoposto.ocarroeletrico.com/p/{photo_id}`, que a CC BY-SA exige.
+- **Atribuição:** o R2 não devolve cabeçalhos próprios, por isso o autor e a licença vão no **XMP/IPTC** da cópia pública (sem GPS), escritos pelo Worker ao publicar. O Panoramax mostra sempre a conta de serviço (`OlhaOPosto`) como produtor (ponto 5 do ensaio), por isso o crédito do autor é este. O crédito completo fica em `olhaoposto.ocarroeletrico.com/p/{photo_id}`, que a CC BY-SA exige.
 - **Re-keys:** o `301` do código antigo é uma regra de redirect da Cloudflare gerada a partir de `station_aliases`.
 - **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
 
@@ -123,7 +123,7 @@ Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto 
 
 - **Etiqueta:** só `panoramax=<uuid>`, que aponta para a foto no nosso servidor Panoramax (as imagens vêm do bucket R2 `panoramax`). O `osm_tags.photo_refs()` do NAP dashboard já a lê. Os links de `pictures.*` são para apps e mapas fora do OSM.
 - **Que fotos:** só a principal de cada elemento. Promover outra foto torna-a a principal.
-- **Bot** (`olhaoposto_bot`, fase 3), segundo o [código de conduta das edições automáticas](https://wiki.openstreetmap.org/wiki/Automated_Edits_code_of_conduct):
+- **Bot** (`OlhaOPosto_bot`, fase 3), segundo o [código de conduta das edições automáticas](https://wiki.openstreetmap.org/wiki/Automated_Edits_code_of_conduct):
   - conta dedicada, um *changeset* por dia, com etiquetas que o descrevem;
   - só em elementos já ligados por `ref` ou `ref:EU:EVSE`; a foto de uma tomada vai para o ponto `man_made=charge_point`, se existir;
   - só acrescenta; substitui apenas valores que ele próprio escreveu (registados em `osm_edits`). Se o elemento já tem outro `panoramax=`, a nova vai para a chave numerada seguinte (confirmar a convenção que o MapComplete usa);
@@ -160,7 +160,7 @@ Já existem `GET /stations?q=` (pesquisa por texto), `GET /stations?lat=&lon=&ra
 
 ### Servidor MCP (`/mcp`)
 
-Servidor MCP remoto no mesmo Worker, com o transporte *Streamable HTTP*. A Cloudflare dá o `McpAgent` (Agents SDK) e o `workers-oauth-provider` para o OAuth que os clientes MCP esperam ([guia](https://developers.cloudflare.com/agents/guides/build-mcp-server)). O OAuth do MCP reutiliza o login OSM: o utilizador autoriza o agente uma vez e o token herda o papel da conta. Nome do servidor: `olhaoposto`.
+Servidor MCP remoto no mesmo Worker, com o transporte *Streamable HTTP*. A Cloudflare dá o `McpAgent` (Agents SDK) e o `workers-oauth-provider` para o OAuth que os clientes MCP esperam ([guia](https://developers.cloudflare.com/agents/guides/build-mcp-server)). O OAuth do MCP reutiliza o login OSM: o utilizador autoriza o agente uma vez e o token herda o papel da conta. Nome do servidor: `OlhaOPosto`.
 
 | Ferramenta | Faz | Auth |
 | --- | --- | --- |

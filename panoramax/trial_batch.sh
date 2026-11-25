@@ -11,7 +11,7 @@ set -euo pipefail
 
 [ $# -gt 0 ] || { echo "usage: trial_batch.sh photo.jpg..." >&2; exit 1; }
 base=${PANORAMAX_URL:-http://pano.zerops:5000}
-: "${PANORAMAX_TOKEN:?set PANORAMAX_TOKEN to the olhaoposto account JWT}"
+: "${PANORAMAX_TOKEN:?set PANORAMAX_TOKEN to the OlhaOPosto account JWT}"
 
 api() {
   curl -sS --fail-with-body -H @- "$@" <<<"Authorization: Bearer $PANORAMAX_TOKEN"

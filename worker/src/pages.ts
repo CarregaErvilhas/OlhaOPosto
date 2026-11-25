@@ -134,6 +134,7 @@ const T = {
     logout: 'Terminar sessão',
     uploadLink: 'Enviar fotos',
     manageUsers: 'Gerir utilizadores e papéis',
+    moderationQueue: 'Fila de moderação',
     loginErrors: {
       denied: 'O início de sessão foi cancelado no OpenStreetMap.',
       expired: 'O pedido expirou ou foi aberto noutro separador. Tenta outra vez.',
@@ -232,6 +233,7 @@ const T = {
     logout: 'Sign out',
     uploadLink: 'Upload photos',
     manageUsers: 'Manage users and roles',
+    moderationQueue: 'Moderation queue',
     loginErrors: {
       denied: 'Signing in was cancelled on OpenStreetMap.',
       expired: 'The request expired or was opened in another tab. Try again.',
@@ -546,7 +548,10 @@ export function accountPage(
       `<p>${t.roleLabel} ${esc(t.roles[p.user.role] ?? p.user.role)}</p>`,
       `<p><a class="button" href="${uploadPath(lang)}">${t.uploadLink}</a></p>`,
       ...(p.user.role === 'moderator' || p.user.role === 'admin'
-        ? [`<p><a href="${lang === 'pt' ? '/admin/utilizadores' : '/en/admin/users'}">${t.manageUsers}</a></p>`]
+        ? [
+          `<p><a href="${lang === 'pt' ? '/admin/fila' : '/en/admin/queue'}">${t.moderationQueue}</a></p>`,
+          `<p><a href="${lang === 'pt' ? '/admin/utilizadores' : '/en/admin/users'}">${t.manageUsers}</a></p>`,
+        ]
         : []),
       `<form method="post" action="/auth/logout?next=${encodeURIComponent(here)}">` +
         `<button type="submit" class="button">${t.logout}</button></form>`,

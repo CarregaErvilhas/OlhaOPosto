@@ -31,7 +31,7 @@ export interface PhotoEnv extends AuthEnv {
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
-const PANORAMAX_URL = 'https://panoramax.ocarroeletrico.com';
+export const PANORAMAX_URL = 'https://panoramax.ocarroeletrico.com';
 // Per person and UTC day. Contributors are moderated anyway; the cap keeps a
 // runaway script or a stolen session from filling the queue.
 export const DAILY_LIMIT: Record<string, number> = { contributor: 50 };

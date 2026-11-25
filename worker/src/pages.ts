@@ -549,8 +549,8 @@ export function accountPage(
       `<p><a class="button" href="${uploadPath(lang)}">${t.uploadLink}</a></p>`,
       ...(p.user.role === 'moderator' || p.user.role === 'admin'
         ? [
-          `<p><a href="${lang === 'pt' ? '/admin/fila' : '/en/admin/queue'}">${t.moderationQueue}</a></p>`,
-          `<p><a href="${lang === 'pt' ? '/admin/utilizadores' : '/en/admin/users'}">${t.manageUsers}</a></p>`,
+          `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/fila' : '/en/admin/queue'}">${t.moderationQueue}</a></p>`,
+          `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/utilizadores' : '/en/admin/users'}">${t.manageUsers}</a></p>`,
         ]
         : []),
       `<form method="post" action="/auth/logout?next=${encodeURIComponent(here)}">` +

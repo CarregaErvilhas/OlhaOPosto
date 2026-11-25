@@ -4,12 +4,15 @@
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
 import { ROLE_ACTION, setRole, usersHtml } from './admin.ts';
 import { DECIDE_ACTION, STAGING_PREFIX, decide, queueHtml, stagingImage } from './moderation.ts';
-import { accountHtml, callback, login, logout } from './auth.ts';
+import { ALIAS_ACTION, aliasPath, aliasesHtml, getStationAlias, rekey } from './aliases.ts';
+import { accountHtml, callback, currentUser, login, logout } from './auth.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
+import { chooseMain } from './publish.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
 import { findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
+import { ranking } from './ranking.ts';
 import {
-  PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, searchPage, socketAnchor, stationPage, stationPath, type Lang,
+  PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, rankingPage, rankingPath, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
 import { sitemapXml } from './sitemap.ts';
@@ -86,6 +89,8 @@ function param(raw: string): string | null {
 }
 
 async function stationJson(env: Env, id: string): Promise<Response> {
+  const alias = await getStationAlias(env, id);
+  if (alias) return new Response(null, { status: 301, headers: { location: `/api/v1/stations/${encodeURIComponent(alias)}`, 'cache-control': 'no-store' } });
   const found = await getStation(env, id);
   if (!found) return notFound();
   const { station: s, points } = found;
@@ -158,6 +163,8 @@ async function mainPhotosJson(env: Env): Promise<Response> {
 
 function stationHtml(lang: Lang) {
   return async (env: Env, id: string): Promise<Response> => {
+    const alias = await getStationAlias(env, id);
+    if (alias) return new Response(null, { status: 301, headers: { location: stationPath(lang, alias), 'cache-control': 'no-store' } });
     const found = await getStation(env, id);
     if (!found) return pageNotFound(lang, messages(lang).noStation(id));
     return html(lang, stationPage(lang, found.station, found.points, found.mains));
@@ -179,6 +186,29 @@ function evseHtml(lang: Lang) {
       },
     });
   };
+}
+
+async function rankingJson(env: Env, url: URL): Promise<Response> {
+  const periodRaw = url.searchParams.get('period') ?? 'month';
+  const period = periodRaw === 'all' ? 'all' : 'month';
+  const rows = await ranking(env, period);
+  const month = new Date().toISOString().slice(0, 7);
+  const contributors = rows.map((r, i) => ({
+    rank: i + 1,
+    name: r.name,
+    points: r.points,
+    total: r.points,
+    total_points: r.points,
+    score: r.points,
+  }));
+  return json({
+    period,
+    month: period === 'month' ? month : undefined,
+    contributors,
+    ranking: contributors,
+    results: contributors,
+    items: contributors,
+  });
 }
 
 // About 9k stations, read once a day per data centre: Workers responses are
@@ -275,6 +305,23 @@ const ROUTES: [RegExp, Handler, () => Response][] = [
   [/^\/en\/sockets\/([^/]+)$/, evseHtml('en'), () => pageNotFound('en', messages('en').badSocket)],
 ];
 
+async function setSelection(request: Request, env: Env & PhotoEnv, ctx: ExecutionContext, target: string): Promise<Response> {
+  const user = await currentUser(request, env).catch(() => null);
+  if (!user) return json({ error: 'sign_in_required' }, 401, 'no-store');
+  if (user.role !== 'trusted' && user.role !== 'moderator' && user.role !== 'admin') {
+    return json({ error: 'forbidden' }, 403, 'no-store');
+  }
+  let body: { photo?: string } = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_body' }, 400, 'no-store'); }
+  if (!body.photo) return json({ error: 'bad_photo' }, 400, 'no-store');
+  try {
+    const targets = await chooseMain(env, target, body.photo, user.id, fetch, new Date());
+    return json({ targets });
+  } catch {
+    return json({ error: 'publish_failed' }, 502, 'no-store');
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env & PhotoEnv & RateEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -283,7 +330,16 @@ export default {
     if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
     if (request.method === 'POST' && pathname === ROLE_ACTION) return setRole(request, env);
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
+    if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
     if (request.method === 'POST' && pathname === '/api/v1/photos') return submitPhoto(request, env, ctx);
+    if (request.method === 'PUT') {
+      const m = pathname.match(/^\/api\/v1\/selections\/([^/]+)$/);
+      if (m) {
+        const value = param(m[1]);
+        if (value === null) return notFound();
+        return setSelection(request, env, ctx, value);
+      }
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json({ error: 'method_not_allowed' }, 405, 'no-store');
     }
@@ -294,6 +350,7 @@ export default {
       return value === null ? bad() : handler(env, value);
     }
     if (pathname === '/api/v1/main-photos') return mainPhotosJson(env);
+    if (pathname === '/api/v1/ranking') return rankingJson(env, url);
     if (pathname === '/api/v1/stations' || pathname === '/pesquisa' || pathname === '/en/search') {
       if (!(await allowed(env.SEARCH_LIMIT, clientIp(request)))) return tooMany(pathname);
       if (pathname === '/api/v1/stations') return searchJson(env, url);
@@ -311,12 +368,21 @@ export default {
     if (pathname.startsWith(STAGING_PREFIX)) return stagingImage(request, env, pathname.slice(STAGING_PREFIX.length));
     if (pathname === '/admin/utilizadores') return usersHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/users') return usersHtml('en', request, env, HTML_HEADERS);
+    if (pathname === '/admin/postos-fora-do-nap' || pathname === '/admin/aliases' || pathname === '/admin/rekeys' || pathname === '/admin/rekey') return aliasesHtml('pt', request, env, HTML_HEADERS);
+    if (pathname === '/en/admin/stations-missing' || pathname === '/en/admin/aliases' || pathname === '/en/admin/rekeys' || pathname === '/en/admin/rekey') return aliasesHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
     if (pathname === '/en/upload') return uploadHtml('en', request, env, UPLOAD_HEADERS);
     if (pathname === '/auth/osm/login' || pathname === '/auth/osm/callback') {
       if (!(await allowed(env.LOGIN_LIMIT, clientIp(request)))) return tooMany(pathname);
       if (pathname === '/auth/osm/login') return login(request, env, HTML_HEADERS);
       return callback(request, env, ctx, HTML_HEADERS);
+    }
+    if (pathname === '/ranking' || pathname === '/en/ranking') {
+      const lang = pathname.startsWith('/en/') ? 'en' : 'pt';
+      const periodRaw = url.searchParams.get('period') ?? 'all';
+      const period = periodRaw === 'month' ? 'month' : 'all';
+      const rows = await ranking(env, period);
+      return html(lang, rankingPage(lang, period, rows));
     }
     if (pathname === '/sitemap.xml') return sitemap(request, env, ctx);
     if (pathname.startsWith('/api/')) return notFound();

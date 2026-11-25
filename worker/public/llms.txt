@@ -19,6 +19,7 @@ Read-only JSON, open CORS, no key.
 - `GET /api/v1/stations?lat={deg}&lon={deg}&radius={metres, default 500, max 5000}&limit={1-50}`: public stations near a point, nearest first, each with `distance_m`. Use either `q` or `lat`/`lon`, not both.
 - `GET /api/v1/main-photos`: every published main photo (station or socket) with its credit, the three sizes on pictures.ocarroeletrico.com, the station page and the Panoramax picture id. Licence CC BY-SA 4.0: credit the author.
 - `GET /api/v1/evses/{EVSE code}`: the socket and its station. 300 with `candidates` when the NAP lists the same code at more than one station, 404 when unknown.
+- `GET /api/v1/ranking?period=month|all`: top contributors by points (month = current month, UTC).
 
 ## Static photo links
 

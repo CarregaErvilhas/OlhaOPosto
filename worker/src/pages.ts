@@ -32,6 +32,7 @@ export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/se
 export const privacyPath = (lang: Lang) => (lang === 'pt' ? '/privacidade' : '/en/privacy');
 export const accountPath = (lang: Lang) => (lang === 'pt' ? '/conta' : '/en/account');
 export const uploadPath = (lang: Lang) => (lang === 'pt' ? '/enviar' : '/en/upload');
+export const rankingPath = (lang: Lang) => (lang === 'pt' ? '/ranking' : '/en/ranking');
 export const socketAnchor =(compact: string) => `#t-${encodeURIComponent(compact)}`;
 
 export function esc(v: unknown): string {
@@ -642,6 +643,7 @@ export function homePage(lang: Lang): string {
 ${searchForm(lang)}
 <p>${t.homeExample} <a href="${stationPath(lang, 'EZC-AMD-00051')}">${t.homeExampleLink}</a>.</p>
 <p>${t.homeApi} <code>/api/v1/stations?q=</code>, <code>/api/v1/stations/{id}</code> ${t.and} <code>/api/v1/evses/{evse}</code>.</p>
+<p><a href="${rankingPath(lang)}">${lang === 'pt' ? 'Ranking de contribuidores' : 'Contributor ranking'}</a>.</p>
 </div>`,
   });
 }
@@ -684,6 +686,37 @@ export function searchPage(lang: Lang, q: string, results: SearchRow[] | null, l
 <h1>${t.searchH1}</h1>
 ${searchForm(lang, q)}
 ${body}
+</div>`,
+  });
+}
+
+export function rankingPage(lang: Lang, period: 'month' | 'all', rows: { name: string; points: number }[]): string {
+  const t = T[lang];
+  const title = period === 'month'
+    ? (lang === 'pt' ? `Ranking do mês · ${BRAND}` : `This month's ranking · ${BRAND}`)
+    : (lang === 'pt' ? `Ranking de sempre · ${BRAND}` : `All-time ranking · ${BRAND}`);
+  const h1 = period === 'month'
+    ? (lang === 'pt' ? 'Ranking do mês' : "This month's ranking")
+    : (lang === 'pt' ? 'Ranking de sempre' : 'All-time ranking');
+  const otherPeriod = period === 'month' ? 'all' : 'month';
+  const otherLabel = period === 'month'
+    ? (lang === 'pt' ? 'Ver de sempre' : 'All-time')
+    : (lang === 'pt' ? 'Ver do mês' : 'This month');
+  const otherHref = `${rankingPath(lang)}?period=${otherPeriod}`;
+  const list = rows.length === 0
+    ? `<p>${lang === 'pt' ? 'Ainda não há pontos.' : 'No points yet.'}</p>`
+    : `<ol class="ranking" role="list">${rows.map((r) => `<li><span class="name">${esc(r.name)}</span> <span class="points">${r.points}</span></li>`).join('')}</ol>`;
+  const switchTo = { pt: `${rankingPath('pt')}?period=${period}`, en: `${rankingPath('en')}?period=${period}` };
+  return layout({
+    lang,
+    title,
+    description: lang === 'pt' ? 'Top de contribuidores do olh\'o\'posto.' : 'Top contributors of olh\'o\'posto.',
+    path: `${rankingPath(lang)}?period=${period}`,
+    alternates: switchTo,
+    body: `<div class="page-msg">
+<h1>${h1}</h1>
+<p><a href="${otherHref}">${otherLabel}</a></p>
+${list}
 </div>`,
   });
 }

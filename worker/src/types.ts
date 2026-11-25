@@ -58,6 +58,9 @@ export function compactCode(raw: string): string | null {
 // Proposals and rejected stations are not public.
 export const isPublic = (s: { status: string }) => s.status === 'active' || s.status === 'missing_from_nap';
 
+// Beyond this, a photo is considered far from its station (Docs/plan.md).
+export const FAR_M = 300;
+
 export interface SearchRow {
   id: string;
   name: string | null;

@@ -100,8 +100,8 @@ function fakes(opts: { count?: number; panoramax?: number; role?: string; socket
       async run() {
         if (sql.startsWith('INSERT INTO photos')) {
           rows.set(args[0] as string, { station_id: args[1], evse_compact: args[2], distance_m: args[7], credit: args[8], status: 'uploading' });
-        } else if (sql.includes(`SET status = 'pending'`)) {
-          Object.assign(rows.get(args[2] as string)!, { status: 'pending', panoramax_set: args[0], panoramax_id: args[1] });
+        } else if (sql.includes(`SET status = ?`)) {
+          Object.assign(rows.get(args[5] as string)!, { status: args[0], panoramax_set: args[1], panoramax_id: args[2] });
         } else if (sql.includes(`SET status = 'failed'`)) {
           rows.get(args[0] as string)!.status = 'failed';
         } else if (sql.includes('license_accepted_at')) {

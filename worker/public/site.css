@@ -362,3 +362,13 @@ table.users th { font-weight: 600; color: var(--muted); font-size: 0.875rem; }
   font: inherit; color: var(--text); background: var(--surface); min-height: 44px; padding: 6px 8px;
   border: 1px solid var(--control); border-radius: 8px;
 }
+
+/* Admin: moderation queue */
+.queue-item { display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr); gap: 16px 24px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+.queue-item img { width: 100%; height: auto; border-radius: 8px; display: block; background: var(--line); }
+.queue-item p { margin: 0 0 6px; }
+.queue-item .notice { margin: 8px 0; }
+.queue-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.queue-actions form { margin: 0; }
+@media (max-width: 560px) { .queue-item { grid-template-columns: minmax(0, 1fr); } }
+.muted { color: var(--muted); }

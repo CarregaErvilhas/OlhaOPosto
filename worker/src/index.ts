@@ -3,6 +3,7 @@
 // served before this code runs. Static photo links are served by the R2
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
 import { ROLE_ACTION, setRole, usersHtml } from './admin.ts';
+import { DECIDE_ACTION, STAGING_PREFIX, decide, queueHtml, stagingImage } from './moderation.ts';
 import { accountHtml, callback, login, logout } from './auth.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { findEvse, getStation, listStations, nearStations, searchStations, type Env } from './data.ts';
@@ -239,6 +240,7 @@ export default {
     // The POSTs: everything else on this site only reads.
     if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
     if (request.method === 'POST' && pathname === ROLE_ACTION) return setRole(request, env);
+    if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && pathname === '/api/v1/photos') return submitPhoto(request, env, ctx);
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json({ error: 'method_not_allowed' }, 405, 'no-store');
@@ -259,6 +261,9 @@ export default {
     if (pathname === '/en/privacy') return html('en', privacyPage('en'));
     if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS);
+    if (pathname === '/admin/fila') return queueHtml('pt', request, env, HTML_HEADERS);
+    if (pathname === '/en/admin/queue') return queueHtml('en', request, env, HTML_HEADERS);
+    if (pathname.startsWith(STAGING_PREFIX)) return stagingImage(request, env, pathname.slice(STAGING_PREFIX.length));
     if (pathname === '/admin/utilizadores') return usersHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/users') return usersHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);

@@ -204,6 +204,24 @@ escreve se o papel ainda for o que a página mostrava. O primeiro
 administrador foi promovido à mão na D1. Ainda sem Cloudflare Access à frente
 (`plan.md`, *Autenticação*).
 
+**Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`).
+Só para moderadores e administradores. Mostra as fotos `pending` da mais
+antiga para a mais recente (50 de cada vez), com o posto, quem enviou, a
+data, o GPS da foto e um aviso quando não há GPS ou a foto está a mais de
+300 m do posto. As imagens vêm do `pictures-staging` por
+`/admin/staging/{id}/{main|thumb}.jpg`, só para moderadores e sem cache.
+`POST /admin/decidir` (mesma origem):
+
+- **Aprovar:** `PATCH` do upload set no Panoramax para `visibility: anyone`
+  e a foto passa a `published`. As cópias de 1024 e 400 px ficam no
+  `pictures-staging` até existir a publicação da foto principal.
+- **Recusar:** apaga o upload set no Panoramax (um `404` conta como
+  apagado), a foto passa a `removed` e as cópias saem do `pictures-staging`.
+
+Se o Panoramax falhar, nada muda. `approved_by` e `approved_at` guardam
+quem decidiu e quando, nos dois casos, e só se escreve se a foto ainda
+estiver `pending`.
+
 **Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js` e
 `public/jpeg.js`). Tudo o que mexe na foto corre no browser. Com o envio
 fechado, a página para no passo 5 e oferece o download para testar; aberto,
@@ -263,7 +281,7 @@ Workers Paid (5 $/mês, já no orçamento do `plan.md`).
 **Abrir o envio** (só o Fernando). Fica fechado enquanto faltar o login, o
 segredo `PANORAMAX_TOKEN` ou a ligação `STAGING`. Antes de pôr o token:
 
-1. Haver moderação: sem ela, as fotos ficam escondidas e ninguém as aprova.
+1. ~~Haver moderação~~: feita (*Fila de moderação*).
 2. Turnstile no formulário (`plan.md`, *Autenticação*), que obriga a abrir a
    CSP da página a `challenges.cloudflare.com`.
 3. Confirmar a secção *Envio de fotos* da política de privacidade.

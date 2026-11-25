@@ -16,7 +16,7 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 | D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0006` aplicadas |
 | Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, o login OSM e a página de envio. O envio (`POST /api/v1/photos`) está publicado e fechado até haver o `PANORAMAX_TOKEN` |
 | Início de sessão com o OSM | Ligado: aplicação registada no OSM (só `read_prefs`) e segredos postos (secção 4) |
-| Deploy do Worker | `npm run deploy` (migrações e depois o Worker). Workers Builds a correr isso a cada push para `main`: por ligar (secção 4, *Deploy automático*) |
+| Deploy do Worker | `npm run deploy` (migrações e depois o Worker). Workers Builds ligado: corre isso a cada push para `main` (secção 4, *Deploy automático*) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos. Correu à mão; o agendamento diário ainda não correu nenhuma vez |
 
 ## 2. R2
@@ -318,17 +318,20 @@ publicado.
 
 **Deploy automático (Workers Builds).** O Worker está ligado ao repositório
 no painel da Cloudflare (Workers & Pages → `olhaoposto` → Settings →
-Builds) e cada push para `main` que mexa em `worker/` corre o
-`npm run deploy`:
+Builds) e cada push para `main` corre o `npm run deploy`. A app da
+Cloudflare no GitHub (*Cloudflare Workers and Pages*) está instalada na org
+`CarregaErvilhas` só com acesso a este repositório; sem ela, o painel não
+mostra a org para escolher. A configuração também se lê e muda pela API
+(`/accounts/{conta}/builds/workers/{script}/triggers`).
 
 | Campo | Valor |
 | --- | --- |
 | Branch de produção | `main` |
-| Root directory | `worker` |
+| Root directory (*Path*) | `/worker` |
 | Build command | vazio (o Builds já corre o `npm ci`) |
 | Deploy command | `npm run deploy` |
-| Build watch paths | `worker/*` |
-| Builds de outras branches | Desligados: o comando por omissão (`wrangler versions upload`) falha com o *placeholder* |
+| Build watch paths | `*`: com o root em `/worker`, não é certo se os caminhos contam a partir da raiz do repositório ou de `worker/`, e um filtro errado nunca publicaria. Um PR só de docs publica o mesmo código outra vez, sem mal nenhum |
+| Builds de outras branches (*Preview builds*) | Desligados: o comando por omissão (`wrangler versions upload`) falha com o *placeholder* |
 
 O token que o Builds cria para a conta tem de poder ler e escrever na D1
 (listar as bases e aplicar migrações), além de publicar o Worker. Os

@@ -1,13 +1,13 @@
-# Infra — Panoramax do VoltFrame no Zerops
+# Infra — Panoramax do olh'o'posto no Zerops
 
 **Em produção** em `https://panoramax.ocarroeletrico.com`,
 atrás da Cloudflare, fora da federação. Este é o sítio onde fica documentada
-a infraestrutura do servidor Panoramax. O resto do VoltFrame (Worker, D1, R2
+a infraestrutura do servidor Panoramax. O resto do olh'o'posto (Worker, D1 e R2
 `pictures`) é Cloudflare e está em [`cloudflare.md`](cloudflare.md). Porque é assim
 está em [`arquitetura.md`](arquitetura.md), secção *Porque o Panoramax*.
 
 ```
-VoltFrame (Worker) ──HTTPS + token──► Cloudflare (proxy) ──► balanceador L7 do Zerops ──► `pano`
+olh'o'posto (Worker) ──HTTPS + token──► Cloudflare (proxy) ──► balanceador L7 do Zerops ──► `pano`
                                                                                          ├─ api (gunicorn :5000)
                                                                                          └─ worker (picture-worker)
                                                                                               │        │
@@ -24,7 +24,7 @@ Ficheiros:
 | `panoramax/requirements.in` | Versão do Panoramax (`geovisio==2.17.0`, do PyPI) |
 | `panoramax/requirements.txt` | Lock gerado do `.in`: todas as dependências, com hashes |
 | `panoramax/bootstrap_db.py` | Extensões, permissões e fuso da BD, com o superuser |
-| `panoramax/service_account.py` | Cria a conta de serviço `pictures` (não admin) e roda o token |
+| `panoramax/service_account.py` | Cria a conta de serviço `OlhaOPosto` (não admin) e roda o token |
 | `panoramax/wsgi.py` | Ponto de entrada do gunicorn: a API com a confiança nos proxies que serve aqui (secção 7) |
 | `panoramax/trial_upload.sh`, `trial_batch.sh` | Envios de teste pela API, usados no ensaio (secção 9) |
 
@@ -39,13 +39,13 @@ Ficheiros:
 | Imagens | Bucket R2 `panoramax`, privado |
 | Domínio | `panoramax.ocarroeletrico.com`: `AAAA` com proxy da Cloudflare, certificado do Zerops, *Access Policy* só para a Cloudflare |
 | Deploy | Webhook do GitHub: cada push para `main` faz build e deploy |
-| Contas | Conta `pictures` criada, com token; sem OAuth |
+| Contas | Conta `OlhaOPosto` criada, com token; sem OAuth |
 
 Próximos passos:
 
 - [ ] Ponto 6 do ensaio: ler o consumo na GUI do Zerops e fazer a conta mensal (secção 9).
 - [ ] Quando o Worker passar a enviar fotos: emitir um token novo da
-  `pictures` e guardá-lo com `npm run remote -- secret put PANORAMAX_TOKEN`
+  `OlhaOPosto` e guardá-lo com `npm run remote -- secret put PANORAMAX_TOKEN`
   (secção 4). O Worker já existe, mas ainda não fala com o Panoramax.
 
 ---
@@ -183,7 +183,7 @@ Variáveis no `zerops.yml` (não secretas) e no Zerops (secretas). As do Panoram
 | `API_PICTURES_LICENSE_SPDX_ID` / `_URL` | `CC-BY-SA-4.0` | Licença do servidor ([`licenca.md`](licenca.md)) |
 | `API_REGISTRATION_IS_OPEN` | `false` | Ninguém cria conta |
 | `API_FORCE_AUTH_ON_UPLOAD` | `true` | Só com token se envia |
-| `API_DEFAULT_PICTURE_VISIBILITY` | `owner-only` | A foto só fica pública quando o VoltFrame a aprova |
+| `API_DEFAULT_PICTURE_VISIBILITY` | `owner-only` | A foto só fica pública quando o olh'o'posto a aprova |
 | `PICTURE_PROCESS_THREADS_LIMIT` | `0` | O processamento é do `worker` |
 | `PICTURE_PROCESS_DERIVATES_STRATEGY` | `PREPROCESS` | Gera os tamanhos logo ao receber (são poucas fotos e evita latência na primeira visualização) |
 | `INFRA_NB_PROXIES` | Não definida | A confiança nos proxies é do `panoramax/wsgi.py` (secção 7, «Proxies») |
@@ -200,7 +200,7 @@ disso, **mudar a variável não tem efeito**: só um aviso no log. Para mudar,
 **Sem OAuth nenhum.** O `/api/configuration` mostra `auth.enabled: false`,
 e as rotas `/api/auth/*` respondem 501: ninguém entra pela web, nem por
 engano. Não há app OAuth no OSM para manter. Por isso também não há
-interface de admin web do Panoramax: a moderação é a do VoltFrame, e a
+interface de admin web do Panoramax: a moderação é a do olh'o'posto, e a
 manutenção faz-se pela API e pela CLI (ver *Acesso de admin*, abaixo).
 
 Há duas contas:
@@ -208,12 +208,12 @@ Há duas contas:
 | Conta | Papel | Para quê |
 | --- | --- | --- |
 | Conta por omissão (criada pela migração inicial) | `admin` | Manutenção à mão. O token não sai do container |
-| `pictures` | `user` | Envios do VoltFrame. O token vai para o Worker |
+| `OlhaOPosto` | `user` | Envios do olh'o'posto. O token vai para o Worker |
 
-A `pictures` não é admin de propósito. Pode enviar fotos e mudar a
-visibilidade das suas, que é tudo o que o VoltFrame faz. Se o token vazar,
+A `OlhaOPosto` não é admin de propósito. Pode enviar fotos e mudar a
+visibilidade das suas, que é tudo o que o olh'o'posto faz. Se o token vazar,
 quem o tiver não consegue mudar papéis nem tratar denúncias como admin.
-**Mas isso não protege as fotos:** são todas da `pictures`, por isso quem
+**Mas isso não protege as fotos:** são todas da `OlhaOPosto`, por isso quem
 tiver o token pode apagá-las, escondê-las ou torná-las públicas sem
 moderação. Uma fuga do token apanha as fotos todas.
 
@@ -246,15 +246,15 @@ O JWT não expira. Para o **revogar** sem criar outro, apagam-se todos os
 tokens da conta, nunca só uma linha:
 
 ```sql
-DELETE FROM tokens WHERE account_id = (SELECT id FROM accounts WHERE name = 'pictures');
+DELETE FROM tokens WHERE account_id = (SELECT id FROM accounts WHERE name = 'OlhaOPosto');
 ```
 
 Para revogar e emitir um novo, basta voltar a correr o script. Trocar o
 `FLASK_SECRET_KEY` invalida todos os tokens do servidor de uma vez.
 
 **Crédito por foto (ponto 5 do ensaio):** o STAC mostra sempre
-`providers: pictures` e `geovisio:producer: pictures`. O autor só fica na
-etiqueta `pictures|author=`. Por isso o crédito é dado pelo VoltFrame e pelo
+`providers: OlhaOPosto` e `geovisio:producer: OlhaOPosto` (o nome da conta). O autor só fica na
+etiqueta `OlhaOPosto|author=`. Por isso o crédito é dado pelo olh'o'posto e pelo
 XMP das cópias em `pictures.*` (`plan.md`, *Publicação dos links estáticos*).
 
 ### Acesso de admin
@@ -271,7 +271,7 @@ Com ele, o Swagger em `http://pano.zerops:5000/api/docs/swagger`
 excluídas, visibilidade, apagar fotos e coleções. Na CLI há ainda `user`,
 `cleanup`, `db refresh` e `sequences reorder`. O token de admin não expira;
 se vazar, o único corte é trocar o `FLASK_SECRET_KEY`, que invalida todos
-os tokens do servidor, incluindo o da `pictures`.
+os tokens do servidor, incluindo o da `OlhaOPosto`.
 
 ---
 
@@ -407,7 +407,7 @@ Verificado no subdomínio e depois no domínio: com e sem `X-Forwarded-Host`,
 guarda credenciais do Zerops.
 
 > Serviço `pano` → **Build, Deploy, Run Pipeline Settings** → **Connect
-> with a GitHub repository** → `CarregaErvilhas/VoltFrame`, trigger
+> with a GitHub repository** → `CarregaErvilhas/OlhaOPosto`, trigger
 > **Push to branch: `main`**, setup `pano`.
 
 À mão, em último recurso, na raiz do repo (faz commit antes):
@@ -454,7 +454,7 @@ domínio.
 | 2 | R2 como `FS_URL` | **Passa.** Original em `data/permanent/`, tamanhos em `data/derivatives/`; apagar limpa o bucket (secção 5) |
 | 3 | Foto isolada com etiquetas, pela API | **Passa.** Um upload set com `no_split` dá uma coleção com uma foto; as três etiquetas ficam na foto |
 | 4 | `owner-only` e passar a `anyone` ao aprovar | **Passa.** Sem token, 404 na coleção, no item e nas imagens, e o `/api/search` vem vazio. Um `PATCH /api/upload_sets/<id>` com `{"visibility": "anyone"}` passa tudo a 200. A foto em si fica `anyone`: quem esconde é a coleção (vale a mais restritiva) |
-| 5 | Crédito por foto (autor ≠ conta de serviço) | **Não passa.** O STAC mostra sempre `pictures` como produtor; o autor só na etiqueta. Fica a alternativa do `plan.md` (*Publicação dos links estáticos*) |
+| 5 | Crédito por foto (autor ≠ conta de serviço) | **Não passa.** O STAC mostra sempre a conta de serviço (`OlhaOPosto`) como produtor; o autor só na etiqueta. Fica a alternativa do `plan.md` (*Publicação dos links estáticos*) |
 | 6 | Consumo de recursos dentro do orçamento | **Por medir.** Ler o consumo na GUI e fazer a conta mensal |
 | 7 | O pip instala o `geovisio` no `ubuntu/python@3.14` | **Passa.** Todas as dependências com hashes, sem compilar nada |
 | 8 | `run.base: ubuntu/python@3.14` é aceite | **Passa.** Python 3.14.6, Ubuntu 24.04 |
@@ -471,7 +471,7 @@ Também se viu:
   (`yoyo_tmp_… does not exist`, `yoyo_lock already exists`): são testes da
   biblioteca de migrações e são normais.
 
-Os scripts do ensaio usam o token da `pictures` em `PANORAMAX_TOKEN` e
+Os scripts do ensaio usam o token da `OlhaOPosto` em `PANORAMAX_TOKEN` e
 falam com o `pano` pela VPN. O `DELETE /api/upload_sets/<id>` apaga um envio
 de teste.
 
@@ -491,7 +491,7 @@ A API responde pela VPN em `http://pano.zerops:5000`. No container:
 
 ```bash
 cd /var/www
-/opt/venv/bin/python panoramax/service_account.py   # conta `pictures` + rotação do token (secção 4)
+/opt/venv/bin/python panoramax/service_account.py   # conta `OlhaOPosto` + rotação do token (secção 4)
 /opt/venv/bin/panoramax_backend db upgrade          # migrações à mão
 ```
 
@@ -505,14 +505,14 @@ cd /var/www
 - **R2 `panoramax`:** a Cloudflare não faz backups do R2. Não conto com a
   federação como cópia das imagens (não confirmei o que o *harvester*
   guarda). Fica por resolver: ver *Questões em aberto*.
-- O D1 do VoltFrame guarda o `panoramax_id` de cada foto. Com isso e o
+- O D1 do olh'o'posto guarda o `panoramax_id` de cada foto. Com isso e o
   bucket, dá para reconstruir a ligação foto → posto.
 
 ---
 
 ## 11. Questões em aberto
 
-- [ ] `API_PICTURES_LICENSE_URL`: hoje aponta para a CC BY-SA 4.0. Quando houver uma página do VoltFrame com a autorização ODbL, passa para lá (como faz o Panoramax da OSM França).
+- [ ] `API_PICTURES_LICENSE_URL`: hoje aponta para a CC BY-SA 4.0. Quando houver uma página do olh'o'posto com a autorização ODbL, passa para lá (como faz o Panoramax da OSM França).
 - [ ] Cópia de segurança das fotos do R2 (outro bucket, outra conta, ou o Commons para as principais).
 - [ ] Ponto 6 do ensaio: custo mensal (secção 9).
 - [ ] Um MD5 de uma foto apagada continua a bloquear reenvios? O 409 do

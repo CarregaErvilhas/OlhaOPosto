@@ -7,7 +7,7 @@ import {
 } from '../src/auth.ts';
 import { accountPage } from '../src/pages.ts';
 
-const SITE = 'https://voltframe.ocarroeletrico.com';
+const SITE = 'https://olhaoposto.ocarroeletrico.com';
 const noDb = {} as Db;
 
 test('PKCE S256 matches the RFC 7636 example', async () => {
@@ -40,11 +40,11 @@ test('the state cookie round-trips and rejects junk', () => {
 });
 
 test('cookies are __Host-safe and parse back', () => {
-  const c = setCookie('__Host-vf_session', 'abc', 60);
+  const c = setCookie('__Host-oop_session', 'abc', 60);
   for (const part of ['Path=/', 'HttpOnly', 'Secure', 'SameSite=Lax', 'Max-Age=60']) assert.ok(c.includes(part), part);
   assert.ok(!/domain=/i.test(c));
   assert.ok(clearCookie('x').includes('Max-Age=0'));
-  assert.equal(parseCookies('a=1; __Host-vf_session=t.o-k_en; b').get('__Host-vf_session'), 't.o-k_en');
+  assert.equal(parseCookies('a=1; __Host-oop_session=t.o-k_en; b').get('__Host-oop_session'), 't.o-k_en');
   assert.equal(parseCookies(null).size, 0);
 });
 
@@ -76,7 +76,7 @@ test('login sends the browser to OSM with PKCE and a state cookie', async () => 
   assert.equal(to.searchParams.get('redirect_uri'), `${SITE}/auth/osm/callback`);
   assert.ok(!to.search.includes('secret'));
   const cookie = res.headers.get('set-cookie')!;
-  const saved = unpackOAuth(parseCookies(cookie.split(';')[0]).get('__Host-vf_oauth'));
+  const saved = unpackOAuth(parseCookies(cookie.split(';')[0]).get('__Host-oop_oauth'));
   assert.equal(saved?.state, to.searchParams.get('state'));
   assert.equal(saved?.next, '/en/account');
   assert.equal(await pkceChallenge(saved!.verifier), to.searchParams.get('code_challenge'));
@@ -106,8 +106,8 @@ test('the privacy page exists in both languages, indexable, and every page links
   for (const [lang, path, other] of [['pt', '/privacidade', '/en/privacy'], ['en', '/en/privacy', '/privacidade']] as const) {
     const out = privacyPage(lang);
     assert.ok(!out.includes('noindex'), lang);
-    assert.ok(out.includes(`<link rel="canonical" href="https://voltframe.ocarroeletrico.com${path}">`), lang);
-    assert.ok(out.includes(`href="https://voltframe.ocarroeletrico.com${other}"`), lang);
+    assert.ok(out.includes(`<link rel="canonical" href="https://olhaoposto.ocarroeletrico.com${path}">`), lang);
+    assert.ok(out.includes(`href="https://olhaoposto.ocarroeletrico.com${other}"`), lang);
     // The controller and both cookies are named, so the text matches the code.
     for (const must of ['info@ocarroeletrico.com', OAUTH_COOKIE, SESSION_COOKIE]) assert.ok(out.includes(must), `${lang}: ${must}`);
     assert.ok(homePage(lang).includes(`href="${path}"`), `${lang} footer`);

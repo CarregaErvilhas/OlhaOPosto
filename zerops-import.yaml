@@ -1,4 +1,4 @@
-# Import dos serviços para o projeto Zerops do VoltFrame (criado à mão na GUI).
+# Import dos serviços para o projeto Zerops do olh'o'posto (criado à mão na GUI).
 #
 #   zcli project service-import zerops-import.yaml -P <project-id>
 #

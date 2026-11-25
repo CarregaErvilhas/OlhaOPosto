@@ -4,7 +4,7 @@
 // changes in the same PR, before it goes live.
 // pages.ts never imports this file (its footer uses privacyPath from there),
 // so there is no import cycle.
-import { accountPath, homePath, layout, privacyPath, type Lang } from './pages.ts';
+import { BRAND, accountPath, homePath, layout, privacyPath, type Lang } from './pages.ts';
 
 const CONTACT = 'info@ocarroeletrico.com';
 const mail = `<a href="mailto:${CONTACT}">${CONTACT}</a>`;
@@ -13,15 +13,15 @@ const LINKS = {
   cfPrivacy: 'https://www.cloudflare.com/privacypolicy/',
   cfDpa: 'https://www.cloudflare.com/cloudflare-customer-dpa/',
   cnpd: 'https://www.cnpd.pt/',
-  history: 'https://github.com/CarregaErvilhas/VoltFrame/commits/main/worker/src/privacy.ts',
+  history: 'https://github.com/CarregaErvilhas/OlhaOPosto/commits/main/worker/src/privacy.ts',
 };
 
 export const PRIVACY: Record<Lang, { title: string; description: string; body: string }> = {
   pt: {
-    title: 'Privacidade · pIcŧU/Re',
-    description: 'Que dados o pIcŧU/Re (VoltFrame) trata, porquê, durante quanto tempo e como pedir que os apaguemos.',
+    title: `Privacidade · ${BRAND}`,
+    description: `Que dados o ${BRAND} trata, porquê, durante quanto tempo e como pedir que os apaguemos.`,
     body: `<h1>Privacidade</h1>
-<p>O pIcŧU/Re (VoltFrame) mostra fotos e dados dos postos de carregamento em Portugal. Para ver o site não precisas de conta. Não há anúncios, análise de tráfego nem nada de terceiros nas páginas.</p>
+<p>O ${BRAND} mostra fotos e dados dos postos de carregamento em Portugal. Para ver o site não precisas de conta. Não há anúncios, análise de tráfego nem nada de terceiros nas páginas.</p>
 <p><strong>Responsável:</strong> O Carro Elétrico / Fernando Miguel, ${mail}.</p>
 
 <h2>Ao visitar o site</h2>
@@ -30,12 +30,12 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>Para ver o site não usamos <i>cookies</i>. Se escolheres um tema no seletor (claro ou escuro), o navegador guarda essa escolha no armazenamento local: fica só no teu navegador e nunca nos é enviada. As fontes, os estilos e os <i>scripts</i> vêm deste site; as fotos vêm de <code>pictures.ocarroeletrico.com</code>, que também é nosso.</p>
 
 <h2>Ao iniciar sessão</h2>
-<p>A conta é a do OpenStreetMap. No OpenStreetMap autorizas o pIcŧU/Re a ler as preferências da conta, e recebemos só o número e o nome da conta. Não recebemos o teu email nem a tua palavra-passe, e não podemos editar o mapa em teu nome. Essa autorização serve uma vez e é revogada logo a seguir.</p>
+<p>A conta é a do OpenStreetMap. No OpenStreetMap autorizas o ${BRAND} a ler as preferências da conta, e recebemos só o número e o nome da conta. Não recebemos o teu email nem a tua palavra-passe, e não podemos editar o mapa em teu nome. Essa autorização serve uma vez e é revogada logo a seguir.</p>
 <p>Guardamos o número e o nome da conta no OpenStreetMap (o nome atualiza-se em cada início de sessão), o teu papel no site (por exemplo, contribuidor) e as datas de criação da conta e do último início de sessão.</p>
 <p>Usamos dois <i>cookies</i>, ambos necessários para iniciar sessão, por isso não pedimos consentimento:</p>
 <ul>
-<li><code>__Host-vf_oauth</code>: dura 10 minutos, enquanto passas pelo OpenStreetMap;</li>
-<li><code>__Host-vf_session</code>: mantém a sessão durante 30 dias, ou até a terminares. Na nossa base de dados fica só uma impressão digital (<i>hash</i>) dele, que não serve para abrir a sessão.</li>
+<li><code>__Host-oop_oauth</code>: dura 10 minutos, enquanto passas pelo OpenStreetMap;</li>
+<li><code>__Host-oop_session</code>: mantém a sessão durante 30 dias, ou até a terminares. Na nossa base de dados fica só uma impressão digital (<i>hash</i>) dele, que não serve para abrir a sessão.</li>
 </ul>
 <p>O fundamento é prestar o serviço que pedes ao criar a conta (artigo 6.º, n.º 1, alínea b) do RGPD). Os dados ficam enquanto tiveres conta. Por agora, para apagar a conta, escreve para ${mail}.</p>
 <p>Ao iniciar sessão passas pelo site do OpenStreetMap, que trata os teus dados segundo a <a href="${LINKS.osmf}">política de privacidade da OpenStreetMap Foundation</a>.</p>
@@ -67,10 +67,10 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p><a href="${accountPath('pt')}">Conta</a> · <a href="${homePath('pt')}">Início</a></p>`,
   },
   en: {
-    title: 'Privacy · pIcŧU/Re',
-    description: 'What data pIcŧU/Re (VoltFrame) handles, why, for how long, and how to ask us to delete it.',
+    title: `Privacy · ${BRAND}`,
+    description: `What data ${BRAND} handles, why, for how long, and how to ask us to delete it.`,
     body: `<h1>Privacy</h1>
-<p>pIcŧU/Re (VoltFrame) shows photos and data about EV charging stations in Portugal. You do not need an account to use the site. There are no ads, no analytics and nothing from third parties on the pages.</p>
+<p>${BRAND} shows photos and data about EV charging stations in Portugal. You do not need an account to use the site. There are no ads, no analytics and nothing from third parties on the pages.</p>
 <p><strong>Controller:</strong> O Carro Elétrico / Fernando Miguel, ${mail}.</p>
 
 <h2>When you visit the site</h2>
@@ -79,12 +79,12 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>To browse the site we use no cookies. If you pick a theme in the picker (light or dark), your browser keeps that choice in local storage: it stays in your browser and is never sent to us. Fonts, styles and scripts come from this site; photos come from <code>pictures.ocarroeletrico.com</code>, which is also ours.</p>
 
 <h2>When you sign in</h2>
-<p>The account is your OpenStreetMap account. On OpenStreetMap you allow pIcŧU/Re to read your account preferences, and we receive only the account number and name. We do not receive your email or your password, and we cannot edit the map on your behalf. That permission is used once and revoked straight away.</p>
+<p>The account is your OpenStreetMap account. On OpenStreetMap you allow ${BRAND} to read your account preferences, and we receive only the account number and name. We do not receive your email or your password, and we cannot edit the map on your behalf. That permission is used once and revoked straight away.</p>
 <p>We keep your OpenStreetMap account number and name (the name is refreshed at each sign-in), your role on the site (for example, contributor) and the dates the account was created and last signed in.</p>
 <p>We use two cookies, both needed to sign in, so we do not ask for consent:</p>
 <ul>
-<li><code>__Host-vf_oauth</code>: lasts 10 minutes, while you go through OpenStreetMap;</li>
-<li><code>__Host-vf_session</code>: keeps you signed in for 30 days, or until you sign out. Our database keeps only a fingerprint (hash) of it, which cannot be used to sign in.</li>
+<li><code>__Host-oop_oauth</code>: lasts 10 minutes, while you go through OpenStreetMap;</li>
+<li><code>__Host-oop_session</code>: keeps you signed in for 30 days, or until you sign out. Our database keeps only a fingerprint (hash) of it, which cannot be used to sign in.</li>
 </ul>
 <p>The legal basis is providing the service you ask for when you create the account (GDPR Article 6(1)(b)). The data is kept while you have an account. For now, to delete your account, write to ${mail}.</p>
 <p>Signing in takes you through the OpenStreetMap site, which handles your data under the <a href="${LINKS.osmf}">OpenStreetMap Foundation privacy policy</a>.</p>

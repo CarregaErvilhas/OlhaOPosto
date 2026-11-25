@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 body{margin:0;background:#F6F7F5}
-a{color:#0B6B58}a:hover{color:#08513F}
+a{color:#2C4A6B}a:hover{color:#1F3650}
 </style>
 </helmet>
 <div style="font-family: Inter, system-ui, sans-serif; color: #15201C; background: #F6F7F5; min-height: 100vh">
@@ -29,7 +29,7 @@ a{color:#0B6B58}a:hover{color:#08513F}
 
   <div style="display: flex; flex-wrap: wrap; align-items: flex-start">
     <nav aria-label="Admin" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; padding: 20px 14px; display: flex; flex-direction: column; gap: 2px; font-size: 15px">
-      <a href="#" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; background: #E3F1EC; color: #08513F; font-weight: 600; text-decoration: none">Fila de revisão <span style="font-size: 13px">{{ pendingCount }}</span></a>
+      <a href="#" aria-current="page" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; background: #E4EBF2; color: #1F3650; font-weight: 600; text-decoration: none">Fila de revisão <span style="font-size: 13px">{{ pendingCount }}</span></a>
       <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #3F4B46; text-decoration: none">Postos novos</a>
       <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #3F4B46; text-decoration: none">Pedidos de remoção</a>
       <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #3F4B46; text-decoration: none">Fotos publicadas</a>
@@ -69,7 +69,7 @@ a{color:#0B6B58}a:hover{color:#08513F}
           <div style="position: relative; aspect-ratio: 16 / 9; background: {{ sel.previewBg }}; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #4A5651; font-size: 15px; font-weight: 500">
             {{ sel.preview }}
             <sc-if value="{{ sel.showZone }}" hint-placeholder-val="{{ true }}">
-              <span style="position: absolute; left: 16%; top: 62%; width: 16%; height: 12%; border: 2px solid #FFFFFF; outline: 2px solid #0B6B58; background: rgba(60,70,66,0.55); border-radius: 6px"></span>
+              <span style="position: absolute; left: 16%; top: 62%; width: 16%; height: 12%; border: 2px solid #FFFFFF; outline: 2px solid #2C4A6B; background: rgba(60,70,66,0.55); border-radius: 6px"></span>
             </sc-if>
           </div>
 
@@ -85,7 +85,7 @@ a{color:#0B6B58}a:hover{color:#08513F}
           </dl>
 
           <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding-top: 14px; border-top: 1px solid #DDE3DF">
-            <button type="button" onClick="{{ approve }}" style="font: inherit; font-size: 15px; font-weight: 600; min-height: 44px; padding: 0 18px; border-radius: 8px; border: 0; background: #0B6B58; color: #FFFFFF; cursor: pointer">{{ sel.approveLabel }}</button>
+            <button type="button" onClick="{{ approve }}" style="font: inherit; font-size: 15px; font-weight: 600; min-height: 44px; padding: 0 18px; border-radius: 8px; border: 0; background: #2C4A6B; color: #FFFFFF; cursor: pointer">{{ sel.approveLabel }}</button>
             <label for="motivo" style="position: absolute; left: -9999px">Motivo da rejeição</label>
             <select id="motivo" style="font: inherit; font-size: 14px; min-height: 44px; padding: 0 10px; border: 1px solid #C9D2CD; border-radius: 8px; background: #FFFFFF; color: #15201C">
               <option>Posto errado</option><option>Privacidade (cara ou matrícula)</option><option>Qualidade</option><option>Duplicada</option><option>Publicidade</option>
@@ -127,7 +127,7 @@ class Component extends DCLogic {
         approveLabel: 'Aprovar e publicar', rejectLabel: 'Rejeitar' }
     ];
     const pill = (st) => {
-      if (st === 'ok') return { label: 'Aprovado', style: 'font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #E3F1EC; color: #08513F' };
+      if (st === 'ok') return { label: 'Aprovado', style: 'font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #E4EBF2; color: #1F3650' };
       if (st === 'no') return { label: 'Rejeitado', style: 'font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #FBE7E2; color: #8C2C14' };
       return { label: 'Pendente', style: 'font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #FFF1E6; color: #7A3300' };
     };
@@ -138,7 +138,7 @@ class Component extends DCLogic {
         type: it.type, target: it.target, reason: it.reason,
         statusLabel: p.label, statusStyle: p.style,
         pressed: on ? 'true' : 'false',
-        style: 'text-align: left; font: inherit; color: #15201C; padding: 12px 14px; border-radius: 10px; cursor: pointer; ' + (on ? 'border: 2px solid #0B6B58; background: #FFFFFF' : 'border: 1px solid #DDE3DF; background: #FFFFFF'),
+        style: 'text-align: left; font: inherit; color: #15201C; padding: 12px 14px; border-radius: 10px; cursor: pointer; ' + (on ? 'border: 2px solid #2C4A6B; background: #FFFFFF' : 'border: 1px solid #DDE3DF; background: #FFFFFF'),
         pick: () => this.setState({ sel: i })
       };
     });

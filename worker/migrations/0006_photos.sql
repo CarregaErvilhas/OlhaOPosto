@@ -5,8 +5,8 @@
 -- never publishes them, and Panoramax gets the station's coordinates.
 CREATE TABLE photos (
   id TEXT PRIMARY KEY,                -- random UUID, ours
-  origin TEXT NOT NULL DEFAULT 'pictures'
-    CHECK (origin IN ('pictures', 'osm_panoramax', 'commons', 'mapillary')),
+  origin TEXT NOT NULL DEFAULT 'olhaoposto'
+    CHECK (origin IN ('olhaoposto', 'osm_panoramax', 'commons', 'mapillary')),
   station_id TEXT NOT NULL REFERENCES stations (id),
   evse_compact TEXT,                  -- null: a photo of the station in general
   uploader_id TEXT REFERENCES users (id),

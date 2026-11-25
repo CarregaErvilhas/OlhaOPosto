@@ -41,7 +41,7 @@ const target: Target = values.remote ? 'remote' : 'local';
 
 async function loadFeed(src: string): Promise<unknown> {
   if (!/^https?:\/\//.test(src)) return JSON.parse(readFileSync(src, 'utf8'));
-  const res = await fetch(src, { headers: { 'user-agent': 'pictures-import (VoltFrame)' } });
+  const res = await fetch(src, { headers: { 'user-agent': 'OlhaOPosto-import' } });
   if (!res.ok) throw new Error(`feed: HTTP ${res.status} from ${src}`);
   return res.json();
 }
@@ -74,7 +74,7 @@ d1(target, (db) => {
     console.log(`dry run: ${statements.length} statements, nothing written`);
     return;
   }
-  const dir = mkdtempSync(join(tmpdir(), 'pictures-import-'));
+  const dir = mkdtempSync(join(tmpdir(), 'olhaoposto-import-'));
   try {
     const file = join(dir, 'import.sql');
     writeFileSync(file, statements.join('\n') + '\n');

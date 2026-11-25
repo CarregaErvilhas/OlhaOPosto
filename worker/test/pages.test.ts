@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { esc, evseChoicePage, homePage, notFoundPage, searchPage, stationPage } from '../src/pages.ts';
+import { BRAND, esc, evseChoicePage, homePage, notFoundPage, searchPage, stationPage } from '../src/pages.ts';
 import { sitemapXml } from '../src/sitemap.ts';
 import { compactCode, ftsQuery, type PointRow, type SearchRow, type StationRow } from '../src/types.ts';
 
@@ -39,7 +39,7 @@ test('station page: static links, socket anchors, pt-PT power', () => {
   assert.ok(page.includes('7,4 kW'));
   assert.ok(page.includes('Sem código EVSE no NAP'));
   assert.ok(page.includes('href="https://www.openstreetmap.org/node/1"'));
-  assert.ok(page.includes('<link rel="canonical" href="https://voltframe.ocarroeletrico.com/postos/EZC-AMD-00051">'));
+  assert.ok(page.includes('<link rel="canonical" href="https://olhaoposto.ocarroeletrico.com/postos/EZC-AMD-00051">'));
 });
 
 test('an odd osm_ref is not linked; the map at the coordinates is', () => {
@@ -69,14 +69,14 @@ test('compactCode accepts the code with or without the *, in any case', () => {
 test('each language has its own canonical and the full hreflang set', () => {
   for (const [lang, self] of [['pt', '/postos/EZC-AMD-00051'], ['en', '/en/stations/EZC-AMD-00051']] as const) {
     const page = stationPage(lang, station(), [point()]);
-    assert.ok(page.includes(`<link rel="canonical" href="https://voltframe.ocarroeletrico.com${self}">`));
-    assert.ok(page.includes(`<meta property="og:url" content="https://voltframe.ocarroeletrico.com${self}">`));
-    assert.ok(page.includes('hreflang="pt-PT" href="https://voltframe.ocarroeletrico.com/postos/EZC-AMD-00051"'));
-    assert.ok(page.includes('hreflang="en" href="https://voltframe.ocarroeletrico.com/en/stations/EZC-AMD-00051"'));
-    assert.ok(page.includes('hreflang="x-default" href="https://voltframe.ocarroeletrico.com/postos/EZC-AMD-00051"'));
+    assert.ok(page.includes(`<link rel="canonical" href="https://olhaoposto.ocarroeletrico.com${self}">`));
+    assert.ok(page.includes(`<meta property="og:url" content="https://olhaoposto.ocarroeletrico.com${self}">`));
+    assert.ok(page.includes('hreflang="pt-PT" href="https://olhaoposto.ocarroeletrico.com/postos/EZC-AMD-00051"'));
+    assert.ok(page.includes('hreflang="en" href="https://olhaoposto.ocarroeletrico.com/en/stations/EZC-AMD-00051"'));
+    assert.ok(page.includes('hreflang="x-default" href="https://olhaoposto.ocarroeletrico.com/postos/EZC-AMD-00051"'));
   }
   const home = homePage('en');
-  assert.ok(home.includes('<html lang="en">') && home.includes('href="https://voltframe.ocarroeletrico.com/en/"'));
+  assert.ok(home.includes('<html lang="en">') && home.includes('href="https://olhaoposto.ocarroeletrico.com/en/"'));
 });
 
 test('English page: English UI, NAP text marked as Portuguese', () => {
@@ -103,9 +103,9 @@ test('sitemap lists both languages and escapes ids', () => {
   assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
   // Home and privacy in both languages, plus the station in both.
   assert.equal(xml.match(/<url>/g)?.length, 6);
-  assert.ok(xml.includes('<loc>https://voltframe.ocarroeletrico.com/en/privacy</loc></url>'));
-  assert.ok(xml.includes('<loc>https://voltframe.ocarroeletrico.com/en/stations/A_1</loc><lastmod>2000-01-02T00:00:00+00:00</lastmod>'));
-  assert.ok(xml.includes('<loc>https://voltframe.ocarroeletrico.com/</loc></url>'));
+  assert.ok(xml.includes('<loc>https://olhaoposto.ocarroeletrico.com/en/privacy</loc></url>'));
+  assert.ok(xml.includes('<loc>https://olhaoposto.ocarroeletrico.com/en/stations/A_1</loc><lastmod>2000-01-02T00:00:00+00:00</lastmod>'));
+  assert.ok(xml.includes('<loc>https://olhaoposto.ocarroeletrico.com/</loc></url>'));
 });
 
 test('ftsQuery: words as quoted prefixes, never FTS syntax', () => {
@@ -125,7 +125,7 @@ test('search page: escapes the query, links each language, is not indexed', () =
   const page = searchPage('pt', evil, [r], 20);
   assert.ok(!page.includes('<script>"x"'));
   assert.ok(page.includes('value="&lt;script&gt;&quot;x&quot;"'));
-  assert.ok(page.includes('<title>Pesquisa: &lt;script&gt;&quot;x&quot; · pIcŧU/Re</title>'));
+  assert.ok(page.includes(`<title>Pesquisa: &lt;script&gt;&quot;x&quot; · ${esc(BRAND)}</title>`));
   assert.ok(page.includes('<meta name="robots" content="noindex">') && !page.includes('rel="canonical"'));
   assert.ok(page.includes('href="/en/search?q=%3Cscript%3E%22x%22"'));
   assert.ok(page.includes('href="/postos/EZC-AMD-00051"') && page.includes('Fora do NAP'));

@@ -134,9 +134,9 @@ function upload(opts: { meta?: Record<string, unknown>; origin?: string; full?: 
   body.append('main', new Blob([jpeg(1024, 768)], { type: 'image/jpeg' }), 'main.jpg');
   body.append('thumb', new Blob([jpeg(400, 300)], { type: 'image/jpeg' }), 'thumb.jpg');
   body.append('meta', JSON.stringify(opts.meta ?? goodMeta));
-  return new Request('https://voltframe.ocarroeletrico.com/api/v1/photos', {
+  return new Request('https://olhaoposto.ocarroeletrico.com/api/v1/photos', {
     method: 'POST', body,
-    headers: { origin: opts.origin ?? 'https://voltframe.ocarroeletrico.com', cookie: '__Host-vf_session=abc' },
+    headers: { origin: opts.origin ?? 'https://olhaoposto.ocarroeletrico.com', cookie: '__Host-oop_session=abc' },
   });
 }
 

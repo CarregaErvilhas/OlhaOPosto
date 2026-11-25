@@ -1,6 +1,6 @@
-"""Create the VoltFrame service account on Panoramax and rotate its token.
+"""Create the olh'o'posto service account on Panoramax and rotate its token.
 
-The account (`pictures` by default) has the `user` role, not `admin`: it can
+The account (`OlhaOPosto` by default) has the `user` role, not `admin`: it can
 upload and change the visibility of its own pictures, and nothing else. The
 default account that Panoramax creates (role `admin`) stays for maintenance
 only; its token is never handed to the Worker.
@@ -18,7 +18,7 @@ trigger adds to every new account. The JWTs carry no expiry.
 
 To revoke without minting a new token:
 
-    DELETE FROM tokens WHERE account_id = (SELECT id FROM accounts WHERE name = 'pictures');
+    DELETE FROM tokens WHERE account_id = (SELECT id FROM accounts WHERE name = 'OlhaOPosto');
 
 The JWT is printed to stdout and nothing else is: pipe it straight into
 `wrangler secret put` instead of copying it from the terminal when possible.
@@ -35,8 +35,8 @@ from geovisio.web.tokens import _generate_jwt_token
 
 
 def main() -> int:
-    name = sys.argv[1] if len(sys.argv) > 1 else "pictures"
-    description = sys.argv[2] if len(sys.argv) > 2 else "VoltFrame Worker"
+    name = sys.argv[1] if len(sys.argv) > 1 else "OlhaOPosto"
+    description = sys.argv[2] if len(sys.argv) > 2 else "OlhaOPosto Worker"
 
     app = create_app()
     with app.app_context(), db.conn(current_app) as conn, conn.transaction():

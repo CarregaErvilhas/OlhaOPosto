@@ -35,8 +35,8 @@ Cada foto enviada leva etiquetas `chave=valor` ([sintaxe](https://docs.panoramax
 
 ```
 osm|ref:EU:EVSE=PT*TRK*E*VNT*00005*01
-pictures|site=TRK-VNT-00005
-pictures|author=joao_osm
+OlhaOPosto|site=TRK-VNT-00005
+OlhaOPosto|author=joao_osm
 ```
 
 **Federação.** Abre-se um pedido no repositório do catálogo federado e os operadores acrescentam o servidor ao *harvester* ([como](https://docs.panoramax.fr/how-to-contribute/hosting-instance/)). Só depois da conversa com a OSM Portugal e com a equipa do Panoramax; até lá o servidor fica privado.
@@ -92,7 +92,7 @@ A página `/enviar` faz a parte do browser (abre um JPEG, lê o EXIF, sugere o p
 O formato dos URLs, o bucket e a cache já existem ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta a publicação: a resolução código → foto acontece **na escrita, não no pedido**. Quando a foto principal muda, o Worker copia-a para a chave pública no bucket `pictures` e faz *purge* desse URL na cache.
 
 - **Cache:** cada objeto gravado com `Cache-Control: public, max-age=86400`; *purge* ao mudar a principal (também na primeira foto, por causa do `404` em cache). No pior caso, um browser mostra a foto antiga durante 24 h.
-- **Atribuição:** o R2 não devolve cabeçalhos próprios, por isso o autor e a licença vão no **XMP/IPTC** da cópia pública (sem GPS), escritos pelo Worker ao publicar. O Panoramax mostra sempre `pictures` como produtor (ponto 5 do ensaio), por isso o crédito do autor é este. O crédito completo fica em `voltframe.ocarroeletrico.com/p/{photo_id}`, que a CC BY-SA exige.
+- **Atribuição:** o R2 não devolve cabeçalhos próprios, por isso o autor e a licença vão no **XMP/IPTC** da cópia pública (sem GPS), escritos pelo Worker ao publicar. O Panoramax mostra sempre a conta de serviço (`OlhaOPosto`) como produtor (ponto 5 do ensaio), por isso o crédito do autor é este. O crédito completo fica em `olhaoposto.ocarroeletrico.com/p/{photo_id}`, que a CC BY-SA exige.
 - **Re-keys:** o `301` do código antigo é uma regra de redirect da Cloudflare gerada a partir de `station_aliases`.
 - **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
 
@@ -100,14 +100,14 @@ O formato dos URLs, o bucket e a cache já existem ([`arquitetura.md`](arquitetu
 
 ### Fotos externas e links estáticos
 
-**Caso de uso.** Um posto tem uma foto que alguém pôs no OSM (pelo MapComplete, guardada no Panoramax deles) ou no Commons, mas ninguém a enviou pelo VoltFrame. O NAP dashboard já a mostra. O link estático `pictures.ocarroeletrico.com/<id>.jpg`, porém, só serve ficheiros que estejam no bucket: o `pictures.*` não tem Worker e não faz redirects.
+**Caso de uso.** Um posto tem uma foto que alguém pôs no OSM (pelo MapComplete, guardada no Panoramax deles) ou no Commons, mas ninguém a enviou pelo olh'o'posto. O NAP dashboard já a mostra. O link estático `pictures.ocarroeletrico.com/<id>.jpg`, porém, só serve ficheiros que estejam no bucket: o `pictures.*` não tem Worker e não faz redirects.
 
 **Em comum às duas opções.** O cron diário lê as fotos que o `charger_photos.py` do NAP dashboard já recolhe do OSM (`panoramax=`, `wikimedia_commons=`, `mapillary=`, `image=`, com autor, licença e miniatura) e guarda-as em `photos` com `origin=osm_panoramax` ou `commons`, só como referência, com o autor e a licença de origem. A API e a página do posto mostram-nas com o link para a origem. As do Mapillary ficam de fora (a API deles pede uma chave).
 
 **B — só na galeria (decidido).**
 
 - As externas aparecem na página do posto e na API, mas nunca são a principal.
-- O link estático só existe para fotos enviadas pelo VoltFrame.
+- O link estático só existe para fotos enviadas pelo olh'o'posto.
 - A favor: sem cópias de fotos de terceiros, sem sincronizar remoções.
 - Contra: no início, muitos postos que já têm foto noutro lado dão `404` no link estático.
 
@@ -117,13 +117,13 @@ O formato dos URLs, o bucket e a cache já existem ([`arquitetura.md`](arquitetu
 - A favor: o link estático cobre logo todos os postos que já têm foto.
 - Contra: guardamos cópias de fotos de outras pessoas (a licença permite-o com crédito). Se a foto sair da origem (o autor apaga-a ou há um pedido de remoção lá), o cron diário tem de o detetar e apagar a cópia.
 
-Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto pelo VoltFrame, ou um host separado com Worker que faça redirect para a origem (sem cópia, mas com o custo de pedidos dos Workers).
+Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto pelo olh'o'posto, ou um host separado com Worker que faça redirect para a origem (sem cópia, mas com o custo de pedidos dos Workers).
 
 ## OSM
 
 - **Etiqueta:** só `panoramax=<uuid>`, que aponta para a foto no nosso servidor Panoramax (as imagens vêm do bucket R2 `panoramax`). O `osm_tags.photo_refs()` do NAP dashboard já a lê. Os links de `pictures.*` são para apps e mapas fora do OSM.
 - **Que fotos:** só a principal de cada elemento. Promover outra foto torna-a a principal.
-- **Bot** (`pictures_bot`, fase 3), segundo o [código de conduta das edições automáticas](https://wiki.openstreetmap.org/wiki/Automated_Edits_code_of_conduct):
+- **Bot** (`OlhaOPosto_bot`, fase 3), segundo o [código de conduta das edições automáticas](https://wiki.openstreetmap.org/wiki/Automated_Edits_code_of_conduct):
   - conta dedicada, um *changeset* por dia, com etiquetas que o descrevem;
   - só em elementos já ligados por `ref` ou `ref:EU:EVSE`; a foto de uma tomada vai para o ponto `man_made=charge_point`, se existir;
   - só acrescenta; substitui apenas valores que ele próprio escreveu (registados em `osm_edits`). Se o elemento já tem outro `panoramax=`, a nova vai para a chave numerada seguinte (confirmar a convenção que o MapComplete usa);
@@ -132,7 +132,7 @@ Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto 
 
 ## Ligação ao NAP dashboard e ao ohmigo
 
-Na fase 3, o refresh do NAP dashboard lê a exportação `voltframe.ocarroeletrico.com/api/v1/photos.json` como uma fonte nova do `charger_photos.py`, incluindo as fotos por tomada. As miniaturas continuam a ser copiadas para `/photos/` do próprio site, para o browser de quem lê não pedir nada a terceiros. O ohmigo recebe-as pelo `ohmigo_chargers.json`. Antes disso, as fotos do VoltFrame podem chegar pelo OSM (`panoramax=`), mas o `charger_photos.py` só resolve UUIDs pela pesquisa federada (`api.panoramax.xyz`): até o servidor entrar na federação, é preciso que também pergunte a `panoramax.ocarroeletrico.com/api` (tarefa da fase 2).
+Na fase 3, o refresh do NAP dashboard lê a exportação `olhaoposto.ocarroeletrico.com/api/v1/photos.json` como uma fonte nova do `charger_photos.py`, incluindo as fotos por tomada. As miniaturas continuam a ser copiadas para `/photos/` do próprio site, para o browser de quem lê não pedir nada a terceiros. O ohmigo recebe-as pelo `ohmigo_chargers.json`. Antes disso, as fotos do olh'o'posto podem chegar pelo OSM (`panoramax=`), mas o `charger_photos.py` só resolve UUIDs pela pesquisa federada (`api.panoramax.xyz`): até o servidor entrar na federação, é preciso que também pergunte a `panoramax.ocarroeletrico.com/api` (tarefa da fase 2).
 
 ## API, MCP e llms.txt
 
@@ -160,7 +160,7 @@ Já existem `GET /stations?q=` (pesquisa por texto), `GET /stations?lat=&lon=&ra
 
 ### Servidor MCP (`/mcp`)
 
-Servidor MCP remoto no mesmo Worker, com o transporte *Streamable HTTP*. A Cloudflare dá o `McpAgent` (Agents SDK) e o `workers-oauth-provider` para o OAuth que os clientes MCP esperam ([guia](https://developers.cloudflare.com/agents/guides/build-mcp-server)). O OAuth do MCP reutiliza o login OSM: o utilizador autoriza o agente uma vez e o token herda o papel da conta. Nome do servidor: `pictures`.
+Servidor MCP remoto no mesmo Worker, com o transporte *Streamable HTTP*. A Cloudflare dá o `McpAgent` (Agents SDK) e o `workers-oauth-provider` para o OAuth que os clientes MCP esperam ([guia](https://developers.cloudflare.com/agents/guides/build-mcp-server)). O OAuth do MCP reutiliza o login OSM: o utilizador autoriza o agente uma vez e o token herda o papel da conta. Nome do servidor: `OlhaOPosto`.
 
 | Ferramenta | Faz | Auth |
 | --- | --- | --- |
@@ -180,7 +180,7 @@ O `/llms.txt` já existe (`worker/public/llms.txt`), com as páginas, a API, os 
 
 ## Autenticação
 
-**Só login com conta OpenStreetMap (OAuth2)**, no `voltframe.*`. Ler as fotos e a API é público; só o envio e a moderação pedem login. GitHub fica para depois, se alguém o pedir: a maior parte da comunidade EV não tem conta lá.
+**Só login com conta OpenStreetMap (OAuth2)**, no `olhaoposto.*`. Ler as fotos e a API é público; só o envio e a moderação pedem login. GitHub fica para depois, se alguém o pedir: a maior parte da comunidade EV não tem conta lá.
 
 O início de sessão já está feito e desligado: como funciona e como se liga está no [`cloudflare.md`](cloudflare.md), secção 4. Nunca se pede `write_api` aos contribuidores: as edições no OSM são do bot ou manuais.
 
@@ -202,7 +202,7 @@ O início de sessão já está feito e desligado: como funciona e como se liga e
 
 **Sem promoção automática.** Todos os contribuidores ficam moderados até um moderador ou admin os promover manualmente a `trusted`. A promoção fica registada (`promoted_by`, `promoted_at`) e pode ser revertida.
 
-**Crédito.** Por defeito, o nome OSM. Na página de perfil, a pessoa pode escrever um pseudónimo, que passa a ser o crédito em todo o lado (VoltFrame, etiqueta no Panoramax, XMP). Mudar o crédito volta a publicar as cópias em `pictures`. O `uploader_id` fica sempre, para a moderação.
+**Crédito.** Por defeito, o nome OSM. Na página de perfil, a pessoa pode escrever um pseudónimo, que passa a ser o crédito em todo o lado (olh'o'posto, etiqueta no Panoramax, XMP). Mudar o crédito volta a publicar as cópias em `pictures`. O `uploader_id` fica sempre, para a moderação.
 
 ## Desfocagem de caras e matrículas
 
@@ -235,7 +235,7 @@ A licença das fotos (CC BY-SA 4.0 com autorização ODbL) está em [`licenca.md
 
 - **Dados de quem envia:** ID e nome do OSM, pseudónimo opcional, papel e GPS das fotos. Sem email.
 - **Pessoas e matrículas nas fotos:** desfocagem obrigatória e caixa a confirmar no envio.
-- **Pedidos de remoção:** formulário público `/takedown` (sem login, com Turnstile). A foto fica `hidden` de imediato (no VoltFrame, no Panoramax e em `pictures`) e um moderador decide em **72 h**.
+- **Pedidos de remoção:** formulário público `/takedown` (sem login, com Turnstile). A foto fica `hidden` de imediato (no olh'o'posto, no Panoramax e em `pictures`) e um moderador decide em **72 h**.
 - **Política de privacidade:** publicada em `/privacidade`, com o responsável, os registos, o login, os *cookies* e o envio (o que se guarda, onde, a moderação, a licença). Falta o formulário de remoção quando existir.
 - **Conservação:** o GPS fica na D1 só para moderação; as versões em `pictures-staging` apagam-se ao aprovar ou rejeitar; logs com retenção curta.
 
@@ -253,7 +253,7 @@ Orçamento: **10 €/mês** no total.
 
 - **Panoramax no Zerops** (API, *workers*, PostgreSQL): o custo fixo maior, ainda por medir (ponto 6 do ensaio). Em repouso usa os mínimos (0,5 GB de RAM e 0,06 de 1 CPU no `pano`) e o pico de 20 fotos ficou abaixo de 1 GB. Se passar o orçamento, VPS pequena com o Docker Compose do Panoramax.
 - **R2:** com 100k fotos, ~100 GB no bucket `panoramax` (mestre e tamanhos) e ~25 GB em `pictures` (só as principais, três tamanhos), ~1,7 $/mês: 10 GB-mês grátis e depois 0,015 $/GB-mês, sem custos de tráfego ([preços R2](https://developers.cloudflare.com/r2/pricing)). As leituras de `pictures.*` são Classe B (10 milhões grátis por mês).
-- **Workers e D1:** plano grátis. Como as fotos não passam pelo Worker, o limite de 100 000 pedidos/dia só conta para o site e a API em `voltframe.*`. Workers Paid (5 $/mês) só se o site ou a API o pedirem.
+- **Workers e D1:** plano grátis. Como as fotos não passam pelo Worker, o limite de 100 000 pedidos/dia só conta para o site e a API em `olhaoposto.*`. Workers Paid (5 $/mês) só se o site ou a API o pedirem.
 
 ## Questões em aberto
 

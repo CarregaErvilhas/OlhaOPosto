@@ -1,4 +1,4 @@
-# pIcŧU/Re (VoltFrame)
+# olh'o'posto
 
 > Community photos of EV charging stations and sockets in Portugal, with one stable static photo link per station and per socket, keyed by the official NAP Portugal (MOBI.E) codes.
 
@@ -6,8 +6,8 @@ Pages are in European Portuguese, with English under /en/. Station and socket da
 
 ## Pages
 
-- [Station page](https://voltframe.ocarroeletrico.com/en/stations/EZC-AMD-00051): `/en/stations/{station id}` in English, `/postos/{station id}` in Portuguese.
-- [Search](https://voltframe.ocarroeletrico.com/en/search?q=amadora): `/en/search?q=` (or `/pesquisa?q=`). A full station or socket code goes straight to its page.
+- [Station page](https://olhaoposto.ocarroeletrico.com/en/stations/EZC-AMD-00051): `/en/stations/{station id}` in English, `/postos/{station id}` in Portuguese.
+- [Search](https://olhaoposto.ocarroeletrico.com/en/search?q=amadora): `/en/search?q=` (or `/pesquisa?q=`). A full station or socket code goes straight to its page.
 - Socket lookup: `/en/sockets/{EVSE code}` (or `/tomadas/{EVSE code}`) redirects to the station page, anchored on that socket. The code works with or without the `*` (`PT*EZC*E*AMD*00051*1` or `PTEZCEAMD000511`).
 
 ## API
@@ -27,9 +27,9 @@ Read-only JSON, open CORS, no key.
 
 ## Licences
 
-- Photos: CC BY-SA 4.0. Station data: NAP Portugal (MOBI.E) and © OpenStreetMap contributors (ODbL). Code: MIT, https://github.com/CarregaErvilhas/VoltFrame
+- Photos: CC BY-SA 4.0. Station data: NAP Portugal (MOBI.E) and © OpenStreetMap contributors (ODbL). Code: MIT, https://github.com/CarregaErvilhas/OlhaOPosto
 
 ## Optional
 
-- [Sitemap](https://voltframe.ocarroeletrico.com/sitemap.xml)
-- [Privacy policy](https://voltframe.ocarroeletrico.com/en/privacy) (pt-PT: /privacidade)
+- [Sitemap](https://olhaoposto.ocarroeletrico.com/sitemap.xml)
+- [Privacy policy](https://olhaoposto.ocarroeletrico.com/en/privacy) (pt-PT: /privacidade)

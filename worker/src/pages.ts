@@ -6,7 +6,12 @@
 // (lang="pt-PT") so screen readers read it with the right voice.
 import { MAX_QUERY, type EvseMatch, type PointRow, type SearchRow, type StationRow } from './types.ts';
 
-export const SITE = 'https://voltframe.ocarroeletrico.com';
+// The brand as written. The apostrophes keep it out of every technical name
+// (olhaoposto, or OlhaOPosto where case shows, so it is not read as Olhão),
+// and screen readers get the spelled-out name.
+export const BRAND = "olh'o'posto";
+export const BRAND_SPOKEN = 'Olha o posto';
+export const SITE = 'https://olhaoposto.ocarroeletrico.com';
 export const PICTURES = 'https://pictures.ocarroeletrico.com';
 
 export type Lang = 'pt' | 'en';
@@ -46,7 +51,7 @@ const T = {
     footerData: 'Fotos CC BY-SA 4.0 · Dados dos postos: NAP Portugal (MOBI.E) e © contribuidores do OpenStreetMap (ODbL)',
     footerCode: 'Código (MIT)',
     footerPrivacy: 'Privacidade',
-    ogImageAlt: 'Pic, a mascote do pIcŧU/Re',
+    ogImageAlt: `Pic, a mascote do ${BRAND}`,
     inNap: 'No NAP',
     outNap: 'Fora do NAP',
     sockets: (n: number) => (n === 1 ? '1 tomada' : `${n} tomadas`),
@@ -92,7 +97,7 @@ const T = {
     badStation: 'Código de posto inválido.',
     badSocket: 'Código EVSE inválido.',
     noPage: 'Esta página não existe.',
-    homeTitle: 'pIcŧU/Re · fotos dos postos de carregamento',
+    homeTitle: `${BRAND} · fotos dos postos de carregamento`,
     homeDesc: 'Fotos comunitárias de postos e tomadas de carregamento em Portugal, com links estáticos pelo código do posto ou da tomada.',
     homeH1: 'Fotos dos postos de carregamento',
     homeText: 'Fotos comunitárias de postos e tomadas em Portugal, com um link estático por posto e por tomada. Ainda em construção: o envio de fotos vem a seguir.',
@@ -113,7 +118,7 @@ const T = {
     noResultsTip: 'Experimenta o código do posto (EZC-AMD-00051), a localidade ou o operador.',
     tooShort: 'Escreve pelo menos duas letras ou dois números.',
     accountTitle: 'Conta',
-    accountDesc: 'Iniciar sessão no pIcŧU/Re com a conta OpenStreetMap.',
+    accountDesc: `Iniciar sessão no ${BRAND} com a conta OpenStreetMap.`,
     loginIntro: 'Para enviar fotos, inicia sessão com a tua conta OpenStreetMap. Só guardamos o número e o nome da conta no OSM, nunca o email.',
     loginButton: 'Iniciar sessão com o OpenStreetMap',
     loginOff: 'O início de sessão ainda não está disponível. Abre com o envio de fotos.',
@@ -143,7 +148,7 @@ const T = {
     footerData: 'Photos CC BY-SA 4.0 · Station data: NAP Portugal (MOBI.E) and © OpenStreetMap contributors (ODbL)',
     footerCode: 'Source code (MIT)',
     footerPrivacy: 'Privacy',
-    ogImageAlt: 'Pic, the pIcŧU/Re mascot',
+    ogImageAlt: `Pic, the ${BRAND} mascot`,
     inNap: 'In the NAP',
     outNap: 'Not in the NAP',
     sockets: (n: number) => (n === 1 ? '1 socket' : `${n} sockets`),
@@ -189,7 +194,7 @@ const T = {
     badStation: 'Invalid station code.',
     badSocket: 'Invalid EVSE code.',
     noPage: 'This page does not exist.',
-    homeTitle: 'pIcŧU/Re · photos of charging stations',
+    homeTitle: `${BRAND} · photos of charging stations`,
     homeDesc: 'Community photos of EV charging stations and sockets in Portugal, with static links by station or socket code.',
     homeH1: 'Photos of charging stations',
     homeText: 'Community photos of charging stations and sockets in Portugal, with one static link per station and per socket. Still being built: photo uploads come next.',
@@ -210,7 +215,7 @@ const T = {
     noResultsTip: 'Try the station code (EZC-AMD-00051), the town or the operator.',
     tooShort: 'Type at least two letters or numbers.',
     accountTitle: 'Account',
-    accountDesc: 'Sign in to pIcŧU/Re with your OpenStreetMap account.',
+    accountDesc: `Sign in to ${BRAND} with your OpenStreetMap account.`,
     loginIntro: 'To upload photos, sign in with your OpenStreetMap account. We only keep the account number and name on OSM, never your email.',
     loginButton: 'Sign in with OpenStreetMap',
     loginOff: 'Signing in is not available yet. It opens with photo uploads.',
@@ -306,7 +311,7 @@ export function layout(p: Layout): string {
   }
   head.push(
     '<meta property="og:type" content="website">',
-    '<meta property="og:site_name" content="pIcŧU/Re">',
+    `<meta property="og:site_name" content="${BRAND}">`,
     `<meta property="og:title" content="${esc(p.title)}">`,
     `<meta property="og:description" content="${esc(p.description)}">`,
     `<meta property="og:locale" content="${OG_LOCALE[p.lang]}">`,
@@ -339,8 +344,7 @@ ${p.script ? '<script src="/site.js" defer></script>\n' : ''}${p.module ? `<scri
   <div class="wrap">
     <a class="brand" href="${homePath(p.lang)}">
       <img src="/pic-icon.svg" alt="" width="34" height="34">
-      <span class="brand-name"><span aria-hidden="true">pIcŧU/Re</span><span class="sr-only" lang="en">picture</span></span>
-      <span class="brand-sub">VoltFrame</span>
+      <span class="brand-name"><span aria-hidden="true">${BRAND}</span><span class="sr-only" lang="pt-PT">${BRAND_SPOKEN}</span></span>
     </a>
     <div class="theme" hidden>
       <label for="theme">${t.theme}</label>
@@ -362,7 +366,7 @@ ${p.body}
   <div class="wrap">
     <span>${t.footerData}</span>
     <a href="${privacyPath(p.lang)}">${t.footerPrivacy}</a>
-    <a target="_blank" rel="noopener" href="https://github.com/CarregaErvilhas/VoltFrame">${t.footerCode}</a>
+    <a target="_blank" rel="noopener" href="https://github.com/CarregaErvilhas/OlhaOPosto">${t.footerCode}</a>
   </div>
 </footer>
 </body>
@@ -470,7 +474,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
 </div>`;
   return layout({
     lang,
-    title: `${s.id}${s.name ? ` · ${s.name}` : ''} · pIcŧU/Re`,
+    title: `${s.id}${s.name ? ` · ${s.name}` : ''} · ${BRAND}`,
     description: t.stationDesc(s.id, s.operator, s.municipality),
     path: stationPath(lang, s.id),
     alternates: { pt: stationPath('pt', s.id), en: stationPath('en', s.id) },
@@ -486,7 +490,7 @@ export function evseChoicePage(lang: Lang, code: string, matches: EvseMatch[]): 
     `${m.name ? ` · ${nap(lang, m.name)}` : ''}${m.operator ? ` · ${nap(lang, m.operator)}` : ''}</li>`).join('\n  ');
   return layout({
     lang,
-    title: `${t.choiceTitle(code)} · pIcŧU/Re`,
+    title: `${t.choiceTitle(code)} · ${BRAND}`,
     description: t.choiceDesc(code),
     // A list of links to the real pages: no use in a search index.
     noindex: true,
@@ -505,7 +509,7 @@ export function notFoundPage(lang: Lang, what: string): string {
   const t = T[lang];
   return layout({
     lang,
-    title: `${t.notFound} · pIcŧU/Re`,
+    title: `${t.notFound} · ${BRAND}`,
     description: t.notFoundDesc,
     body: `<div class="page-msg">
 <h1>${t.notFound}</h1>
@@ -552,7 +556,7 @@ export function accountPage(
   }
   return layout({
     lang,
-    title: `${t.accountTitle} · pIcŧU/Re`,
+    title: `${t.accountTitle} · ${BRAND}`,
     description: t.accountDesc,
     noindex: true,
     switchTo: { pt: accountPath('pt'), en: accountPath('en') },
@@ -622,7 +626,7 @@ export function searchPage(lang: Lang, q: string, results: SearchRow[] | null, l
   }
   return layout({
     lang,
-    title: `${q ? t.searchTitle(q) : t.searchH1} · pIcŧU/Re`,
+    title: `${q ? t.searchTitle(q) : t.searchH1} · ${BRAND}`,
     description: t.searchDesc,
     noindex: true,
     switchTo: { pt: query('pt'), en: query('en') },

@@ -32,8 +32,8 @@ export interface AuthEnv {
   OSM_URL?: string;
 }
 
-export const OAUTH_COOKIE = '__Host-vf_oauth';
-export const SESSION_COOKIE = '__Host-vf_session';
+export const OAUTH_COOKIE = '__Host-oop_oauth';
+export const SESSION_COOKIE = '__Host-oop_session';
 const OAUTH_TTL = 600; // seconds to finish the OSM screen
 export const SESSION_TTL = 30 * 24 * 3600;
 

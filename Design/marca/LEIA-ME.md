@@ -1,4 +1,4 @@
-# Pic, a mascote do pIcŧU/Re (versão âmbar)
+# Pic, a mascote do olh'o'posto (versão âmbar)
 
 Ficha Type 2 com os 7 pinos, a objetiva no pino de terra, o obturador e o flash no topo.
 
@@ -8,12 +8,13 @@ Ficha Type 2 com os 7 pinos, a objetiva no pino de terra, o obturador e o flash 
 |---|---|
 | Corpo | `#F2B33D` |
 | Face | `#15201C` |
-| Destaque (objetiva, obturador, raios) | `#0B6B58` |
+| Destaque (obturador, raios) | `#2C4A6B` |
+| Objetiva | `#E6E9EE` |
 | Pinos | `#FCE3A6` |
 | Olhos, janela do flash | `#FFFFFF` |
 | Fundo dos ícones de app | `#FBF3E2` |
 
-Em tema escuro, o `favicon.svg` e o `svg/pic-icon.svg` mudam o obturador para `#5CC9AC` (o verde do tema escuro do site): o `#0B6B58` desaparece contra um fundo escuro. A objetiva fica igual, porque está sobre a face e não sobre o fundo. O `.ico` e os PNG não mudam.
+Em tema escuro, o `favicon.svg` e o `svg/pic-icon.svg` mudam o obturador para `#93AAD6` (o azul do tema escuro do site): o `#2C4A6B` desaparece contra um fundo escuro. A objetiva é sempre `#E6E9EE` (branco gelo), nos dois temas: está sobre a face escura, onde o azul escuro não se vê. O `.ico` e os PNG não mudam.
 
 ## Ficheiros
 
@@ -34,8 +35,8 @@ Em tema escuro, o `favicon.svg` e o `svg/pic-icon.svg` mudam o obturador para `#
 <meta name="theme-color" content="#F2B33D">
 ```
 
-O `aria-label` dos SVG é "picture", como pede o plano para a marca.
+O `aria-label` e o `<title>` dos SVG são "Olha o posto", o nome por extenso, para os leitores de ecrã.
 
 ## Licença
 
-A marca não está licenciada: o nome pIcŧU/Re, o Pic e todos os ficheiros desta pasta ficam fora da licença MIT do repositório. Ver `Docs/licenca.md`.
+A marca não está licenciada: o nome olh'o'posto, o Pic e todos os ficheiros desta pasta ficam fora da licença MIT do repositório. Ver `Docs/licenca.md`.

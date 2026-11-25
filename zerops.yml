@@ -1,4 +1,4 @@
-# VoltFrame no Zerops: servidor Panoramax (serviço `pano`).
+# olh'o'posto no Zerops: servidor Panoramax (serviço `pano`).
 #
 # Só o runtime. O PostgreSQL (hostname `db`) cria-se à parte, com o
 # `zerops-import.yaml`, e este serviço puxa as variáveis dele por referência
@@ -95,19 +95,19 @@ zerops:
         DB_MAX_CNX: "5"
         # --- Instância ---
         API_SUMMARY: >-
-          {"name": {"pt": "VoltFrame — fotos de postos de carregamento",
-          "en": "VoltFrame — EV charger photos"},
-          "description": {"pt": "Fotos de postos de carregamento em Portugal, enviadas pelo VoltFrame",
-          "en": "Photos of EV charging stations in Portugal, uploaded through VoltFrame"},
-          "geo_coverage": {"pt": "Portugal\nSó postos de carregamento, enviados pelo VoltFrame.",
-          "en": "Portugal\nCharging stations only, uploaded through VoltFrame."},
-          "email": "voltframe@ocarroeletrico.com",
-          "color": "#1f7a4d"}
+          {"name": {"pt": "olh'o'posto — fotos de postos de carregamento",
+          "en": "olh'o'posto — EV charger photos"},
+          "description": {"pt": "Fotos de postos de carregamento em Portugal, enviadas pelo olh'o'posto",
+          "en": "Photos of EV charging stations in Portugal, uploaded through olh'o'posto"},
+          "geo_coverage": {"pt": "Portugal\nSó postos de carregamento, enviados pelo olh'o'posto.",
+          "en": "Portugal\nCharging stations only, uploaded through olh'o'posto."},
+          "email": "OlhaOPosto@ocarroeletrico.com",
+          "color": "#2C4A6B"}
         API_WEBSITE_URL: "false"
         API_PICTURES_LICENSE_SPDX_ID: CC-BY-SA-4.0
         API_PICTURES_LICENSE_URL: https://creativecommons.org/licenses/by-sa/4.0/
-        # --- Contas e envio: sem OAuth. O VoltFrame envia com a conta
-        # `pictures` (papel `user`), criada por panoramax/service_account.py. ---
+        # --- Contas e envio: sem OAuth. O olh'o'posto envia com a conta
+        # `OlhaOPosto` (papel `user`), criada por panoramax/service_account.py. ---
         API_REGISTRATION_IS_OPEN: "false"
         API_FORCE_AUTH_ON_UPLOAD: "true"
         # Fica gravado na BD no primeiro arranque; mudar aqui depois não tem

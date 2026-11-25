@@ -6,7 +6,7 @@
 #   PANORAMAX_TOKEN=... panoramax/trial_upload.sh photo.jpg [lat lon]
 #
 # PANORAMAX_URL defaults to the private address over the Zerops VPN
-# (zcli vpn up -P <project-id>). The token is the `pictures` service account
+# (zcli vpn up -P <project-id>). The token is the `OlhaOPosto` service account
 # JWT from service_account.py. It goes to curl through a here-string, so it
 # never shows up in `ps`.
 set -euo pipefail
@@ -15,7 +15,7 @@ file=${1:?usage: trial_upload.sh photo.jpg [lat lon]}
 lat=${2:-38.7369}
 lon=${3:--9.1427}
 base=${PANORAMAX_URL:-http://pano.zerops:5000}
-: "${PANORAMAX_TOKEN:?set PANORAMAX_TOKEN to the pictures account JWT}"
+: "${PANORAMAX_TOKEN:?set PANORAMAX_TOKEN to the OlhaOPosto account JWT}"
 
 # Panoramax only accepts .jpg/.jpeg file names.
 # tr and not ${file,,}: macOS ships bash 3.2.
@@ -29,8 +29,8 @@ api() {
 # Same tags as Docs/plan.md, with example IDs.
 semantics='[
   {"key": "osm|ref:EU:EVSE", "value": "PT*TRK*E*VNT*00005*01"},
-  {"key": "pictures|site", "value": "TRK-VNT-00005"},
-  {"key": "pictures|author", "value": "trial"}
+  {"key": "OlhaOPosto|site", "value": "TRK-VNT-00005"},
+  {"key": "OlhaOPosto|author", "value": "trial"}
 ]'
 
 echo "== upload set"

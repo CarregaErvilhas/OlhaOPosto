@@ -1,4 +1,4 @@
-// VoltFrame Worker (voltframe.ocarroeletrico.com): the station pages, the
+// olh'o'posto Worker (olhaoposto.ocarroeletrico.com): the station pages, the
 // read-only API and sign-in with OpenStreetMap (auth.ts). Fonts, CSS and icons in public/ are Workers static assets,
 // served before this code runs. Static photo links are served by the R2
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).

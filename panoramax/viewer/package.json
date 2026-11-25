@@ -1,0 +1,8 @@
+{
+  "name": "olhaoposto-pano-viewer",
+  "private": true,
+  "description": "Version of the Panoramax web viewer that /viewer loads from the CDN (panoramax/map_override.py). Not built or bundled: this file exists so Dependabot opens a PR, and the drift tests run, when a new version comes out.",
+  "dependencies": {
+    "@panoramax/web-viewer": "4.4.0"
+  }
+}

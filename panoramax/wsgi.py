@@ -16,9 +16,21 @@ module trusts only the last hop, the balancer, for For, Proto and Host. That
 is correct both on the zerops.app subdomain and behind Cloudflare.
 """
 
+import logging
+
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from geovisio import create_api
 
+import map_override
+
 app = create_api()
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=0, x_prefix=0)
+
+# Photos on the map from zoom 7 (map_override.py). If a geovisio upgrade broke
+# one of its assumptions, the PR checks should have failed already; should it
+# get here anyway, pano keeps serving stock Panoramax and says why in the log.
+try:
+    map_override.apply(app)
+except Exception:
+    logging.exception("map_override not applied: the map shows single photos only from zoom ~16.5")

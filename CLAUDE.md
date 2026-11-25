@@ -13,7 +13,7 @@ Estado: fase 1 quase feita. O servidor Panoramax está em produção em `panoram
 - `Docs/infra.md`: infraestrutura do servidor Panoramax no Zerops (serviços, segredos, R2, DNS, deploy, ensaio). Atualizar sempre que a infra mudar.
 - `Docs/cloudflare.md`: recursos Cloudflare do olh'o'posto (buckets `pictures` e `pictures-staging`, Cache Rule, CORS, Worker e as suas rotas, login, página de envio, D1, custos medidos e o import dos postos). Atualizar sempre que mudarem.
 - `worker/`: Worker `olhaoposto` (TypeScript, D1): API, páginas em HTML em pt-PT e inglês (`src/pages.ts`; privacidade em `src/privacy.ts`; login e sessões em `src/auth.ts`; página de envio em `src/upload.ts`; envio em `src/photos.ts`; fila de moderação em `src/moderation.ts`; fotos principais em `src/publish.ts`; papéis em `src/admin.ts`), ficheiros estáticos em `worker/public/` (CSS, fontes, ícones, `robots.txt`, `llms.txt` e os *scripts*: `site.js`, `theme.js`, `upload.js` e `jpeg.js`, o leitor de EXIF partilhado com os testes), `sitemap.xml`, migrações e o import dos postos (`scripts/import-stations.ts`, corrido pelo `.github/workflows/import-stations.yml`). Comandos remotos só com `npm run remote` (`Docs/cloudflare.md`, secção 4). Recursos da conta e da zona (R2, domínios, DNS, cache) com o `cf`; Worker, D1 e segredos com o wrangler pelos *scripts* do `npm`, nunca `cf dev`/`cf deploy`/`cf migrate` (porquê no início do `Docs/cloudflare.md`). A política de privacidade muda no mesmo PR que mudar o que o Worker guarda ou pede.
-- `zerops.yml`, `zerops-import.yaml`, `panoramax/`: configuração do serviço `pano` (Panoramax) e do `db`. Um push para `main` faz deploy pelo webhook do Zerops.
+- `zerops.yml`, `zerops-import.yaml`, `panoramax/`: configuração do serviço `pano` (Panoramax) e do `db`. Um push para `main` faz deploy pelo webhook do Zerops. `panoramax/map_override.py` põe as fotos no mapa a partir do zoom 7 (tiles, `style.json` e o nosso `/viewer` em `panoramax/templates/`); os testes de drift em `panoramax/tests/` correm no job `panoramax` de cada PR (`Docs/infra.md`, «Mapa: fotos de uma só foto»).
 - `Design/marca/`: mascote Pic (versão âmbar) em SVG e PNG, favicon, ícones de app e `site.webmanifest`; cores e `<head>` no `LEIA-ME.md`.
 - `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`: fluxo olh'o'posto ↔ Panoramax e ecrãs do plano revisto (envio, moderação, posto, Panoramax, ranking).
 
@@ -37,5 +37,5 @@ Estado: fase 1 quase feita. O servidor Panoramax está em produção em `panoram
 
 - Docs e UI em pt-PT; código e commits em inglês.
 - Commits com `-s` (DCO).
-- `.github/dependabot.yml` cobre GitHub Actions, o pip de `panoramax/` (lock `requirements.txt` gerado do `requirements.in` com o `uv`) e o npm de `worker/`.
+- `.github/dependabot.yml` cobre GitHub Actions, o pip de `panoramax/` (lock `requirements.txt` gerado do `requirements.in` com o `uv`; testes em `requirements-test.txt`), a versão do visualizador em `panoramax/viewer/` e o npm de `worker/`.
 - Sem IPs, IDs de recursos (Zerops, Cloudflare) nem datas das alterações nos docs, commits e PRs.

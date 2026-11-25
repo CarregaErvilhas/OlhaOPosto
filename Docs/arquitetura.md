@@ -55,7 +55,7 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
 ```
    Pessoas, apps, mapas, agentes
               |
-   Worker olh'o'posto (olhaoposto.*)          R2 "pictures" (pictures.*)
+   Worker olhaoposto (olhaoposto.*)        R2 "pictures" (pictures.*)
    páginas, API só de leitura,             links estáticos pela CDN
    login OSM e envio (fechados),           (vazio até haver fotos)
    sitemap

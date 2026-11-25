@@ -15,7 +15,7 @@ import { isCleanJpeg, jpegSize } from '../public/jpeg.js';
 import { currentUser, loginEnabled, page, sameOrigin, type AuthEnv, type Db, type Waiter } from './auth.ts';
 import type { Lang } from './pages.ts';
 import { distanceM, STATION_ID } from './types.ts';
-import { uploadPage } from './upload.ts';
+import { TURNSTILE_ACTION, uploadPage } from './upload.ts';
 
 // The slice of R2 used here, so the tests typecheck under Node.
 export interface Bucket {
@@ -27,6 +27,11 @@ export interface PhotoEnv extends AuthEnv {
   STAGING?: Bucket;
   PANORAMAX_TOKEN?: string;
   PANORAMAX_URL?: string;
+  // Turnstile on the upload form. Both are Worker secrets: the site key is
+  // public in the page, but it is a Cloudflare resource id and stays out of
+  // the repository.
+  TURNSTILE_SITEKEY?: string;
+  TURNSTILE_SECRET?: string;
 }
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
@@ -47,13 +52,36 @@ type SizeName = keyof typeof SIZES;
 const MAX_BODY = 9_000_000;
 const MIN_SIDE = 100;
 
-export const uploadsOpen = (env: PhotoEnv) => loginEnabled(env) && Boolean(env.PANORAMAX_TOKEN && env.STAGING);
+export const uploadsOpen = (env: PhotoEnv) =>
+  loginEnabled(env) && Boolean(env.PANORAMAX_TOKEN && env.STAGING && env.TURNSTILE_SITEKEY && env.TURNSTILE_SECRET);
+
+const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+const SITE_HOST = 'olhaoposto.ocarroeletrico.com';
+
+// Turnstile's answer for this token. Tokens are single use and last 300 s;
+// the hostname and action stop a token made for another site or form.
+export async function turnstileOk(env: PhotoEnv, fetcher: Fetch, token: unknown, ip: string | null): Promise<boolean> {
+  if (typeof token !== 'string' || !token || token.length > 2048) return false;
+  const body = new FormData();
+  body.append('secret', env.TURNSTILE_SECRET ?? '');
+  body.append('response', token);
+  if (ip) body.append('remoteip', ip);
+  try {
+    const r = await fetcher(SITEVERIFY, { method: 'POST', body });
+    if (!r.ok) return false;
+    const out = await r.json() as { success?: boolean; hostname?: string; action?: string };
+    return out.success === true && out.hostname === SITE_HOST && out.action === TURNSTILE_ACTION;
+  } catch {
+    return false;
+  }
+}
 
 export async function uploadHtml(lang: Lang, request: Request, env: PhotoEnv, headers: Record<string, string>) {
   const enabled = loginEnabled(env);
   // A D1 hiccup reads as signed out, never as a 500.
   const user = enabled ? await currentUser(request, env).catch(() => null) : null;
-  return page(lang, uploadPage(lang, { user, enabled, sending: uploadsOpen(env) }), 200, headers);
+  const sending = uploadsOpen(env);
+  return page(lang, uploadPage(lang, { user, enabled, sending, sitekey: sending ? env.TURNSTILE_SITEKEY : undefined }), 200, headers);
 }
 
 const reply = (status: number, body: Record<string, unknown>) =>
@@ -196,6 +224,11 @@ export async function submitPhoto(
     form = await request.formData();
   } catch {
     return reply(400, { error: 'bad_form' });
+  }
+  // Before anything is read or written: the cheap checks above stop most
+  // junk, this one stops scripts with a stolen or scripted session.
+  if (!(await turnstileOk(env, fetcher, form.get('turnstile'), request.headers.get('cf-connecting-ip')))) {
+    return reply(403, { error: 'turnstile' });
   }
   const meta = parseMeta(form.get('meta'), now);
   if (typeof meta === 'string') return reply(400, { error: meta });

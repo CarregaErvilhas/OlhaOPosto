@@ -473,11 +473,18 @@ function init(form, M) {
       license: $('ok-license').checked,
       no_people: $('ok-privacy').checked,
     }));
+    // Turnstile puts its token in a hidden input inside the form. Tokens are
+    // single use, so the widget is reset after every attempt.
+    const token = form.querySelector('[name="cf-turnstile-response"]')?.value ?? '';
+    if (!token) return say(sendStatus, M.errors.turnstile);
+    body.append('turnstile', token);
     let r;
     try {
       r = await fetch('/api/v1/photos', { method: 'POST', body });
     } catch {
       return say(sendStatus, M.errors.upload_failed);
+    } finally {
+      window.turnstile?.reset();
     }
     if (r.ok) {
       sent = true;

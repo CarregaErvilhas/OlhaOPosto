@@ -11,6 +11,7 @@ const mail = `<a href="mailto:${CONTACT}">${CONTACT}</a>`;
 const LINKS = {
   osmf: 'https://osmfoundation.org/wiki/Privacy_Policy',
   cfPrivacy: 'https://www.cloudflare.com/privacypolicy/',
+  turnstilePrivacy: 'https://www.cloudflare.com/turnstile-privacy-policy/',
   cfDpa: 'https://www.cloudflare.com/cloudflare-customer-dpa/',
   cnpd: 'https://www.cnpd.pt/',
   history: 'https://github.com/CarregaErvilhas/OlhaOPosto/commits/main/worker/src/privacy.ts',
@@ -43,6 +44,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <h2>Envio de fotos</h2>
 <p>A página de envio trata a foto no teu dispositivo: abre-a, lê a data e o GPS, desfoca as zonas que marcares por cima de caras e matrículas, e faz três tamanhos (2048, 1024 e 400 px) sem metadados. A foto original nunca é enviada. Para sugerir postos, a página arredonda o GPS a cerca de 100 metros e pede-nos os postos à volta desse ponto; esse pedido fica no registo técnico como qualquer outro.</p>
 <p>Enquanto o envio estiver fechado, a página só prepara a foto, e nada dela sai do teu dispositivo além desse pedido de postos. Quando enviares, recebemos os três tamanhos e, à parte, a data e o GPS exato da foto, se os tiver. Guardamos:</p>
+<p>Com o envio aberto, a página usa o Cloudflare Turnstile para confirmar que quem envia é uma pessoa e não um programa. O Turnstile corre no teu navegador, recolhe sinais técnicos (por exemplo, o endereço IP e características do navegador) e não usa <i>cookies</i>; recebemos só um código de uma utilização, que verificamos na Cloudflare junto com o teu endereço IP. O fundamento é o nosso interesse legítimo em travar envios automáticos (artigo 6.º, n.º 1, alínea f) do RGPD). Ver a <a href="${LINKS.turnstilePrivacy}">política de privacidade do Turnstile</a>.</p>
 <ul>
 <li>a foto de 2048 px no nosso servidor Panoramax, com as coordenadas do posto (nunca as do GPS da foto), a data da foto e o teu nome no OpenStreetMap como autor;</li>
 <li>as versões de 1024 e 400 px num armazenamento privado;</li>
@@ -92,6 +94,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <h2>Photo uploads</h2>
 <p>The upload page handles the photo on your device: it opens it, reads its date and GPS, blurs the areas you mark over faces and number plates, and makes three sizes (2048, 1024 and 400 px) without metadata. The original photo is never sent. To suggest stations, the page rounds the GPS to about 100 metres and asks us for the stations around that point; that request goes into the technical log like any other.</p>
 <p>While uploads are closed, the page only prepares the photo, and nothing from it leaves your device apart from that station request. When you send a photo, we receive the three sizes and, separately, the photo’s date and exact GPS, if it has them. We keep:</p>
+<p>With uploads open, the page uses Cloudflare Turnstile to confirm that the sender is a person and not a program. Turnstile runs in your browser, collects technical signals (for example, your IP address and browser characteristics) and uses no cookies; we receive only a single-use code, which we check with Cloudflare together with your IP address. The basis is our legitimate interest in stopping automated uploads (Article 6(1)(f) GDPR). See the <a href="${LINKS.turnstilePrivacy}">Turnstile privacy addendum</a>.</p>
 <ul>
 <li>the 2048 px photo on our Panoramax server, with the station’s coordinates (never the photo’s GPS), the photo’s date and your OpenStreetMap name as the author;</li>
 <li>the 1024 and 400 px versions in private storage;</li>

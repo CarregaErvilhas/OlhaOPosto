@@ -74,12 +74,18 @@ interface Fakes {
   calls: { url: string; method: string }[];
   waits: Promise<unknown>[];
   licenseSet: number;
+  // What siteverify answers, and what it was asked.
+  turnstile: Record<string, unknown>;
+  verified: { response: unknown; remoteip: unknown; secret: unknown }[];
 }
 
-function fakes(opts: { count?: number; panoramax?: number; role?: string; socket?: boolean } = {}): Fakes {
+function fakes(opts: { count?: number; panoramax?: number; role?: string; socket?: boolean; turnstile?: Record<string, unknown> } = {}): Fakes {
   const rows = new Map<string, Record<string, unknown>>();
   const r2 = new Map<string, Uint8Array>();
-  const f: Fakes = { env: {} as PhotoEnv, rows, r2, calls: [], waits: [], licenseSet: 0 };
+  const f: Fakes = {
+    env: {} as PhotoEnv, rows, r2, calls: [], waits: [], licenseSet: 0, verified: [],
+    turnstile: opts.turnstile ?? { success: true, hostname: 'olhaoposto.ocarroeletrico.com', action: 'upload' },
+  };
   const stmt = (sql: string) => {
     let args: unknown[] = [];
     const s = {
@@ -109,6 +115,7 @@ function fakes(opts: { count?: number; panoramax?: number; role?: string; socket
   f.env = {
     DB: { prepare: stmt, batch: async (ss: { run(): Promise<unknown> }[]) => { for (const s of ss) await s.run(); } },
     OSM_CLIENT_ID: 'id', OSM_CLIENT_SECRET: 'secret', PANORAMAX_TOKEN: 'token', PANORAMAX_URL: 'https://pano.test',
+    TURNSTILE_SITEKEY: 'site-key', TURNSTILE_SECRET: 'ts-secret',
     STAGING: {
       async put(k: string, v: Uint8Array) { r2.set(k, v); },
       async delete(keys: string | string[]) { for (const k of [keys].flat()) r2.delete(k); },
@@ -119,8 +126,13 @@ function fakes(opts: { count?: number; panoramax?: number; role?: string; socket
 
 function fakeFetch(f: Fakes, status = 200) {
   return async (url: string, init?: RequestInit) => {
-    f.calls.push({ url, method: init?.method ?? 'GET' });
     const json = (body: unknown, s = 200) => new Response(JSON.stringify(body), { status: s });
+    if (url === 'https://challenges.cloudflare.com/turnstile/v0/siteverify') {
+      const b = init?.body as FormData;
+      f.verified.push({ response: b.get('response'), remoteip: b.get('remoteip'), secret: b.get('secret') });
+      return json(f.turnstile);
+    }
+    f.calls.push({ url, method: init?.method ?? 'GET' });
     if (url.endsWith('/api/upload_sets') && init?.method === 'POST') return json({ id: 'set-1' });
     if (url.endsWith('/files')) return status === 200 ? json({ picture_id: 'pic-1' }) : json({ message: 'no' }, status);
     if (url.endsWith('/complete')) return json({ completed: true });
@@ -128,15 +140,18 @@ function fakeFetch(f: Fakes, status = 200) {
   };
 }
 
-function upload(opts: { meta?: Record<string, unknown>; origin?: string; full?: Uint8Array } = {}) {
+function upload(opts: { meta?: Record<string, unknown>; origin?: string; full?: Uint8Array; turnstile?: string | null } = {}) {
   const body = new FormData();
   body.append('full', new Blob([opts.full ?? jpeg(2048, 1536)], { type: 'image/jpeg' }), 'full.jpg');
   body.append('main', new Blob([jpeg(1024, 768)], { type: 'image/jpeg' }), 'main.jpg');
   body.append('thumb', new Blob([jpeg(400, 300)], { type: 'image/jpeg' }), 'thumb.jpg');
   body.append('meta', JSON.stringify(opts.meta ?? goodMeta));
+  if (opts.turnstile !== null) body.append('turnstile', opts.turnstile ?? 'ts-token');
   return new Request('https://olhaoposto.ocarroeletrico.com/api/v1/photos', {
     method: 'POST', body,
-    headers: { origin: opts.origin ?? 'https://olhaoposto.ocarroeletrico.com', cookie: '__Host-oop_session=abc' },
+    headers: {
+      origin: opts.origin ?? 'https://olhaoposto.ocarroeletrico.com', cookie: '__Host-oop_session=abc', 'cf-connecting-ip': '192.0.2.1',
+    },
   });
 }
 
@@ -149,7 +164,7 @@ const run = async (f: Fakes, req: Request, status = 200) => {
 test('submitPhoto: closed until sign-in, the token and the bucket all exist', async () => {
   const f = fakes();
   assert.equal(uploadsOpen(f.env), true);
-  for (const key of ['PANORAMAX_TOKEN', 'STAGING', 'OSM_CLIENT_SECRET'] as const) {
+  for (const key of ['PANORAMAX_TOKEN', 'STAGING', 'OSM_CLIENT_SECRET', 'TURNSTILE_SITEKEY', 'TURNSTILE_SECRET'] as const) {
     const g = fakes();
     delete (g.env as unknown as Record<string, unknown>)[key];
     assert.deepEqual(await run(g, upload()), { status: 503, body: { error: 'uploads_closed' } });
@@ -194,6 +209,25 @@ test('submitPhoto: refuses other sites, bad photos, unknown targets and the dail
   await run(f, upload());
   assert.equal(f.calls.length, 0);
   assert.equal(f.rows.size, 0);
+});
+
+test('submitPhoto: Turnstile is checked before anything is written', async () => {
+  const f = fakes();
+  await run(f, upload());
+  assert.deepEqual(f.verified, [{ response: 'ts-token', remoteip: '192.0.2.1', secret: 'ts-secret' }]);
+  const cases: [Record<string, unknown> | undefined, string | null | undefined][] = [
+    [undefined, null],                                                                       // no token
+    [undefined, ''],
+    [{ success: false, 'error-codes': ['invalid-input-response'] }, undefined],
+    [{ success: true, hostname: 'evil.example', action: 'upload' }, undefined],              // token for another site
+    [{ success: true, hostname: 'olhaoposto.ocarroeletrico.com', action: 'login' }, undefined],
+  ];
+  for (const [answer, token] of cases) {
+    const g = fakes(answer ? { turnstile: answer } : {});
+    assert.deepEqual(await run(g, upload({ turnstile: token })), { status: 403, body: { error: 'turnstile' } });
+    assert.equal(g.calls.length, 0);
+    assert.equal(g.rows.size, 0);
+  }
 });
 
 test('submitPhoto: a Panoramax failure leaves only a failed row', async () => {

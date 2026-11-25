@@ -158,7 +158,8 @@ code, .mono { font-family: var(--mono); font-size: 0.8125rem; }
 .brand:hover { color: var(--text); }
 .brand img { width: 34px; height: 34px; }
 .brand-name { font-family: var(--display); font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em; }
-.lang-switch { font-size: 0.875rem; padding: 10px 4px; }
+.lang-switch, .header-link { font-size: 0.875rem; padding: 10px 4px; }
+.header-link { font-weight: 600; }
 /* Shown by theme.js: without JavaScript the picker could not do anything. */
 .theme:not([hidden]) { display: flex; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--muted); }
 .theme select {

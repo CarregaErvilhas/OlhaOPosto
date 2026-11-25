@@ -1,4 +1,4 @@
-# Pic, a mascote do pIcŧU/Re (versão âmbar)
+# Pic, a mascote do olh'o'posto (versão âmbar)
 
 Ficha Type 2 com os 7 pinos, a objetiva no pino de terra, o obturador e o flash no topo.
 
@@ -34,8 +34,8 @@ Em tema escuro, o `favicon.svg` e o `svg/pic-icon.svg` mudam o obturador para `#
 <meta name="theme-color" content="#F2B33D">
 ```
 
-O `aria-label` dos SVG é "picture", como pede o plano para a marca.
+O `aria-label` e o `<title>` dos SVG são "Olha o posto", o nome por extenso, para os leitores de ecrã.
 
 ## Licença
 
-A marca não está licenciada: o nome pIcŧU/Re, o Pic e todos os ficheiros desta pasta ficam fora da licença MIT do repositório. Ver `Docs/licenca.md`.
+A marca não está licenciada: o nome olh'o'posto, o Pic e todos os ficheiros desta pasta ficam fora da licença MIT do repositório. Ver `Docs/licenca.md`.

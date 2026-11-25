@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "pictures",
+  "name": "olhaoposto",
   "main": "src/index.ts",
   "assets": {
     "directory": "./public"
@@ -10,7 +10,7 @@
   "preview_urls": false,
   "routes": [
     {
-      "pattern": "voltframe.ocarroeletrico.com",
+      "pattern": "olhaoposto.ocarroeletrico.com",
       "custom_domain": true
     }
   ],

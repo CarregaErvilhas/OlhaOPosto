@@ -1,4 +1,4 @@
-# Cloudflare — recursos do VoltFrame
+# Cloudflare — recursos do olh'o'posto
 
 Zona `ocarroeletrico.com`, na conta Cloudflare existente. O
 servidor Panoramax (Zerops, bucket `panoramax`, DNS do `panoramax.*`) está em
@@ -14,7 +14,7 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio; a ligação `STAGING` está no `main`, por publicar |
 | Cache Rule do `pictures.*` | Aplicada e testada |
 | D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0005` aplicadas; a `0006` (`photos`) aplica-se antes do próximo deploy |
-| Worker `pictures` em `voltframe.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, e o login e a página de envio (desligados até haver os segredos do OSM). O envio (`POST /api/v1/photos`) está no `main`, por publicar, e fica fechado até haver o `PANORAMAX_TOKEN` |
+| Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, e o login e a página de envio (desligados até haver os segredos do OSM). O envio (`POST /api/v1/photos`) está no `main`, por publicar, e fica fechado até haver o `PANORAMAX_TOKEN` |
 | Início de sessão com o OSM | Feito e desligado: faltam a aplicação no OSM e os segredos (secção 4) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos. Correu à mão; o agendamento diário ainda não correu nenhuma vez |
 
@@ -77,8 +77,8 @@ No `cf`, os comandos que apagam ou substituem (`r2 objects delete`,
 
 ## 4. Worker e D1
 
-O código está em `worker/`. O Worker chama-se `pictures` e responde em
-`voltframe.ocarroeletrico.com` (custom domain; `workers.dev` e *preview URLs*
+O código está em `worker/`. O Worker chama-se `olhaoposto` e responde em
+`olhaoposto.ocarroeletrico.com` (custom domain; `workers.dev` e *preview URLs*
 desligados). Por agora tem:
 
 | Pedido | Devolve |
@@ -158,7 +158,7 @@ privacidade descreve; se a retenção ou os campos mudarem, ela muda também.
 OAuth2 com PKCE (S256), só o âmbito `read_prefs`: chega para ler o número e
 o nome da conta, não dá o email nem deixa editar o mapa. O *token* do OSM
 serve uma vez, para ler `user/details`, e é revogado logo a seguir. A sessão
-é do VoltFrame: um *cookie* `__Host-vf_session` (`HttpOnly`, `Secure`,
+é do olh'o'posto: um *cookie* `__Host-oop_session` (`HttpOnly`, `Secure`,
 `SameSite=Lax`, 30 dias) com um valor aleatório, e na tabela `sessions` só o
 SHA-256 dele. As sessões expiradas saem no login seguinte. A tabela `users`
 guarda o número e o nome no OSM (o nome atualiza-se em cada login), o papel
@@ -174,8 +174,8 @@ Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e
 1. Confirmar que a política de privacidade (`/privacidade`) está publicada
    e certa, incluindo o parágrafo sobre a página de envio.
 2. Registar a aplicação em `openstreetmap.org/oauth2/applications`: nome
-   "pIcŧU/Re", confidencial, só "Ler as preferências do utilizador"
-   (`read_prefs`), *redirect* `https://voltframe.ocarroeletrico.com/auth/osm/callback`.
+   "olh'o'posto", confidencial, só "Ler as preferências do utilizador"
+   (`read_prefs`), *redirect* `https://olhaoposto.ocarroeletrico.com/auth/osm/callback`.
 3. `npm run remote -- secret put OSM_CLIENT_ID` e o mesmo para
    `OSM_CLIENT_SECRET` (pedem o valor; nunca num ficheiro do repositório).
 
@@ -235,7 +235,7 @@ browser:
    as versões de 1024 e 400 px em `pictures-staging` (`{id}/main.jpg`,
    `{id}/thumb.jpg`) e manda a de 2048 ao Panoramax: um *upload set*
    `owner-only` só com esta foto, com as coordenadas do posto, a data da foto
-   e as etiquetas `osm|ref:EU:EVSE`, `pictures|site` e `pictures|author`.
+   e as etiquetas `osm|ref:EU:EVSE`, `olhaoposto|site` e `olhaoposto|author`.
    No fim, a linha passa a `pending` com os IDs do Panoramax, e a conta fica
    com `license_accepted_at`.
 5. Se alguma coisa falhar, apaga o que já tinha guardado (R2 e *upload set*)
@@ -254,7 +254,7 @@ segredo `PANORAMAX_TOKEN` ou a ligação `STAGING`. Antes de pôr o token:
 2. Turnstile no formulário (`plan.md`, *Autenticação*), que obriga a abrir a
    CSP da página a `challenges.cloudflare.com`.
 3. Confirmar a secção *Envio de fotos* da política de privacidade.
-4. Emitir o token da conta `pictures` ([`infra.md`](infra.md), secção 4) e
+4. Emitir o token da conta `olhaoposto` ([`infra.md`](infra.md), secção 4) e
    `npm run remote -- secret put PANORAMAX_TOKEN`.
 5. Enviar uma foto real e confirmar no Panoramax, no `pictures-staging` e na
    D1, e o tempo de CPU nos registos do Worker.

@@ -1,6 +1,6 @@
 # Licenças
 
-O VoltFrame tem duas licenças: uma para o código e outra para as fotos. O nome e a mascote ficam fora das duas.
+O olh'o'posto tem duas licenças: uma para o código e outra para as fotos. O nome e a mascote ficam fora das duas.
 
 ## Código: MIT
 
@@ -10,14 +10,14 @@ Porquê a MIT: é a mesma licença do Panoramax (GeoVisio), o servidor onde fica
 
 ## Fotos: CC BY-SA 4.0, com autorização para dados
 
-As fotos enviadas pelo VoltFrame ficam sob a [Creative Commons Atribuição-CompartilhaIgual 4.0 Internacional (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/deed.pt), no mesmo modelo do Panoramax da OSM França ([wiki](https://wiki.openstreetmap.org/wiki/FR:Panoramax)):
+As fotos enviadas pelo olh'o'posto ficam sob a [Creative Commons Atribuição-CompartilhaIgual 4.0 Internacional (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/deed.pt), no mesmo modelo do Panoramax da OSM França ([wiki](https://wiki.openstreetmap.org/wiki/FR:Panoramax)):
 
 - **Fotos e derivados fotográficos** (recortes, tamanhos, versões desfocadas): CC BY-SA 4.0. É obrigatório dar crédito ao autor e partilhar os derivados sob a mesma licença.
 - **Dados não fotográficos** tirados das fotos (por exemplo, o tipo de tomada, o operador ou a posição de um posto, para pôr no OpenStreetMap): o autor autoriza também a sua publicação sob **CC BY 4.0** ou **ODbL**. Sem esta autorização, a CC BY-SA sozinha não é compatível com a ODbL e as fotos não poderiam ser usadas para melhorar o OSM.
 
 Quem envia uma foto aceita estas condições uma vez, ao entrar, e declara que é o autor da foto.
 
-**Atribuição.** O autor e a licença vão nos metadados (XMP/IPTC) da cópia pública e o crédito completo fica em `https://voltframe.ocarroeletrico.com/p/{photo_id}`.
+**Atribuição.** O autor e a licença vão nos metadados (XMP/IPTC) da cópia pública e o crédito completo fica em `https://olhaoposto.ocarroeletrico.com/p/{photo_id}`.
 
 **Fotos de outras origens.** As fotos referenciadas a partir do OSM, do Wikimedia Commons ou de outro servidor Panoramax mantêm a licença e o autor de origem.
 
@@ -29,7 +29,7 @@ O site usa a Inter, a Space Grotesk e a JetBrains Mono, alojadas no próprio Wor
 
 As licenças cobrem o código e as fotos, não a marca. Não estão licenciados:
 
-- os nomes **VoltFrame** e **pIcŧU/Re**, e os domínios em `ocarroeletrico.com`;
+- o nome **olh'o'posto**, e os domínios em `ocarroeletrico.com`;
 - a mascote **Pic** (a ficha Type 2 que fotografa), o ícone, o favicon e as imagens feitas com eles, em `Design/marca/` e nos desenhos dos mockups em `Design/`;
 - as cópias desses ficheiros que o site serve (`worker/public/`: `pic-icon.svg`, favicons, ícones de app e `site.webmanifest`);
 - as mascotes dos outros sites do grupo do O Carro Elétrico, se aparecerem aqui, que são de cada um desses sites.

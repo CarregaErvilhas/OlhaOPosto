@@ -158,7 +158,6 @@ code, .mono { font-family: var(--mono); font-size: 0.8125rem; }
 .brand:hover { color: var(--text); }
 .brand img { width: 34px; height: 34px; }
 .brand-name { font-family: var(--display); font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em; }
-.brand-sub { font-size: 0.8125rem; color: var(--muted); border-left: 1px solid var(--line-strong); padding-left: 10px; }
 .lang-switch { font-size: 0.875rem; padding: 10px 4px; }
 /* Shown by theme.js: without JavaScript the picker could not do anything. */
 .theme:not([hidden]) { display: flex; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--muted); }
@@ -335,7 +334,6 @@ label[for="photo"], .station-search label { font-weight: 600; }
 /* em, not px: the layout switches when the text no longer fits, whatever its size. */
 @media (max-width: 37.5em) {
   .wrap { padding: 0 16px; }
-  .brand-sub { display: none; }
   /* Room for the picker and the language link on one line; screen readers still get the label. */
   .theme label {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

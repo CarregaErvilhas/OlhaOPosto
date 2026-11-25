@@ -150,7 +150,7 @@ async function sendToPanoramax(
   onSet: (setId: string) => void,
 ): Promise<string> {
   const base = env.PANORAMAX_URL ?? PANORAMAX_URL;
-  const auth = { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'pictures (VoltFrame)' };
+  const auth = { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'olhaoposto' };
   const call = async (path: string, init: RequestInit) => {
     const r = await fetcher(base + path, { ...init, headers: { ...auth, ...(init.headers ?? {}) } });
     if (!r.ok) throw new PanoramaxError(r.status);
@@ -159,7 +159,7 @@ async function sendToPanoramax(
   const set = await call('/api/upload_sets', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ title: `pictures ${id}`, estimated_nb_files: 1, no_split: true, visibility: 'owner-only' }),
+    body: JSON.stringify({ title: `olhaoposto ${id}`, estimated_nb_files: 1, no_split: true, visibility: 'owner-only' }),
   });
   const setId = String(set.id ?? '');
   if (!setId) throw new PanoramaxError(502);
@@ -244,8 +244,8 @@ export async function submitPhoto(
     await env.STAGING!.put(staged[1], files.thumb, jpeg);
     const semantics = [
       ...(target.evse_id ? [{ key: 'osm|ref:EU:EVSE', value: target.evse_id }] : []),
-      { key: 'pictures|site', value: meta.station },
-      { key: 'pictures|author', value: user.name },
+      { key: 'olhaoposto|site', value: meta.station },
+      { key: 'olhaoposto|author', value: user.name },
     ];
     // Panoramax gets the station's position, never the photographer's.
     const pictureId = await sendToPanoramax(env, fetcher, id, files.full, {
@@ -278,7 +278,7 @@ async function cleanUp(env: PhotoEnv, fetcher: Fetch, staged: string[], setId: s
   if (setId) {
     await fetcher(`${env.PANORAMAX_URL ?? PANORAMAX_URL}/api/upload_sets/${encodeURIComponent(setId)}`, {
       method: 'DELETE',
-      headers: { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'pictures (VoltFrame)' },
+      headers: { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'olhaoposto' },
     }).catch(() => {});
   }
   await env.DB.prepare(`UPDATE photos SET status = 'failed' WHERE id = ?`).bind(id).run().catch(() => {});

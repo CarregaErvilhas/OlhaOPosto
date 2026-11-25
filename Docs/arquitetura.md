@@ -1,6 +1,6 @@
 # Arquitetura — o que está a funcionar
 
-Este documento descreve o VoltFrame tal como existe hoje. O que ainda falta
+Este documento descreve o olh'o'posto tal como existe hoje. O que ainda falta
 construir, e o design dessas partes, está em [`plan.md`](plan.md). Os
 detalhes de operação estão em [`infra.md`](infra.md) (servidor Panoramax no
 Zerops) e em [`cloudflare.md`](cloudflare.md) (R2, Worker, D1 e o import dos
@@ -9,7 +9,7 @@ postos). As licenças estão em [`licenca.md`](licenca.md).
 ## Objetivo
 
 Um servidor **Panoramax** próprio, só para postos de carregamento, guarda as
-fotos. Um **Worker da Cloudflare** (VoltFrame) faz o resto: a lista de postos
+fotos. Um **Worker da Cloudflare** (`olhaoposto`) faz o resto: a lista de postos
 do NAP, os links estáticos pelo ID oficial, a escolha da foto principal, o
 envio, a moderação, o ranking, a API e o MCP. Exemplo de link:
 `https://pictures.ocarroeletrico.com/TRK-VNT-00005.jpg`.
@@ -34,13 +34,14 @@ Responsável (RGPD): O Carro Elétrico. Passar para uma associação fica como s
 
 ## Nomes e domínios
 
-- **Marca:** "pIcŧU/Re" (lê-se "picture"). Só apresentação: logótipo, títulos e `display_name` da app OAuth do OSM. Leitores de ecrã: `aria-label="picture"`. O site mostra os dois nomes, VoltFrame e pIcŧU/Re. Ficheiros e cores em `Design/marca/`.
-- **Repositório:** VoltFrame.
-- **Slug técnica:** `pictures` (ASCII, minúsculas), usada em endpoints, nome do servidor MCP, User-Agent, conta de serviço do Panoramax e recursos da Cloudflare (Worker, R2, D1). O `/` e o `ŧ` nunca entram num identificador técnico.
+- **Marca:** "olh'o'posto" (lê-se "Olha o posto"). Só apresentação: logótipo, títulos e `display_name` da app OAuth do OSM. Leitores de ecrã: "Olha o posto" (`aria-label` dos SVG e texto escondido no cabeçalho). No código, `BRAND` e `BRAND_SPOKEN` em `worker/src/pages.ts`. Ficheiros e cores em `Design/marca/`.
+- **Repositório:** `CarregaErvilhas/OlhaOPosto`.
+- **Slug técnica:** `olhaoposto` (ASCII, minúsculas), usada no subdomínio, nome do servidor MCP, User-Agent, conta de serviço do Panoramax, etiquetas `olhaoposto|…` e Worker. Os apóstrofos nunca entram num identificador técnico.
+- **Nomes que ficam `pictures`:** o bucket R2 `pictures` (e `pictures.ocarroeletrico.com`, o host dos links estáticos), o `pictures-staging` e a D1 `pictures`. São internos ou já estão em links, e mudar a D1 obriga a criar outra base.
 
 | Host | O que serve hoje | Como |
 | --- | --- | --- |
-| `voltframe.ocarroeletrico.com` | Páginas dos postos e pesquisa (pt-PT e inglês), API `/api/v1` só de leitura, política de privacidade, conta e página de envio (desligadas até ao login OSM), `sitemap.xml`, `robots.txt`, `llms.txt` | Worker `pictures` + D1 ([`cloudflare.md`](cloudflare.md), secção 4) |
+| `olhaoposto.ocarroeletrico.com` | Páginas dos postos e pesquisa (pt-PT e inglês), API `/api/v1` só de leitura, política de privacidade, conta e página de envio (desligadas até ao login OSM), `sitemap.xml`, `robots.txt`, `llms.txt` | Worker `olhaoposto` + D1 ([`cloudflare.md`](cloudflare.md), secção 4) |
 | `pictures.ocarroeletrico.com` | Links estáticos (`/<id>.jpg` e tamanhos); por agora todos dão `404` | Custom domain do bucket R2 `pictures`, servido pela CDN **sem Worker** ([`cloudflare.md`](cloudflare.md), secção 3) |
 | `panoramax.ocarroeletrico.com` | Servidor Panoramax (API, visualizador, imagens), fora da federação | Zerops, com o bucket R2 `panoramax` como armazenamento ([`infra.md`](infra.md)) |
 
@@ -54,7 +55,7 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
 ```
    Pessoas, apps, mapas, agentes
               |
-   Worker VoltFrame (voltframe.*)          R2 "pictures" (pictures.*)
+   Worker olh'o'posto (olhaoposto.*)          R2 "pictures" (pictures.*)
    páginas, API só de leitura,             links estáticos pela CDN
    login OSM e envio (fechados),           (vazio até haver fotos)
    sitemap
@@ -68,11 +69,11 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
    Panoramax (panoramax.*, Zerops)
      PostgreSQL+PostGIS, worker de imagens
      R2 "panoramax" (originais e tamanhos)
-     conta de serviço "pictures", sem OAuth
+     conta de serviço "olhaoposto", sem OAuth
 ```
 
 O Worker fala com o Panoramax só no envio, com a conta de serviço
-`pictures`: cria um *upload set* escondido por foto. Enquanto o segredo
+`olhaoposto`: cria um *upload set* escondido por foto. Enquanto o segredo
 `PANORAMAX_TOKEN` não existir, não fala de todo ([`cloudflare.md`](cloudflare.md),
 *Abrir o envio*).
 
@@ -89,21 +90,21 @@ envios pelo MapComplete.
 **Porque um servidor só para postos.** Um "Panoramax PT" geral, aberto a
 fotos de rua de qualquer pessoa, faria de nós o responsável RGPD por tudo,
 com terabytes de armazenamento e moderação muito maior. Este servidor só
-recebe fotos de postos, enviadas pelo VoltFrame. Só se chama "Panoramax PT"
+recebe fotos de postos, enviadas pelo olh'o'posto. Só se chama "Panoramax PT"
 se a OSM Portugal e a equipa do Panoramax concordarem, e pode crescer para
 isso mais tarde.
 
-**Sem logins no Panoramax.** O VoltFrame envia tudo com uma única conta de
-serviço (`pictures`, que não é admin); o registo no Panoramax está fechado,
-como no servidor do MapComplete. Os contribuidores só entram no VoltFrame,
+**Sem logins no Panoramax.** O olh'o'posto envia tudo com uma única conta de
+serviço (`olhaoposto`, que não é admin); o registo no Panoramax está fechado,
+como no servidor do MapComplete. Os contribuidores só entram no olh'o'posto,
 com OSM. Isto garante que só entram fotos de postos e que a moderação é a do
-VoltFrame. O visualizador, as páginas das fotos e a API de leitura do
+olh'o'posto. O visualizador, as páginas das fotos e a API de leitura do
 Panoramax continuam públicos. O que se perde (o envio pelo Panoramax e as
 apps dele, a página "as minhas fotos" do Panoramax) não faz falta ou é
-refeito no VoltFrame.
+refeito no olh'o'posto.
 
 O servidor está configurado para isto: licença CC BY-SA 4.0, envio só com
-token, fotos `owner-only` até o VoltFrame as aprovar, sem desfocagem no
+token, fotos `owner-only` até o olh'o'posto as aprovar, sem desfocagem no
 servidor. Configuração e resultados do ensaio em [`infra.md`](infra.md),
 secções 4 e 9.
 
@@ -111,7 +112,7 @@ secções 4 e 9.
 
 A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19 700 pontos.
 
-**Sincronização.** O VoltFrame lê o `ohmigo_chargers.json` que o NAP
+**Sincronização.** O olh'o'posto lê o `ohmigo_chargers.json` que o NAP
 dashboard já publica (o mesmo que o site e o ohmigo usam), todos os dias,
 pelo GitHub Actions, e faz *upsert* na D1: postos novos entram como
 `active`, postos que desaparecem passam a `missing_from_nap` (nunca são
@@ -177,6 +178,6 @@ fotos ainda não (a publicação está em [`plan.md`](plan.md)).
 | `/PTTRKEVNT0000501.jpg` (e `.thumb.jpg`, `.full.jpg`) | Foto principal da tomada |
 
 - **Sem query strings.** O R2 ignora-as, por isso cada tamanho tem a sua chave.
-- **Galerias e metadados** ficam na API: `voltframe.ocarroeletrico.com/api/v1/stations/{id}`.
+- **Galerias e metadados** ficam na API: `olhaoposto.ocarroeletrico.com/api/v1/stations/{id}`.
 - **Sem foto:** o R2 responde `404`, para cada app decidir o que mostrar.
 - **Cache:** Edge TTL de 30 dias e `404` de 1 h na Cache Rule, sem query strings na chave ([`cloudflare.md`](cloudflare.md), secção 3).

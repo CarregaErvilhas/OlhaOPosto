@@ -2,7 +2,7 @@
 // (public/upload.js): the original and its EXIF never reach the server. This
 // file only renders the form and the messages the script needs. Until uploads
 // open (src/photos.ts), the page prepares the photo and stops there.
-import { accountPath, esc, layout, privacyPath, uploadPath, type AccountView, type Lang } from './pages.ts';
+import { BRAND, accountPath, esc, layout, privacyPath, uploadPath, type AccountView, type Lang } from './pages.ts';
 
 // The URL the photos will get, for the "Link:" line.
 const PICTURES_HOST = 'pictures.ocarroeletrico.com';
@@ -10,7 +10,7 @@ const PICTURES_HOST = 'pictures.ocarroeletrico.com';
 const T = {
   pt: {
     title: 'Enviar fotos',
-    desc: 'Enviar fotos de postos de carregamento para o pIcŧU/Re.',
+    desc: `Enviar fotos de postos de carregamento para o ${BRAND}.`,
     intro: 'A foto é lida, desfocada e limpa no teu dispositivo. O original nunca é enviado.',
     off: 'O envio de fotos ainda não está aberto.',
     login: 'Para enviar fotos, inicia sessão com a tua conta OpenStreetMap.',
@@ -88,7 +88,7 @@ const T = {
   },
   en: {
     title: 'Upload photos',
-    desc: 'Upload photos of charging stations to pIcŧU/Re.',
+    desc: `Upload photos of charging stations to ${BRAND}.`,
     intro: 'The photo is read, blurred and cleaned on your device. The original is never sent.',
     off: 'Photo uploads are not open yet.',
     login: 'To upload photos, sign in with your OpenStreetMap account.',
@@ -265,7 +265,7 @@ export function uploadPage(lang: Lang, p: UploadView): string {
   }
   return layout({
     lang,
-    title: `${t.title} · pIcŧU/Re`,
+    title: `${t.title} · ${BRAND}`,
     description: t.desc,
     noindex: true,
     switchTo: { pt: uploadPath('pt'), en: uploadPath('en') },

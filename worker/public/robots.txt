@@ -2,4 +2,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://voltframe.ocarroeletrico.com/sitemap.xml
+Sitemap: https://olhaoposto.ocarroeletrico.com/sitemap.xml

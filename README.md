@@ -1,4 +1,4 @@
-# VoltFrame
+# olh'o'posto
 
 Fotos comunitárias dos postos e tomadas de carregamento de veículos elétricos
 em Portugal, com **links estáticos pelo ID oficial**, para qualquer app ou
@@ -12,7 +12,7 @@ O link nunca muda. Muda só a foto para onde aponta.
 
 > **Estado:** o servidor Panoramax está em produção em
 > `panoramax.ocarroeletrico.com`, ainda fora da federação. O Worker do
-> VoltFrame (`worker/`) já publica as páginas dos postos, a pesquisa, a API
+> olh'o'posto (`worker/`) já publica as páginas dos postos, a pesquisa, a API
 > de postos só de leitura e a política de privacidade, com o import diário
 > dos postos. O login com o OpenStreetMap e a página de envio estão feitos
 > mas fechados; o envio já guarda a foto escondida no Panoramax, mas a
@@ -39,7 +39,7 @@ O link nunca muda. Muda só a foto para onde aponta.
 
 | Componente | Onde | O que faz |
 | --- | --- | --- |
-| Site, API, MCP (`voltframe.ocarroeletrico.com`) | Cloudflare Worker + D1 | Postos, envios, moderação, ranking, API `/api/v1` |
+| Site, API, MCP (`olhaoposto.ocarroeletrico.com`) | Cloudflare Worker + D1 | Postos, envios, moderação, ranking, API `/api/v1` |
 | Links estáticos (`pictures.ocarroeletrico.com`) | Bucket R2 `pictures`, sem Worker | Serve `/<id>.jpg` e tamanhos pela CDN |
 | Servidor Panoramax (`panoramax.ocarroeletrico.com`) | Zerops (Python + PostgreSQL/PostGIS), imagens no R2 | Guarda as fotos, os tamanhos e os metadados |
 
@@ -53,11 +53,11 @@ O que já existe está em [`Docs/arquitetura.md`](Docs/arquitetura.md); o que fa
 | [`Docs/plan.md`](Docs/plan.md) | O que falta construir: fases, envio, moderação, login, API, MCP, OSM |
 | [`Docs/licenca.md`](Docs/licenca.md) | Licenças do código, das fotos e das fontes |
 | [`Docs/infra.md`](Docs/infra.md) | Infraestrutura do servidor Panoramax: serviços, segredos, R2, DNS, deploy, ensaio |
-| [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do VoltFrame: buckets R2, cache, CORS, Worker e rotas, login, página de envio, D1 e import |
+| [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do olh'o'posto: buckets R2, cache, CORS, Worker e rotas, login, página de envio, D1 e import |
 | `zerops.yml`, `zerops-import.yaml` | Configuração dos serviços `pano` (Panoramax) e `db` no Zerops |
-| `worker/` | Worker do VoltFrame (TypeScript + D1): páginas, API, login, página de envio, migrações e import diário dos postos |
+| `worker/` | Worker do olh'o'posto (TypeScript + D1): páginas, API, login, página de envio, migrações e import diário dos postos |
 | `panoramax/` | Versão do Panoramax, ponto de entrada do gunicorn, scripts de preparação da BD e da conta de serviço, e scripts de envio de teste |
-| `Design/` | Mockups das páginas e do fluxo VoltFrame ↔ Panoramax |
+| `Design/` | Mockups das páginas e do fluxo olh'o'posto ↔ Panoramax |
 
 ## Contribuir
 

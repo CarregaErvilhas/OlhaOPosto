@@ -132,3 +132,7 @@ export function boundingBox(q: NearQuery): { minLat: number; maxLat: number; min
   return { minLat: q.lat - dLat, maxLat: q.lat + dLat, minLon: q.lon - dLon, maxLon: q.lon + dLon };
 }
 
+
+// Published main photos of a station and its sockets, by target (station id
+// or compact EVSE code).
+export type MainPhotos = Record<string, { credit: string | null }>;

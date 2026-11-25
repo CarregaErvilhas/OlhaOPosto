@@ -4,7 +4,7 @@
 // operators): it only reaches the markup through esc(). That text is
 // Portuguese whatever the page language, and English pages mark it as such
 // (lang="pt-PT") so screen readers read it with the right voice.
-import { MAX_QUERY, type EvseMatch, type PointRow, type SearchRow, type StationRow } from './types.ts';
+import { MAX_QUERY, type EvseMatch, type MainPhotos, type PointRow, type SearchRow, type StationRow } from './types.ts';
 
 // The brand as written. The apostrophes keep it out of every technical name
 // (olhaoposto, or OlhaOPosto where case shows, so it is not read as Olhão),
@@ -59,7 +59,10 @@ const T = {
     missingNotice: 'Este posto deixou de aparecer no NAP. Fica aqui com as fotos que tiver, mas pode já não existir.',
     photosHeading: 'Fotos do posto',
     emptyTitle: 'Ainda não há fotos deste posto',
-    emptySoon: 'O envio de fotos abre em breve.',
+    emptySend: 'Envia a primeira',
+    hasPhoto: 'Com foto',
+    photoBy: 'Foto:',
+    photoAlt: (id: string) => `Foto principal do posto ${id}`,
     hint: 'A foto principal é escolhida pela comunidade. O link estático continua o mesmo quando ela muda.',
     linksTitle: 'Links estáticos',
     linksIntro: 'Para apps, mapas e o OSM. Devolvem 404 enquanto não houver foto principal.',
@@ -158,7 +161,10 @@ const T = {
     missingNotice: 'This station no longer appears in the NAP. It stays here with any photos it has, but it may no longer exist.',
     photosHeading: 'Station photos',
     emptyTitle: 'No photos of this station yet',
-    emptySoon: 'Photo uploads open soon.',
+    emptySend: 'Send the first one',
+    hasPhoto: 'Has a photo',
+    photoBy: 'Photo:',
+    photoAlt: (id: string) => `Main photo of station ${id}`,
     hint: 'The community picks the main photo. The static link stays the same when it changes.',
     linksTitle: 'Static links',
     linksIntro: 'For apps, maps and OSM. They return 404 until there is a main photo.',
@@ -387,7 +393,7 @@ function copyRow(id: string, base: string, label: string): string {
         </div>`;
 }
 
-function socketItem(lang: Lang, p: PointRow, i: number): string {
+function socketItem(lang: Lang, p: PointRow, i: number, hasPhoto: boolean): string {
   const t = T[lang];
   const anchor = p.evse_compact ? ` id="t-${esc(p.evse_compact)}"` : '';
   const meta = [plug(lang, p.connector), kw(lang, p.max_kw), p.dc ? 'DC' : 'AC'];
@@ -399,7 +405,9 @@ function socketItem(lang: Lang, p: PointRow, i: number): string {
     ? copyRow(`l-t${i}`, `${PICTURES}/${encodeURIComponent(p.evse_compact)}`, t.copySocket(p.evse_id ?? p.point_id))
     : '';
   return `<li class="socket"${anchor}>
-      <div class="thumb" aria-hidden="true">${t.noPhoto}</div>
+      ${hasPhoto && p.evse_compact
+        ? `<img class="thumb" src="${PICTURES}/${encodeURIComponent(p.evse_compact)}.thumb.jpg" alt="" loading="lazy">`
+        : `<div class="thumb" aria-hidden="true">${t.noPhoto}</div>`}
       <div class="info">
         ${code}
         <div class="meta">${esc(meta.filter(Boolean).join(' · '))}</div>
@@ -408,9 +416,10 @@ function socketItem(lang: Lang, p: PointRow, i: number): string {
     </li>`;
 }
 
-export function stationPage(lang: Lang, s: StationRow, points: PointRow[]): string {
+export function stationPage(lang: Lang, s: StationRow, points: PointRow[], mains: MainPhotos = {}): string {
   const t = T[lang];
   const missing = s.status === 'missing_from_nap';
+  const main = mains[s.id];
   const place = [s.address, s.municipality].filter(Boolean).join(', ');
   const subtitle = [s.name, place].filter(Boolean).join(' · ');
   const region = s.region ? REGIONS[lang][s.region] ?? s.region : null;
@@ -430,17 +439,22 @@ export function stationPage(lang: Lang, s: StationRow, points: PointRow[]): stri
   <div class="chips">
     ${missing ? `<span class="chip warn">${t.outNap}</span>` : `<span class="chip ok">${t.inNap}</span>`}
     <span class="chip">${t.sockets(points.length)}</span>
-    <span class="chip">${t.noPhotos}</span>
+    <span class="chip${main ? ' ok' : ''}">${main ? t.hasPhoto : t.noPhotos}</span>
   </div>
 </div>
 ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="columns">
   <section class="photos">
     <h2 class="sr-only">${t.photosHeading}</h2>
-    <div class="empty-photo">
+    ${main
+      ? `<figure class="main-photo">
+      <a href="${PICTURES}/${encodeURIComponent(s.id)}.full.jpg"><img src="${PICTURES}/${encodeURIComponent(s.id)}.jpg" alt="${esc(t.photoAlt(s.id))}"></a>
+      <figcaption>${t.photoBy} <span lang="">${esc(main.credit ?? BRAND)}</span> · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">CC BY-SA 4.0</a></figcaption>
+    </figure>`
+      : `<div class="empty-photo">
       ${ICON_CAMERA}
       <strong>${t.emptyTitle}</strong>
-      <span>${t.emptySoon}</span>
-    </div>
+      <a href="${uploadPath(lang)}">${t.emptySend}</a>
+    </div>`}
     <p class="hint">${t.hint}</p>
   </section>
   <div class="side">
@@ -464,7 +478,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
       <h2>${t.socketsTitle}</h2>
       <p>${t.socketsIntro}</p>
       <ul class="sockets" role="list">
-    ${points.map((p, i) => socketItem(lang, p, i)).join('\n    ')}
+    ${points.map((p, i) => socketItem(lang, p, i, Boolean(p.evse_compact && mains[p.evse_compact]))).join('\n    ')}
       </ul>
     </section>
     <section class="card">

@@ -15,6 +15,7 @@
 import { currentUser, page, sameOrigin, type SessionUser } from './auth.ts';
 import { BRAND, accountPath, esc, layout, stationPath, type Lang } from './pages.ts';
 import { PANORAMAX_URL, type PhotoEnv } from './photos.ts';
+import { publishMain } from './publish.ts';
 
 export const queuePath = (lang: Lang) => (lang === 'pt' ? '/admin/fila' : '/en/admin/queue');
 // One POST for both languages; the form says which page to go back to.
@@ -62,12 +63,13 @@ const T = {
     unknown: 'desconhecida',
     approve: 'Aprovar',
     reject: 'Recusar',
-    ok: { approve: 'Foto aprovada.', reject: 'Foto recusada e apagada.' } as Record<string, string>,
+    ok: { approve: 'Foto aprovada.', main: 'Foto aprovada e publicada como foto principal: o link estático já a mostra.', reject: 'Foto recusada e apagada.' } as Record<string, string>,
     errors: {
       stale: 'Esta foto já foi decidida por outra pessoa.',
       panoramax: 'O Panoramax não respondeu. Nada mudou; tenta outra vez.',
       closed: 'A ligação ao Panoramax não está configurada.',
       bad: 'Pedido inválido.',
+      publish: 'Mas a cópia para o link estático falhou; a próxima aprovação deste posto tenta outra vez.',
     } as Record<string, string>,
     forbidden: 'Esta página é só para moderadores e administradores.',
     back: 'Voltar à conta',
@@ -89,12 +91,13 @@ const T = {
     unknown: 'unknown',
     approve: 'Approve',
     reject: 'Reject',
-    ok: { approve: 'Photo approved.', reject: 'Photo rejected and deleted.' } as Record<string, string>,
+    ok: { approve: 'Photo approved.', main: 'Photo approved and published as the main photo: the static link shows it now.', reject: 'Photo rejected and deleted.' } as Record<string, string>,
     errors: {
       stale: 'Someone else already decided on this photo.',
       panoramax: 'Panoramax did not answer. Nothing changed; try again.',
       closed: 'The Panoramax connection is not configured.',
       bad: 'Invalid request.',
+      publish: 'But copying it to the static link failed; the next approval for this station tries again.',
     } as Record<string, string>,
     forbidden: 'This page is only for moderators and admins.',
     back: 'Back to account',
@@ -273,6 +276,16 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
     `UPDATE photos SET status = ?, approved_by = ?, approved_at = ? WHERE id = ? AND status = 'pending'`,
   ).bind(status, user.id, now.toISOString(), id).run();
   if (res.meta.changes !== 1) return back('erro=stale');
+  if (action === 'approve') {
+    // Main photo of its socket and station when they have none (src/publish.ts).
+    // The approval stands either way; a failed publish only loses the link.
+    try {
+      const targets = await publishMain(env, id, user.id, fetcher, now);
+      if (targets.length) return back('ok=main');
+    } catch {
+      return back('ok=approve&erro=publish');
+    }
+  }
   if (action === 'reject' && env.STAGING) {
     await staging(env).delete([`${id}/main.jpg`, `${id}/thumb.jpg`]).catch(() => {});
   }

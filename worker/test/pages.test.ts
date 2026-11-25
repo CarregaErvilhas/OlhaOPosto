@@ -149,3 +149,17 @@ test('every page has the theme picker, hidden until theme.js shows it', () => {
     assert.ok(page.includes('<option value="auto">') && page.includes('<option value="dark">'));
   }
 });
+
+test('stationPage: main photo with credit, socket thumbnails, upload link when empty', () => {
+  const withPhoto = stationPage('pt', station(), [point()], {
+    'EZC-AMD-00051': { credit: '<b>Ana</b>' }, PTEZCEAMD000511: { credit: 'Ana' },
+  });
+  assert.ok(withPhoto.includes('src="https://pictures.ocarroeletrico.com/EZC-AMD-00051.jpg"'));
+  assert.ok(withPhoto.includes('&lt;b&gt;Ana&lt;/b&gt;'));
+  assert.ok(withPhoto.includes('CC BY-SA 4.0'));
+  assert.ok(withPhoto.includes('PTEZCEAMD000511.thumb.jpg'));
+  assert.ok(withPhoto.includes('Com foto'));
+  const empty = stationPage('en', station(), [point()]);
+  assert.ok(empty.includes('href="/en/upload"'));
+  assert.ok(!empty.includes('.thumb.jpg'));
+});

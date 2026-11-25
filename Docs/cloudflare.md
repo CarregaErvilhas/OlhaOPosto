@@ -10,11 +10,11 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 
 | O quê | Estado |
 | --- | --- |
-| R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`, vazio |
+| R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`; ligado ao Worker (`PICTURES`), que escreve as fotos principais ao aprovar |
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio; ligado ao Worker (`STAGING`) |
 | Cache Rule do `pictures.*` | Aplicada e testada |
-| D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0006` aplicadas |
-| Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, o login OSM e a página de envio. O envio (`POST /api/v1/photos`) está publicado e fechado até haver o `PANORAMAX_TOKEN` |
+| D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0007` aplicadas (o deploy aplica as novas) |
+| Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, o login OSM e a página de envio. O envio (`POST /api/v1/photos`) está aberto, com moderação; aprovar publica a foto principal em `pictures.*` |
 | Início de sessão com o OSM | Ligado: aplicação registada no OSM (só `read_prefs`) e segredos postos (secção 4) |
 | Deploy do Worker | `npm run deploy` (migrações e depois o Worker). Workers Builds ligado: corre isso a cada push para `main` (secção 4, *Deploy automático*) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos. Correu à mão; o agendamento diário ainda não correu nenhuma vez |
@@ -213,8 +213,12 @@ data, o GPS da foto e um aviso quando não há GPS ou a foto está a mais de
 `POST /admin/decidir` (mesma origem):
 
 - **Aprovar:** `PATCH` do upload set no Panoramax para `visibility: anyone`
-  e a foto passa a `published`. As cópias de 1024 e 400 px ficam no
-  `pictures-staging` até existir a publicação da foto principal.
+  e a foto passa a `published`. Se a tomada ou o posto ainda não têm foto
+  principal, o Worker publica-a em `pictures` (`src/publish.ts`, tabela
+  `selections`, migração `0007`; ver `arquitetura.md`, *Links estáticos*).
+  Se essa cópia falhar, a aprovação fica, as cópias feitas são apagadas e
+  a próxima aprovação desse alvo tenta outra vez. As cópias no
+  `pictures-staging` ficam.
 - **Recusar:** apaga o upload set no Panoramax (um `404` conta como
   apagado), a foto passa a `removed` e as cópias saem do `pictures-staging`.
 

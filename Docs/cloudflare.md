@@ -14,8 +14,9 @@ e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio; ligado ao Worker (`STAGING`) |
 | Cache Rule do `pictures.*` | Aplicada e testada |
 | D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0006` aplicadas |
-| Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, e o login e a página de envio (desligados até haver os segredos do OSM). O envio (`POST /api/v1/photos`) está publicado e fechado até haver o `PANORAMAX_TOKEN` |
-| Início de sessão com o OSM | Feito e desligado: faltam a aplicação no OSM e os segredos (secção 4) |
+| Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, o login OSM e a página de envio. O envio (`POST /api/v1/photos`) está publicado e fechado até haver o `PANORAMAX_TOKEN` |
+| Início de sessão com o OSM | Ligado: aplicação registada no OSM (só `read_prefs`) e segredos postos (secção 4) |
+| Deploy do Worker | `npm run deploy` (migrações e depois o Worker). Workers Builds a correr isso a cada push para `main`: por ligar (secção 4, *Deploy automático*) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos. Correu à mão; o agendamento diário ainda não correu nenhuma vez |
 
 ## 2. R2
@@ -294,14 +295,38 @@ Em produção, depois de `npx wrangler login`:
 
 ```bash
 cd worker
-npm run remote -- d1 migrations apply DB --remote
-node scripts/import-stations.ts --remote      # primeiro import
-npm run remote -- deploy
+npm run deploy                                # migrações e depois o Worker
+node scripts/import-stations.ts --remote      # só no primeiro import
 ```
 
-Uma migração nova aplica-se **antes** do deploy que a usa, a partir do
-`main`: `npm run remote -- d1 migrations apply DB --remote` e depois
-`npm run remote -- deploy`. Criar um índice escreve uma linha por linha da
+O `npm run deploy` (`scripts/deploy.ts`) aplica as migrações que faltam e só
+depois publica o Worker, tudo com o ID procurado pelo nome. Sem migrações
+novas, esse passo não faz nada. Se uma migração falhar, o Worker não é
+publicado.
+
+**Deploy automático (Workers Builds).** O Worker está ligado ao repositório
+no painel da Cloudflare (Workers & Pages → `olhaoposto` → Settings →
+Builds) e cada push para `main` que mexa em `worker/` corre o
+`npm run deploy`:
+
+| Campo | Valor |
+| --- | --- |
+| Branch de produção | `main` |
+| Root directory | `worker` |
+| Build command | vazio (o Builds já corre o `npm ci`) |
+| Deploy command | `npm run deploy` |
+| Build watch paths | `worker/*` |
+| Builds de outras branches | Desligados: o comando por omissão (`wrangler versions upload`) falha com o *placeholder* |
+
+O token que o Builds cria para a conta tem de poder ler e escrever na D1
+(listar as bases e aplicar migrações), além de publicar o Worker. Os
+registos de cada build ficam no separador Deployments do Worker.
+
+**Uma migração tem de funcionar com o código que já está no ar.** O
+deploy aplica-a e só depois publica o Worker novo, e durante esses segundos
+o Worker antigo usa o esquema novo. Acrescentar tabelas, colunas e índices
+não parte nada. Mudar o nome ou apagar uma coluna faz-se em dois PRs: um
+que deixa de a usar e, depois de publicado, outro com a migração. Criar um índice escreve uma linha por linha da
 tabela (cerca de 20 mil em `evses`), e isso conta para o limite diário da
 D1 Free (100 mil linhas escritas): não juntar no mesmo dia com um import que
 reescreva tudo.
@@ -389,7 +414,6 @@ com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem
 
 ## 6. Questões em aberto
 
-- [ ] Publicar o Worker pelo CI em vez de à mão (precisa de um token com permissões de Workers).
 - [ ] Regra de ciclo de vida no `pictures-staging` como rede de segurança
   para fotos rejeitadas ou abandonadas (por exemplo 90 dias). O risco é
   apagar as versões de uma foto que ainda está na fila.

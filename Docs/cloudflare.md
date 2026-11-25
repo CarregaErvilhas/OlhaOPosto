@@ -6,6 +6,15 @@ servidor Panoramax (Zerops, bucket `panoramax`, DNS do `panoramax.*`) está em
 e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
 [`plan.md`](plan.md).
 
+**Que CLI.** Os recursos da conta e da zona (R2, domínios, DNS, Cache
+Rules, purgas) fazem-se com o `cf`. O Worker, a D1 e os segredos do Worker
+continuam com o wrangler, sempre pelos *scripts* do `npm` (`npm run dev`,
+`npm run deploy`, `npm run remote`): o projeto tem `wrangler.json`, o deploy
+depende do truque do ID da D1 (secção 4), o Workers Builds corre o
+`npm run deploy`, e o `cf` (em beta) ainda não faz `secret put`. Não correr
+`cf dev`, `cf deploy` nem `cf migrate` aqui: geram outra configuração que
+ignora o `wrangler.json`.
+
 ## 1. Estado
 
 | O quê | Estado |

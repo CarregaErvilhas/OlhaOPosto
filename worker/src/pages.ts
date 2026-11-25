@@ -13,6 +13,8 @@ export const BRAND = "olh'o'posto";
 export const BRAND_SPOKEN = 'Olha o posto';
 export const SITE = 'https://olhaoposto.ocarroeletrico.com';
 export const PICTURES = 'https://pictures.ocarroeletrico.com';
+export const PANORAMAX_URL = 'https://panoramax.ocarroeletrico.com';
+export const NAP_DASHBOARD = 'https://nap.ocarroeletrico.com';
 
 export type Lang = 'pt' | 'en';
 export const LANGS: readonly Lang[] = ['pt', 'en'];
@@ -83,6 +85,9 @@ const T = {
     osmView: 'Ver no OpenStreetMap',
     osmNone: 'Ainda não está ligado a um elemento do OpenStreetMap.',
     osmMap: 'Ver o sítio no mapa',
+    alsoTitle: 'Ver também',
+    alsoNap: 'Preços e estado das tomadas no NAP dashboard',
+    alsoPano: 'A foto principal no mapa do Panoramax',
     dataTitle: 'Dados',
     dataJson: 'Em JSON, pela API',
     unknownOperator: 'Operador desconhecido',
@@ -185,6 +190,9 @@ const T = {
     osmView: 'View on OpenStreetMap',
     osmNone: 'Not linked to an OpenStreetMap element yet.',
     osmMap: 'Show on map',
+    alsoTitle: 'See also',
+    alsoNap: 'Prices and socket status on the NAP dashboard',
+    alsoPano: 'The main photo on the Panoramax map',
     dataTitle: 'Data',
     dataJson: 'As JSON, from the API',
     unknownOperator: 'Unknown operator',
@@ -429,6 +437,16 @@ export function stationPage(lang: Lang, s: StationRow, points: PointRow[], mains
         <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/${esc(s.osm_ref)}">${t.osmView}</a>`
     : `<p>${t.osmNone}</p>
         <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${s.lat}&amp;mlon=${s.lon}#map=19/${s.lat}/${s.lon}">${t.osmMap}</a>`;
+  // The NAP dashboard only lists what the NAP publishes today; the Panoramax
+  // viewer opens on a photo, so it only gets a link once there is one.
+  const also = [
+    s.status === 'active' && s.code
+      ? `<li><a target="_blank" rel="noopener" href="${NAP_DASHBOARD}/?posto=${encodeURIComponent(s.code)}">${t.alsoNap}</a></li>`
+      : '',
+    main?.panoramax_id
+      ? `<li><a target="_blank" rel="noopener" href="${PANORAMAX_URL}/viewer?focus=map&amp;map=19/${s.lat}/${s.lon}&amp;pic=${encodeURIComponent(main.panoramax_id)}">${t.alsoPano}</a></li>`
+      : '',
+  ].filter(Boolean);
   const operatorData = [s.operator ? nap(lang, s.operator) : null, s.opc ? `(${esc(s.opc)})` : null].filter(Boolean).join(' ');
   const body = `<p class="operator">${operator ? nap(lang, operator) : t.unknownOperator}</p>
 <div class="title-row">
@@ -485,7 +503,13 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
       <h2>${t.osmTitle}</h2>
       ${osm}
     </section>
-    <section class="card">
+    ${also.length ? `<section class="card">
+      <h2>${t.alsoTitle}</h2>
+      <ul class="also" role="list">
+        ${also.join('\n        ')}
+      </ul>
+    </section>
+    ` : ''}<section class="card">
       <h2>${t.dataTitle}</h2>
       <p>${operatorData}${region ? `${operatorData ? ' · ' : ''}${esc(region)}` : ''}</p>
       <a target="_blank" rel="noopener" href="/api/v1/stations/${encodeURIComponent(s.id)}">${t.dataJson}</a>

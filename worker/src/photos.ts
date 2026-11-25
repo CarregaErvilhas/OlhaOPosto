@@ -13,7 +13,7 @@
 // staging bucket is bound, so this can ship before uploads open.
 import { isCleanJpeg, jpegSize } from '../public/jpeg.js';
 import { currentUser, loginEnabled, page, sameOrigin, type AuthEnv, type Db, type Waiter } from './auth.ts';
-import type { Lang } from './pages.ts';
+import { PANORAMAX_URL, type Lang } from './pages.ts';
 import { distanceM, STATION_ID } from './types.ts';
 import { TURNSTILE_ACTION, uploadPage } from './upload.ts';
 import { allowed, type RateEnv } from './ratelimit.ts';
@@ -37,7 +37,7 @@ export interface PhotoEnv extends AuthEnv, RateEnv {
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
-export const PANORAMAX_URL = 'https://panoramax.ocarroeletrico.com';
+export { PANORAMAX_URL };
 // Per person and UTC day. Contributors are moderated anyway; the cap keeps a
 // runaway script or a stolen session from filling the queue.
 export const DAILY_LIMIT: Record<string, number> = { contributor: 50 };

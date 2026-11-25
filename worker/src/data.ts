@@ -3,7 +3,7 @@
 import {
   boundingBox, compactCode, distanceM, ftsQuery, isPublic, STATION_ID,
   type EvseMatch, type NearQuery, type PointRow, type SearchRow, type StationRow,
-  type MainPhotos,
+  type MainPhotoRow, type MainPhotos,
 } from './types.ts';
 
 export interface Env {
@@ -25,7 +25,7 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
          FROM evses WHERE station_id = ? ORDER BY point_id`,
     ).bind(id),
     env.DB.prepare(
-      `SELECT sel.target, p.credit
+      `SELECT sel.target, p.credit, p.panoramax_id
          FROM selections sel JOIN photos p ON p.id = sel.photo_id
         WHERE sel.station_id = ? AND sel.published_at IS NOT NULL AND p.status = 'published'`,
     ).bind(id),
@@ -33,8 +33,26 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
   const s = (station.results as StationRow[])[0];
   if (!s || !isPublic(s)) return null;
   const byTarget: MainPhotos = {};
-  for (const m of mains.results as { target: string; credit: string | null }[]) byTarget[m.target] = { credit: m.credit };
+  for (const m of mains.results as { target: string; credit: string | null; panoramax_id: string | null }[]) {
+    byTarget[m.target] = { credit: m.credit, panoramax_id: m.panoramax_id };
+  }
   return { station: s, points: points.results as PointRow[], mains: byTarget };
+}
+
+// Every published main photo of a public station or socket, for sites that
+// copy the thumbnails (the NAP dashboard does, once a day). The R2 keys are
+// <target>.jpg, .thumb.jpg and .full.jpg on pictures.*.
+export async function listMainPhotos(env: Env): Promise<MainPhotoRow[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT sel.target, sel.station_id, s.code, p.credit, p.panoramax_id, sel.published_at
+       FROM selections sel
+       JOIN photos p ON p.id = sel.photo_id
+       JOIN stations s ON s.id = sel.station_id
+      WHERE sel.published_at IS NOT NULL AND p.status = 'published'
+        AND s.status IN ('active', 'missing_from_nap')
+      ORDER BY sel.target`,
+  ).all<MainPhotoRow>();
+  return results;
 }
 
 // Every public socket with this code. Usually one; the NAP does not promise it.

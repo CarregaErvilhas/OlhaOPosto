@@ -208,6 +208,9 @@ main { flex: 1 0 auto; padding: 24px 0 64px; }
 /* Pressed is a thicker border as well as a colour, so it does not rest on colour alone. */
 .sizes button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
 .links { display: flex; flex-direction: column; gap: 10px; }
+
+/* See also */
+.also { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
 .links .label { font-size: 0.8125rem; color: var(--muted); margin-bottom: 4px; }
 .copy-row { display: flex; gap: 6px; align-items: flex-start; }
 /* Long links wrap instead of scrolling: a scroll box here would be out of reach by keyboard. */

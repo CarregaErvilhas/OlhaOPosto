@@ -163,3 +163,18 @@ test('stationPage: main photo with credit, socket thumbnails, upload link when e
   assert.ok(empty.includes('href="/en/upload"'));
   assert.ok(!empty.includes('.thumb.jpg'));
 });
+
+test('stationPage: see also links to the NAP dashboard, and to Panoramax once there is a photo', () => {
+  const none = stationPage('pt', station(), [point()]);
+  assert.ok(none.includes('href="https://nap.ocarroeletrico.com/?posto=AMD-00051"'));
+  assert.ok(!none.includes('panoramax.ocarroeletrico.com/viewer'));
+  const withPhoto = stationPage('en', station(), [point()], {
+    'EZC-AMD-00051': { credit: 'Ana', panoramax_id: '0f0e-"x"' },
+  });
+  assert.ok(withPhoto.includes(
+    'href="https://panoramax.ocarroeletrico.com/viewer?focus=map&amp;map=19/38.78791/-9.226767&amp;pic=0f0e-%22x%22"'));
+  // Gone from the NAP: the dashboard has nothing to show, and no photo means no card at all.
+  const gone = stationPage('pt', station({ status: 'missing_from_nap' }), []);
+  assert.ok(!gone.includes('nap.ocarroeletrico.com/?posto='));
+  assert.ok(!gone.includes('Ver também'));
+});

@@ -4,12 +4,13 @@
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
 import { ROLE_ACTION, setRole, usersHtml } from './admin.ts';
 import { DECIDE_ACTION, STAGING_PREFIX, decide, queueHtml, stagingImage } from './moderation.ts';
-import { ALIAS_ACTION, aliasPath, aliasesHtml, rekey } from './aliases.ts';
+import { ALIAS_ACTION, aliasPath, aliasesHtml, getStationAlias, rekey } from './aliases.ts';
 import { accountHtml, callback, currentUser, login, logout } from './auth.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { chooseMain } from './publish.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
-import { findEvse, getStation, getStationAlias, listMainPhotos, listStations, nearStations, ranking, searchStations, type Env } from './data.ts';
+import { findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
+import { ranking } from './ranking.ts';
 import {
   PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, rankingPage, rankingPath, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';

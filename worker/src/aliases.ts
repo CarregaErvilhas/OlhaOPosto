@@ -1,11 +1,43 @@
+/// <reference types="@cloudflare/workers-types" />
 // Station aliases (re-keys): a station that left the NAP can be mapped to its
 // replacement; the old id then answers 301 to the new station page
 // (Docs/plan.md, *Mudanças de código (re-key)*).
 
 import { currentUser, page, sameOrigin, type AuthEnv, type SessionUser } from './auth.ts';
 import { BRAND, accountPath, esc, layout, stationPath, type Lang } from './pages.ts';
-import { getStationAlias, listMissingStationsWithPhotos, type Env } from './data.ts';
+interface Env { DB: D1Database; }
 import { canModerate } from './moderation.ts';
+
+
+
+export async function getStationAlias(env: Env, oldId: string): Promise<string | null> {
+  const row = await env.DB.prepare(
+    `SELECT new_id FROM station_aliases WHERE old_id = ?`,
+  ).bind(oldId).first() as any;
+  return (row?.new_id as string) ?? null;
+}
+
+export interface MissingStation {
+  id: string;
+  name: string | null;
+  operator: string | null;
+  photo_count: number;
+  alias: string | null;
+}
+
+export async function missingStationsWithPhotos(env: Env): Promise<MissingStation[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT s.id, s.name, s.operator,
+            (SELECT COUNT(*) FROM photos p WHERE p.station_id = s.id) AS photo_count,
+            a.new_id AS alias
+       FROM stations s
+       LEFT JOIN station_aliases a ON a.old_id = s.id
+      WHERE s.status = 'missing_from_nap'
+        AND EXISTS (SELECT 1 FROM photos p WHERE p.station_id = s.id)
+      ORDER BY s.id`,
+  ).all() as any;
+  return results as MissingStation[];
+}
 
 export const ALIAS_ACTION = '/admin/rekey';
 export const aliasPath = (lang: Lang) => (lang === 'pt' ? '/admin/postos-fora-do-nap' : '/en/admin/stations-missing');
@@ -71,7 +103,7 @@ export async function aliasesHtml(lang: Lang, request: Request, env: Env & AuthE
   const user = await currentUser(request, env).catch(() => null);
   if (!user) return redirect(`/auth/osm/login?next=${encodeURIComponent(aliasPath(lang))}`);
   if (!canModerate(user.role)) return page(lang, forbiddenPage(lang), 403, headers);
-  const rows = await listMissingStationsWithPhotos(env);
+  const rows = await missingStationsWithPhotos(env);
   const url = new URL(request.url);
   const ok = url.searchParams.get('ok') === '1';
   const error = url.searchParams.get('erro') ?? undefined;

@@ -13,6 +13,7 @@ Zona `ocarroeletrico.com`, na conta Cloudflare existente. O servidor Panoramax (
 | Cache Rule do `pictures.*` | Aplicada e testada |
 | D1 `pictures` | Criada, jurisdição EU, com o import diário. O deploy aplica as migrações novas antes do Worker |
 | Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API (leitura aberta; escrita com sessão ou *token*), `sitemap.xml`, privacidade e condições de utilização, seletor de tema, o login OSM, a conta (pontos, *tokens*), o ranking e a página de envio. O envio (`POST /api/v1/photos`) está aberto, com moderação; aprovar publica a foto principal em `pictures.*` |
+| Servidor MCP (`/mcp`) | No código: leitura sem login e escrita com *token* de API. O OAuth usa o KV `olhaoposto-oauth`, que o deploy cria se faltar (secção 4, *Servidor MCP*); sem ele, o OAuth responde `503` |
 | Início de sessão com o OSM | Ligado: aplicação registada no OSM (só `read_prefs`) e segredos postos (secção 4) |
 | Deploy do Worker | `npm run deploy` (migrações e depois o Worker). Workers Builds ligado: corre isso a cada push para `main` (secção 4, *Deploy automático*) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos. Correu à mão; o agendamento diário ainda não correu nenhuma vez |
@@ -78,7 +79,9 @@ O código está em `worker/`. O Worker chama-se `olhaoposto` e responde em `olha
 | `GET /` | Página inicial com a caixa de pesquisa |
 | `GET /en/`, `/en/stations/{id}`, `/en/sockets/{evse}`, `/en/search` | As mesmas páginas em inglês. `/en/sockets/{evse}` faz `302` para `/en/stations/{id}#t-{evse}` |
 | `GET /sitemap.xml` | Página inicial, privacidade, grupo e todos os postos públicos, nas duas línguas, com `lastmod` (a última alteração do posto ou de uma tomada). Fica um dia na Cache API: cada geração lê os postos e as tomadas (cerca de 28 mil linhas), uma vez por dia e por centro de dados |
-| `GET /robots.txt`, `/llms.txt` | Ficheiros estáticos em `worker/public/`. O `robots.txt` deixa entrar todos os robôs, incluindo os de IA, e aponta para o *sitemap*. O `llms.txt` descreve as páginas, a API, os links estáticos e as licenças |
+| `GET /robots.txt`, `/llms.txt` | Ficheiros estáticos em `worker/public/`. O `robots.txt` deixa entrar todos os robôs, incluindo os de IA, e aponta para o *sitemap*. O `llms.txt` descreve as páginas, a API, o servidor MCP, os links estáticos e as licenças; as páginas HTML apontam para ele no cabeçalho `Link` (`rel="describedby"`) |
+| `POST /mcp` | Servidor MCP `OlhaOPosto` (*Streamable HTTP*, sem estado), ver *Servidor MCP*, abaixo. `GET` dá `405` |
+| `/oauth/authorize`, `/oauth/token`, `/oauth/register`, `/.well-known/oauth-*` | O OAuth do MCP: consentimento (nosso, com o login OSM), *tokens*, registo dinâmico e metadados (do `workers-oauth-provider`). `503` sem o KV |
 | `GET /privacidade`, `/en/privacy` | Política de privacidade (`src/privacy.ts`), com ligação no rodapé de todas as páginas e no *sitemap*. Muda no mesmo PR que mudar o que o Worker guarda |
 | `GET /condicoes`, `/en/terms` | Condições de utilização (`src/terms.ts`): o que aceita quem envia fotos, propõe postos ou usa um *token*. Ligação no rodapé, no consentimento da página de envio e no *sitemap* |
 | `GET /grupo`, `/en/group` | Os outros sites do grupo d'O Carro Elétrico, cada um com a sua mascote (`src/grupo.ts`, imagens em `public/grupo/`; o servidor Panoramax leva o logótipo do Panoramax). Mesma ordem e mesmos textos da página igual do `ocarroeletrico.com`. Ligação no rodapé de todas as páginas e no *sitemap* |
@@ -174,11 +177,18 @@ Se o Panoramax falhar, nada muda. `approved_by` e `approved_at` guardam quem dec
 | Binding | Chave | Limite | Onde |
 | --- | --- | --- | --- |
 | `UPLOAD_LIMIT` | conta | 6 por minuto | `POST /api/v1/photos`, antes de ler o corpo; `429` `too_fast` |
-| `LOGIN_LIMIT` | IP | 10 por minuto | `/auth/osm/login` e `/auth/osm/callback` |
-| `SEARCH_LIMIT` | IP | 60 por minuto | `/api/v1/stations` (texto, proximidade e filtros), `/pesquisa`, `/en/search`, `/postos/sem-foto`, `/en/stations/without-photo` |
+| `LOGIN_LIMIT` | IP | 10 por minuto | `/auth/osm/login`, `/auth/osm/callback` e `/oauth/*` |
+| `SEARCH_LIMIT` | IP | 60 por minuto | `/api/v1/stations` (texto, proximidade e filtros), `/pesquisa`, `/en/search`, `/postos/sem-foto`, `/en/stations/without-photo`, `/mcp` |
 | `TAKEDOWN_LIMIT` | IP | 5 por minuto | `POST /report`; volta ao formulário com `erro=limit` |
 
 Acima do limite: `429` com `Retry-After: 60` (JSON na API, uma linha em pt e en nas páginas). Os contadores são por localização da Cloudflare e aproximados: travam scripts e enxurradas, não um ataque espalhado por muitas localizações. O limite exato continua a ser o diário da D1 (50 envios por dia para contribuidores). Se o *binding* faltar ou falhar, o pedido passa. As páginas dos postos não têm limite, para não travar os motores de busca.
+
+**Servidor MCP** (`src/mcp.ts`, `src/oauth.ts`, `src/mcpauth.ts`; o desenho em [`arquitetura.md`](arquitetura.md), *Servidor MCP*). Não precisa de Durable Object (o `createMcpHandler` não guarda estado), mas o Worker passou a ter a *flag* `nodejs_compat` (o SDK usa o `AsyncLocalStorage`) e um KV para o OAuth:
+
+- **KV `olhaoposto-oauth`**, *binding* `OAUTH_KV`. Como a D1, o ID não fica no repositório: o `wrangler.json` tem `local-only` e o `scripts/lib/wrangler.ts` procura o ID pelo título no deploy e nos comandos remotos. Se não o encontrar, o deploy (`npm run deploy`, no Workers Builds) cria-o; se não conseguir (o *token* do build sem permissão de KV), avisa e publica sem o *binding* (o OAuth fica em `503`, o resto do MCP funciona). Os outros comandos remotos nunca o criam. Guarda os clientes registados (90 dias), as autorizações (1 ano no máximo, 30 dias sem uso) e os *tokens* (1 hora), todos com TTL do próprio KV; o *cron* chama o `purgeExpiredData` para o resto.
+- **O `resource`** do OAuth é `https://olhaoposto.ocarroeletrico.com/mcp`, fixo no código: o OAuth só funciona nesse domínio (em local, o `wrangler dev --local-protocol https` simula-o).
+- **Sem CIMD** (*client ID metadata documents*): pediria a *flag* `global_fetch_strictly_public`, que muda todos os `fetch` do Worker (ao Panoramax, na mesma zona). Os clientes usam o registo dinâmico.
+- **Testar à mão**: `curl -s -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' https://olhaoposto.ocarroeletrico.com/mcp -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`; ou o MCP Inspector (`npx @modelcontextprotocol/inspector`) com esse URL.
 
 **Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js`, `public/jpeg.js`, `public/heif.js`, `public/heic.js` e `public/detect.js`). Tudo o que mexe na foto corre no browser. Com o envio fechado (falta um segredo), a página para no passo 5 e oferece o download para testar; aberto, o botão passa a "Enviar a foto" e manda os três tamanhos ao Worker:
 

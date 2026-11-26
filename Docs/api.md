@@ -241,6 +241,12 @@ Resposta: `{ "targets": ["EZC-AMD-00051"] }` (vazia se a foto não servir para e
 
 O formulário público de remoção (`/report`), não é uma API JSON: campos `alvo`, `motivo` (`face`, `plate`, `property`, `copyright`, `other`), `detalhes` e o `cf-turnstile-response` do widget, mesma origem. Responde `303` de volta ao formulário. O pedido vira uma denúncia no Panoramax (`/api/reports`). Ver [`cloudflare.md`](cloudflare.md), *Pedidos de remoção*.
 
-## Ainda por implementar
+## Servidor MCP
 
-O servidor MCP ([`plan.md`](plan.md)).
+As mesmas leituras e escritas, como ferramentas para assistentes de IA, em `https://olhaoposto.ocarroeletrico.com/mcp` (nome `OlhaOPosto`, *Streamable HTTP*). Ler não precisa de login; escrever pede OAuth (o cliente regista-se sozinho e a pessoa autoriza com o login OSM) ou um *token* `oop_` no `Authorization`. Ferramentas, âmbitos e regras em [`arquitetura.md`](arquitetura.md), *Servidor MCP*.
+
+```bash
+curl -s https://olhaoposto.ocarroeletrico.com/mcp \
+  -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_photo_link","arguments":{"id":"EZC-AMD-00051"}}}'
+```

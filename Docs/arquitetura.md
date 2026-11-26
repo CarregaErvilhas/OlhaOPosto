@@ -108,7 +108,7 @@ A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19
 
 ## Site e API
 
-O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês (`/en/stations/{id}`), a procura de uma tomada pelo código EVSE (`/tomadas/{evse}`, `/en/sockets/{evse}`), a pesquisa de postos (`/pesquisa`, `/en/search`, também no formulário da página inicial), a API de leitura (`/api/v1/stations?q=`, `/api/v1/stations?lat=&lon=`, `/api/v1/stations/{id}`, `/api/v1/evses/{evse}`, `/api/v1/photos/{id}`, `/api/v1/photos.json`, `/api/v1/main-photos`, `/api/v1/ranking`, e a descrição em OpenAPI 3.1, `/api/v1/openapi.json`), a lista dos postos sem foto (`/postos/sem-foto`, `/en/stations/without-photo`), a política de privacidade (`/privacidade`), as condições de utilização (`/condicoes`), o ranking (`/ranking`), o `sitemap.xml`, o `robots.txt` e o `llms.txt`.
+O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês (`/en/stations/{id}`), a procura de uma tomada pelo código EVSE (`/tomadas/{evse}`, `/en/sockets/{evse}`), a pesquisa de postos (`/pesquisa`, `/en/search`, também no formulário da página inicial), a API de leitura (`/api/v1/stations?q=`, `/api/v1/stations?lat=&lon=`, `/api/v1/stations/{id}`, `/api/v1/evses/{evse}`, `/api/v1/photos/{id}`, `/api/v1/photos.json`, `/api/v1/main-photos`, `/api/v1/ranking`, e a descrição em OpenAPI 3.1, `/api/v1/openapi.json`), a lista dos postos sem foto (`/postos/sem-foto`, `/en/stations/without-photo`), a política de privacidade (`/privacidade`), as condições de utilização (`/condicoes`), o ranking (`/ranking`), o servidor MCP (`/mcp`, abaixo), o `sitemap.xml`, o `robots.txt` e o `llms.txt`. As páginas HTML levam o cabeçalho `Link: </llms.txt>; rel="describedby"; type="text/markdown"`, para os agentes encontrarem o `llms.txt`.
 
 Com o login OSM há a conta (`/conta`: nome a mostrar, pontos, medalha, sair do ranking, *tokens* de API), a página de envio (`/enviar`), a fila de moderação e os painéis de administração (`/admin/…`). A escrita na API (`POST /api/v1/photos`, `DELETE /api/v1/photos/{id}`, `POST /api/v1/stations`, `PUT /api/v1/selections/{target}`) aceita a sessão, só a partir do próprio site, ou um *token* (`Authorization: Bearer oop_…`) com o âmbito certo. Rotas, cabeçalhos, acessibilidade e cache em [`cloudflare.md`](cloudflare.md), secção 4.
 
@@ -193,3 +193,32 @@ O crédito de uma foto é o nome de quem a enviou: por defeito o nome no OSM; se
 ## Tokens de API
 
 Na conta, cada pessoa cria *tokens* (até 5 ativos) com um nome, os âmbitos (`photos:write`; `selections:write` só para `trusted`, moderadores e administradores) e a validade (30, 90 ou 365 dias). O *token* aparece uma vez; a D1 guarda só o hash. Age como a conta, com o papel e os limites dela, lidos em cada pedido. O envio pela API é só `mode=clean`: o cliente manda as três fotos já desfocadas e sem EXIF, com as coordenadas e a data no JSON, e o Worker recusa ficheiros com metadados. Não passa pelo Turnstile.
+
+## Servidor MCP
+
+Servidor MCP remoto no mesmo Worker, em `/mcp`, com o nome `OlhaOPosto` e o transporte *Streamable HTTP*. Usa o `createMcpHandler` do Agents SDK da Cloudflare (`agents/mcp/server`, com o SDK v2 do MCP): sem estado, um servidor novo a cada pedido, sem Durable Object, porque nenhuma ferramenta guarda nada entre chamadas (o `McpAgent`, com Durable Object, está descontinuado pela Cloudflare). O SDK usa o `AsyncLocalStorage`, por isso o Worker tem a *flag* `nodejs_compat`.
+
+As ferramentas (`src/mcp.ts`, descrições em inglês) chamam as mesmas funções que a API REST, para a validação, a licença, a moderação e os limites serem iguais para pessoas e para agentes. As respostas de fotos levam o crédito, a licença e a `attribution` pronta a colar; os erros das escritas são os códigos da API (`daily_limit`, `bad_photo`, `station_nearby`…), com uma explicação.
+
+| Ferramenta | Faz | Precisa de |
+| --- | --- | --- |
+| `search_stations` | Por texto, por coordenadas e raio, ou só por filtros: operador (`opc`), concelho, `has_photo` (`searchStations`, `nearStations` e `filterStations`, como a API REST) | — |
+| `get_station` | Posto (pelo id ou pelo código EVSE de uma tomada), tomadas e as fotos principais | — |
+| `get_photo_link` | Link estático de um posto ou tomada num tamanho, com a atribuição; ou a página de envio, se ainda não há foto | — |
+| `list_missing_photos` | Postos ativos, ou tomadas com código EVSE, sem foto, por concelho ou operador, para campanhas | — |
+| `list_main_photos` | Todas as fotos principais (como `/api/v1/main-photos`), às páginas | — |
+| `get_ranking` | O ranking do mês ou de sempre | — |
+| `submit_photo` | Envio dos três tamanhos já limpos (base64 ou URL https), como o `POST /api/v1/photos` | `photos:write` |
+| `propose_station` | Posto novo para revisão, como o `POST /api/v1/stations` | `photos:write` |
+| `set_primary_photo` | Escolher a foto principal, como o `PUT /api/v1/selections/{target}` | `selections:write` e conta `trusted`, moderador ou administrador |
+| `get_photo` | Uma foto, como o `GET /api/v1/photos/{id}` (`getPhoto`) | — |
+| `delete_photo` | Retirar uma foto, como o `DELETE /api/v1/photos/{id}` (`deletePhoto`): a própria, ou a de outra pessoa por um moderador, com motivo | `photos:write` |
+
+**Quem chama** (`src/oauth.ts`, `src/mcpauth.ts`):
+
+- **Ninguém**: as ferramentas de leitura funcionam, para qualquer assistente mostrar fotos de um posto. Uma chamada a uma ferramenta de escrita recebe o `401` com o `WWW-Authenticate` do OAuth, e o cliente inicia sessão e repete-a.
+- **OAuth** (`@cloudflare/workers-oauth-provider`): metadados em `/.well-known/oauth-protected-resource/mcp` e `/.well-known/oauth-authorization-server`, registo dinâmico de clientes em `/oauth/register`, *tokens* em `/oauth/token`. A página de consentimento (`/oauth/authorize`) é nossa: pede o login OSM do site (volta lá depois), mostra o nome que a aplicação dá de si, para onde volta (com um aviso se for um programa local) e o que o agente vai poder fazer, com os âmbitos que o papel permite. A autorização guarda só a conta e os âmbitos escolhidos; o papel lê-se da D1 em cada pedido, como nos *tokens* de API, e um âmbito que o papel perdeu deixa logo de valer. *Tokens* de acesso de uma hora, renovados enquanto o agente for usado; 30 dias sem uso e caduca. As autorizações, os clientes e os *tokens* ficam no KV `OAUTH_KV` (com hash ou cifrados pelo próprio *provider*), não na D1. Na conta, «Agentes ligados» lista-as e desliga-as (`revokeGrant`), e o *cron* de 6 em 6 horas limpa o que expirou.
+- **Um *token* de API** (`Authorization: Bearer oop_…`): o Worker confere-o como na API REST, com os mesmos âmbitos.
+
+O deploy cria o KV se ainda não existir. Sem o KV ligado, o OAuth responde `503` e só funcionam a leitura e os *tokens* de API. O `/mcp` partilha o limite de pedidos da pesquisa (60 por minuto por IP) e os *endpoints* do OAuth o do login (10 por minuto).
+

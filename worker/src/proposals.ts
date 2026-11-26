@@ -9,7 +9,7 @@
 // or rejects it ('rejected', and its waiting photos are rejected with it).
 import { esc, type Lang } from './pages.ts';
 import { allowed, type RateEnv } from './ratelimit.ts';
-import { apiCaller } from './tokens.ts';
+import { apiCaller, type ApiSigner } from './tokens.ts';
 import type { AuthEnv } from './auth.ts';
 import { distanceM } from './types.ts';
 
@@ -82,8 +82,11 @@ export const newStationId = () => `OOP-${crypto.randomUUID().replace(/-/g, '').s
 
 // POST /api/v1/stations. ?force=1 skips the nearby check, after the person
 // has seen the stations it found and says theirs is another one.
-export async function proposeStation(request: Request, env: AuthEnv & RateEnv, now = new Date()): Promise<Response> {
-  const caller = await apiCaller(request, env, 'photos:write', now);
+// `signedIn`: as in submitPhoto (src/photos.ts), for the MCP server.
+export async function proposeStation(
+  request: Request, env: AuthEnv & RateEnv, now = new Date(), signedIn?: ApiSigner,
+): Promise<Response> {
+  const caller = signedIn ?? await apiCaller(request, env, 'photos:write', now);
   if ('error' in caller) return reply(caller.status, { error: caller.error });
   const { user } = caller;
   if (!(await allowed(env.UPLOAD_LIMIT, user.id))) return reply(429, { error: 'too_fast' });

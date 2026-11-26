@@ -26,13 +26,20 @@ import { privacyPage } from './privacy.ts';
 import { termsPage } from './terms.ts';
 import { proposeStation } from './proposals.ts';
 import { groupPage } from './grupo.ts';
-import { photoLink } from './photolinks.ts';
+import { evseBody, mainPhotoBody, searchBody, stationBody } from './bodies.ts';
 import { creditPage, getCredit } from './photopage.ts';
 import { PROMOTE_ACTION, lostHtml, promoteMain } from './mains.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
+import { isMcpPath } from './mcp.ts';
+import type { OAuthEnv } from './oauth.ts';
+
+// The MCP server and its OAuth provider load only when used: the provider
+// imports cloudflare:workers, which the tests (under Node) cannot load.
+const oauth = () => import('./oauth.ts');
+const agentGrants = async (env: OAuthEnv) => (env.OAUTH_KV ? (await oauth()).agentGrants(env) : undefined);
 import {
-  API_MAX_RESULTS, compactCode, ftsQuery, hasFilters, MAX_QUERY, NEAR_MAX_M, parseFilters, parseNear, STATION_ID, type EvseMatch, type SearchRow,
+  API_MAX_RESULTS, compactCode, ftsQuery, hasFilters, MAX_QUERY, NEAR_MAX_M, parseFilters, parseNear, STATION_ID,
 } from './types.ts';
 
 // The API is for apps and agents, not for search results.
@@ -54,6 +61,8 @@ const HTML_HEADERS = {
   'referrer-policy': 'strict-origin-when-cross-origin',
   'cross-origin-opener-policy': 'same-origin',
   'strict-transport-security': 'max-age=31536000',
+  // For agents: what the site, the API and the MCP server offer.
+  link: '</llms.txt>; rel="describedby"; type="text/markdown"',
 };
 
 // The upload page also asks our API for stations (connect-src; also the
@@ -137,52 +146,9 @@ async function stationJson(env: Env, id: string): Promise<Response> {
   const alias = await getStationAlias(env, id);
   if (alias) return new Response(null, { status: 301, headers: { location: `/api/v1/stations/${encodeURIComponent(alias)}`, 'cache-control': 'no-store' } });
   const found = await getStation(env, id);
-  if (!found) return notFound();
-  const { station: s, points, mains, externals } = found;
-  const photo = (target: string | null) => {
-    const m = target ? mains[target] : undefined;
-    return m && target
-      ? photoLink({ target, stationId: s.id, credit: m.credit, panoramaxId: m.panoramax_id, lat: s.lat, lon: s.lon })
-      : null;
-  };
-  return json({
-    id: s.id,
-    code: s.code,
-    name: s.name,
-    operator: { id: s.opc, name: s.operator },
-    address: s.address,
-    municipality: s.municipality,
-    region: s.region,
-    lat: s.lat,
-    lon: s.lon,
-    status: s.status,
-    osm: s.osm_ref,
-    photo: photo(s.id),
-    // Photos at their origin (Panoramax, Commons), as references: never a main
-    // photo, no static link. Show the author, the licence and the source link.
-    externalPhotos: externals.map((p) => ({
-      id: p.id,
-      external: true,
-      origin: p.origin,
-      thumb: p.thumb,
-      credit: p.credit,
-      license: p.license,
-      source: p.source,
-      takenAt: p.taken_at,
-    })),
-    points: points.map((p) => ({
-      id: p.point_id,
-      evse: p.evse_id,
-      compact: p.evse_compact,
-      connector: p.connector,
-      kw: p.max_kw,
-      dc: p.dc === 1,
-      status: p.status,
-      photo: photo(p.evse_compact),
-    })),
-    updatedAt: s.updated_at,
-  });
+  return found ? json(stationBody(found)) : notFound();
 }
+
 
 // GET /api/v1/photos/{id}. A published photo is public; its author and the
 // moderators also read the others, so nothing cached for them is shared.
@@ -219,21 +185,6 @@ async function photosExportJson(request: Request, env: Env, ctx: ExecutionContex
   return res;
 }
 
-const evseBody = (e: EvseMatch) => {
-  const at = { stationId: e.station_id, lat: e.lat, lon: e.lon };
-  return {
-    evse: e.evse_id,
-    compact: e.evse_compact,
-    station: {
-      id: e.station_id, name: e.name, operator: { id: e.opc, name: e.operator },
-      photo: e.station_photo ? photoLink({ ...at, target: e.station_id, credit: e.station_credit, panoramaxId: e.station_pano }) : null,
-    },
-    point: { id: e.point_id, connector: e.connector, kw: e.max_kw, dc: e.dc === 1, status: e.status },
-    photo: e.socket_photo ? photoLink({ ...at, target: e.evse_compact, credit: e.socket_credit, panoramaxId: e.socket_pano }) : null,
-    updatedAt: e.updated_at,
-  };
-};
-
 async function evseJson(env: Env, raw: string): Promise<Response> {
   const results = await findEvse(env, raw);
   if (results.length === 0) return notFound();
@@ -250,21 +201,7 @@ async function mainPhotosJson(env: Env): Promise<Response> {
   const rows = await listMainPhotos(env);
   return json({
     license: 'CC-BY-SA-4.0',
-    photos: rows.map((r) => {
-      const base = `${PICTURES}/${encodeURIComponent(r.target)}`;
-      const anchor = r.target === r.station_id ? '' : socketAnchor(r.target);
-      return {
-        target: r.target,
-        station: { id: r.station_id, code: r.code },
-        credit: r.credit,
-        thumb: `${base}.thumb.jpg`,
-        main: `${base}.jpg`,
-        full: `${base}.full.jpg`,
-        page: `${SITE}${stationPath('pt', r.station_id)}${anchor}`,
-        panoramax: r.panoramax_id,
-        publishedAt: r.published_at,
-      };
-    }),
+    photos: rows.map(mainPhotoBody),
   });
 }
 
@@ -340,17 +277,6 @@ async function sitemap(request: Request, env: Env, ctx: ExecutionContext): Promi
 const PAGE_RESULTS = 20;
 const queryOf = (url: URL) => (url.searchParams.get('q') ?? '').trim().slice(0, MAX_QUERY);
 
-const searchBody = (r: SearchRow) => ({
-  id: r.id,
-  name: r.name,
-  operator: { id: r.opc, name: r.operator },
-  address: r.address,
-  municipality: r.municipality,
-  region: r.region,
-  lat: r.lat,
-  lon: r.lon,
-  status: r.status,
-});
 
 function limitOf(url: URL): number {
   const asked = Number(url.searchParams.get('limit') ?? PAGE_RESULTS);
@@ -449,12 +375,21 @@ async function setSelection(request: Request, env: Env & PhotoEnv, ctx: Executio
 }
 
 export default {
-  async fetch(request: Request, env: Env & TakedownEnv & RateEnv, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env & TakedownEnv & RateEnv & OAuthEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
+    // The MCP server and its OAuth (src/oauth.ts), with the request limits of
+    // the search (/mcp) and of the sign-in (the OAuth endpoints).
+    if (isMcpPath(pathname)) {
+      if (request.method !== 'OPTIONS') {
+        const limit = pathname === '/mcp' ? env.SEARCH_LIMIT : pathname.startsWith('/oauth/') ? env.LOGIN_LIMIT : undefined;
+        if (limit && !(await allowed(limit, clientIp(request)))) return tooMany('/api/');
+      }
+      return (await oauth()).mcpFetch(request, env, ctx);
+    }
     // The POSTs: everything else on this site only reads.
     if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
-    if (request.method === 'POST' && pathname === ACCOUNT_ACTION) return accountAction(request, env, HTML_HEADERS, ctx);
+    if (request.method === 'POST' && pathname === ACCOUNT_ACTION) return accountAction(request, env, HTML_HEADERS, ctx, undefined, undefined, await agentGrants(env));
     if (request.method === 'POST' && pathname === ROLE_ACTION) return setRole(request, env);
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
@@ -517,8 +452,8 @@ export default {
     if (pathname === '/en/terms') return html('en', termsPage('en'));
     if (pathname === '/grupo') return html('pt', groupPage('pt'));
     if (pathname === '/en/group') return html('en', groupPage('en'));
-    if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
-    if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS);
+    if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS, undefined, await agentGrants(env));
+    if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS, undefined, await agentGrants(env));
     if (pathname === '/conta/envios') return uploadsHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/account/uploads') return uploadsHtml('en', request, env, HTML_HEADERS);
     if (pathname.startsWith(OWN_THUMB_PREFIX)) return ownThumbnail(request, env, pathname.slice(OWN_THUMB_PREFIX.length));
@@ -560,8 +495,10 @@ export default {
   // Every 6 hours (wrangler.json): retries the hides that half-failed, and
   // follows any auto-hide report that did not come from our form
   // (src/takedown.ts); then a batch of what is left of credit changes
-  // (src/credit.ts). One after the other: they share the subrequest limit.
-  async scheduled(_event: ScheduledController, env: Env & TakedownEnv, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(reconcile(env, fetch).catch(() => {}).then(() => syncCredits(env, fetch)));
+  // (src/credit.ts); last, expired OAuth grants out of KV (src/oauth.ts).
+  // One after the other: they share the subrequest limit.
+  async scheduled(_event: ScheduledController, env: Env & TakedownEnv & OAuthEnv, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(reconcile(env, fetch).catch(() => {}).then(() => syncCredits(env, fetch)).catch(() => {})
+      .then(async () => { if (env.OAUTH_KV) await (await oauth()).purgeOAuth(env); }).catch(() => {}));
   },
-} satisfies ExportedHandler<Env & TakedownEnv>;
+} satisfies ExportedHandler<Env & TakedownEnv & OAuthEnv>;

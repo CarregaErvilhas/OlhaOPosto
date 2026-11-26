@@ -8,7 +8,7 @@
 // mapper add the photo to OpenStreetMap by hand: a link that opens the editor
 // and the tag to copy. No bot and no automatic edit (Docs/plan.md, *OSM*).
 import {
-  BRAND, esc, layout, PANORAMAX_URL, PICTURES, photoPath, socketAnchor, stationPath, type Lang,
+  BRAND, esc, layout, osmEditUrl, PANORAMAX_URL, PICTURES, photoPath, socketAnchor, stationPath, type Lang,
 } from './pages.ts';
 import { isPublic } from './types.ts';
 
@@ -47,16 +47,8 @@ export async function getCredit(env: { DB: D1Database }, id: string): Promise<Cr
   return row && isPublic({ status: row.station_status }) ? row : null;
 }
 
-const OSM_ELEMENT = /^(node|way|relation)\/(\d+)$/;
-
-// The iD editor on the element if we know it, or on the position. A socket's
-// photo always opens on the position: the NAP does not tell us which OSM
-// element is the socket (only the station's, if linked).
-export function osmEditUrl(row: Pick<CreditRow, 'evse_compact' | 'osm_ref' | 'lat' | 'lon'>): { url: string; element: boolean } {
-  const m = !row.evse_compact && row.osm_ref ? OSM_ELEMENT.exec(row.osm_ref) : null;
-  if (m) return { url: `https://www.openstreetmap.org/edit?editor=id&${m[1]}=${m[2]}`, element: true };
-  return { url: `https://www.openstreetmap.org/edit?editor=id#map=19/${row.lat}/${row.lon}`, element: false };
-}
+// osmEditUrl lives in pages.ts (the station page uses it too).
+export { osmEditUrl };
 
 const T = {
   pt: {

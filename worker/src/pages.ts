@@ -88,8 +88,8 @@ const T = {
     stationLabel: 'Posto',
     copyStation: 'Copiar link: posto',
     copySocket: (code: string) => `Copiar link: tomada ${code}`,
-    copied: 'Link copiado.',
-    copyFailed: 'Não foi possível copiar. O link ficou selecionado: copia-o à mão.',
+    copied: 'Copiado.',
+    copyFailed: 'Não foi possível copiar. O texto ficou selecionado: copia-o à mão.',
     socketsTitle: 'Tomadas',
     socketsIntro: 'Cada tomada com código EVSE tem o seu link.',
     noPhoto: 'sem foto',
@@ -101,6 +101,13 @@ const T = {
     osmView: 'Ver no OpenStreetMap',
     osmNone: 'Ainda não está ligado a um elemento do OpenStreetMap.',
     osmMap: 'Ver o sítio no mapa',
+    osmAddTitle: 'Acrescentar a foto principal ao OSM',
+    osmAddIntro: 'Copia a etiqueta e cola-a no elemento do posto, no editor. À mão: não há bots nem edições automáticas.',
+    osmAddPlaceNote: 'O posto ainda não está ligado a um elemento: procura-o no mapa ou cria-o.',
+    osmTag: 'Etiqueta',
+    copyTag: 'Copiar etiqueta',
+    osmEditElement: 'Abrir o elemento no editor iD',
+    osmEditPlace: 'Abrir o sítio no editor iD',
     alsoTitle: 'Ver também',
     alsoNap: 'Preços e estado das tomadas no NAP dashboard',
     alsoPano: 'A foto principal no mapa do Panoramax',
@@ -208,8 +215,8 @@ const T = {
     stationLabel: 'Station',
     copyStation: 'Copy link: station',
     copySocket: (code: string) => `Copy link: socket ${code}`,
-    copied: 'Link copied.',
-    copyFailed: 'Couldn’t copy. The link is selected: copy it by hand.',
+    copied: 'Copied.',
+    copyFailed: 'Couldn’t copy. The text is selected: copy it by hand.',
     socketsTitle: 'Sockets',
     socketsIntro: 'Each socket with an EVSE code has its own link.',
     noPhoto: 'no photo',
@@ -221,6 +228,13 @@ const T = {
     osmView: 'View on OpenStreetMap',
     osmNone: 'Not linked to an OpenStreetMap element yet.',
     osmMap: 'Show on map',
+    osmAddTitle: 'Add the main photo to OSM',
+    osmAddIntro: 'Copy the tag and paste it on the station’s element in the editor. By hand: no bots and no automatic edits.',
+    osmAddPlaceNote: 'The station is not linked to an element yet: find it on the map or create it.',
+    osmTag: 'Tag',
+    copyTag: 'Copy tag',
+    osmEditElement: 'Open the element in the iD editor',
+    osmEditPlace: 'Open the place in the iD editor',
     alsoTitle: 'See also',
     alsoNap: 'Prices and socket status on the NAP dashboard',
     alsoPano: 'The main photo on the Panoramax map',
@@ -328,7 +342,16 @@ const plug = (lang: Lang, c: string | null) => (c ? CONNECTORS[lang][c] ?? c : T
 export const nap = (lang: Lang, v: string) => (lang === 'pt' ? esc(v) : `<span lang="pt-PT">${esc(v)}</span>`);
 
 // OSM elements as the import stores them (node/123). Anything else is not linked.
-const OSM_ELEMENT = /^(node|way|relation)\/\d+$/;
+const OSM_ELEMENT = /^(node|way|relation)\/(\d+)$/;
+
+// The iD editor on the element if we know it, or on the position. A socket's
+// photo always opens on the position: the NAP does not tell us which OSM
+// element is the socket (only the station's, if linked).
+export function osmEditUrl(row: { evse_compact: string | null; osm_ref: string | null; lat: number; lon: number }): { url: string; element: boolean } {
+  const m = !row.evse_compact && row.osm_ref ? OSM_ELEMENT.exec(row.osm_ref) : null;
+  if (m) return { url: `https://www.openstreetmap.org/edit?editor=id&${m[1]}=${m[2]}`, element: true };
+  return { url: `https://www.openstreetmap.org/edit?editor=id#map=19/${row.lat}/${row.lon}`, element: false };
+}
 
 const ICON_CAMERA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>';
 const ICON_COPY = '<svg class="idle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>';
@@ -442,6 +465,14 @@ function copyRow(id: string, base: string, label: string): string {
         </div>`;
 }
 
+// Text to copy as it is (no size suffix: no data-base).
+function tagRow(id: string, text: string, label: string): string {
+  return `<div class="copy-row">
+          <code id="${esc(id)}">${esc(text)}</code>
+          <button type="button" class="copy" data-target="${esc(id)}" aria-label="${esc(label)}">${ICON_COPY}${ICON_CHECK}</button>
+        </div>`;
+}
+
 // The thumbnail of a socket's main photo, linked to its credit page.
 function thumb(lang: Lang, compact: string, main: MainPhotos[string]): string {
   const img = `<img class="thumb" src="${PICTURES}/${encodeURIComponent(compact)}.thumb.jpg" alt="${esc(T[lang].creditAlt(compact))}" loading="lazy">`;
@@ -514,6 +545,18 @@ export function stationPage(lang: Lang, s: StationRow, points: PointRow[], mains
         <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/${esc(s.osm_ref)}">${t.osmView}</a>`
     : `<p>${t.osmNone}</p>
         <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${s.lat}&amp;mlon=${s.lon}#map=19/${s.lat}/${s.lon}">${t.osmMap}</a>`;
+  // Only the current main photo goes to OSM (Docs/plan.md, *OSM*): its tag and
+  // the iD editor, by hand.
+  const edit = osmEditUrl({ evse_compact: null, osm_ref: s.osm_ref, lat: s.lat, lon: s.lon });
+  const osmAdd = main?.panoramax_id
+    ? `
+      <h3>${t.osmAddTitle}</h3>
+      <p>${t.osmAddIntro}</p>
+      <div class="label">${t.osmTag}</div>
+      ${tagRow('osm-tag', `panoramax=${main.panoramax_id}`, t.copyTag)}
+      <p><a class="button" target="_blank" rel="noopener" href="${esc(edit.url)}">${edit.element ? t.osmEditElement : t.osmEditPlace}</a></p>
+      ${edit.element ? '' : `<p class="hint">${t.osmAddPlaceNote}</p>`}`
+    : '';
   // The NAP dashboard only lists what the NAP publishes today; the Panoramax
   // viewer opens on a photo, so it only gets a link once there is one.
   const also = [
@@ -577,9 +620,9 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
     ${points.map((p, i) => socketItem(lang, p, i, p.evse_compact ? mains[p.evse_compact] : undefined)).join('\n    ')}
       </ul>
     </section>
-    <section class="card">
+    <section class="card" id="osm">
       <h2>${t.osmTitle}</h2>
-      ${osm}
+      ${osm}${osmAdd}
     </section>
     ${also.length ? `<section class="card">
       <h2>${t.alsoTitle}</h2>

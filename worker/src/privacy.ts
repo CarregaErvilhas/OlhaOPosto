@@ -41,11 +41,11 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <li><code>__Host-oop_session</code>: mantém a sessão durante 30 dias, ou até a terminares. Na nossa base de dados fica só uma impressão digital (<i>hash</i>) dele, que não serve para abrir a sessão.</li>
 </ul>
 <p>O fundamento é prestar o serviço que pedes ao criar a conta (artigo 6.º, n.º 1, alínea b) do RGPD). Os dados ficam enquanto tiveres conta. Por agora, para apagar a conta, escreve para ${mail}.</p>
-<p>Ao iniciar sessão passas pelo site do OpenStreetMap, que trata os teus dados segundo a <a href="${LINKS.osmf}">política de privacidade da OpenStreetMap Foundation</a>.</p>
+<p>Ao iniciar sessão passas pelo site do OpenStreetMap, que trata os teus dados segundo a <a href="${LINKS.osmf}" target="_blank" rel="noopener">política de privacidade da OpenStreetMap Foundation</a>.</p>
 
 <h2>Envio de fotos</h2>
 <p>A página de envio trata a foto no teu dispositivo: abre-a (também as fotos HEIC, convertidas no dispositivo), lê a data e o GPS, procura caras para sugerir as zonas a desfocar, desfoca as zonas que confirmares por cima de caras e matrículas, e faz três tamanhos (2048, 1024 e 400 px) sem metadados. A foto original nunca é enviada, e a procura de caras corre no teu dispositivo, com um programa e um modelo servidos por este site. Para sugerir postos, a página arredonda o GPS a cerca de 100 metros e pede-nos os postos à volta desse ponto; esse pedido fica no registo técnico como qualquer outro.</p>
-<p>Se abrires o mapa para escolher o posto, o teu navegador pede as imagens do mapa (os mosaicos) aos servidores do OpenStreetMap, que recebem o teu endereço IP e a zona do mapa que vês, segundo a <a href="${LINKS.osmf}">política de privacidade da OpenStreetMap Foundation</a>. O mapa só abre se tocares no botão. O botão «Ir para a minha localização» pede ao navegador a tua posição; ela só serve para centrar o mapa, e o que nos chega é o centro do mapa arredondado a cerca de 100 metros, para listar os postos.</p>
+<p>Se abrires o mapa para escolher o posto, o teu navegador pede as imagens do mapa (os mosaicos) aos servidores do OpenStreetMap, que recebem o teu endereço IP e a zona do mapa que vês, segundo a <a href="${LINKS.osmf}" target="_blank" rel="noopener">política de privacidade da OpenStreetMap Foundation</a>. O mapa só abre se tocares no botão. O botão «Ir para a minha localização» pede ao navegador a tua posição; ela só serve para centrar o mapa, e o que nos chega é o centro do mapa arredondado a cerca de 100 metros, para listar os postos.</p>
 <p>Se propuseres um posto novo, guardamos o que escreveste (nome, operador, código, posição e nota), quem o propôs e quando, e a decisão do moderador. Até ser aprovado, não é público e só a moderação o vê; aprovado, o nome, o operador, o código e a posição ficam públicos como os dos outros postos, sem o teu nome.</p>
 <p>Quando enviares, recebemos os três tamanhos e, à parte, a data e o GPS exato da foto, se os tiver. Guardamos:</p>
 <ul>
@@ -53,7 +53,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <li>as versões de 1024 e 400 px num armazenamento privado;</li>
 <li>na nossa base de dados: o posto ou a tomada, a data e o GPS da foto, a distância ao posto, o nome de autor, quem enviou, quando, e a data em que aceitaste a licença e as <a href="${termsPath('pt')}">condições de utilização</a>.</li>
 </ul>
-<p>Com o envio aberto, a página usa o Cloudflare Turnstile para confirmar que quem envia é uma pessoa e não um programa. O Turnstile corre no teu navegador, recolhe sinais técnicos (por exemplo, o endereço IP e características do navegador) e não usa <i>cookies</i>; recebemos só um código de uma utilização, que verificamos na Cloudflare junto com o teu endereço IP. O fundamento é o nosso interesse legítimo em travar envios automáticos (artigo 6.º, n.º 1, alínea f) do RGPD). Ver a <a href="${LINKS.turnstilePrivacy}">política de privacidade do Turnstile</a>.</p>
+<p>Com o envio aberto, a página usa o Cloudflare Turnstile para confirmar que quem envia é uma pessoa e não um programa. O Turnstile corre no teu navegador, recolhe sinais técnicos (por exemplo, o endereço IP e características do navegador) e não usa <i>cookies</i>; recebemos só um código de uma utilização, que verificamos na Cloudflare junto com o teu endereço IP. O fundamento é o nosso interesse legítimo em travar envios automáticos (artigo 6.º, n.º 1, alínea f) do RGPD). Ver a <a href="${LINKS.turnstilePrivacy}" target="_blank" rel="noopener">política de privacidade do Turnstile</a>.</p>
 <p>Até um moderador a aprovar, a foto só é visível para a moderação. Ao ser aprovada, fica pública com o nome de autor, a data e a licença CC BY-SA 4.0 (com autorização para dados ODbL), no Panoramax e nos links estáticos. O GPS da foto nunca é publicado: serve só aos moderadores para confirmar o posto, e fica enquanto a foto existir. Uma foto recusada é apagada do Panoramax e do armazenamento privado; de uma foto recusada ou removida guardamos o motivo (de uma lista fixa), uma nota curta do moderador, a conta que decidiu e quando, para te mostrarmos porquê na página «Os meus envios» e para a moderação ter um histórico de decisões. Só tu e os moderadores veem esses dados.</p>
 <p>O fundamento é prestar o serviço que pedes ao enviar (artigo 6.º, n.º 1, alínea b) do RGPD). Contamos os envios por pessoa e por dia, para travar abusos. Para retirar uma foto tua, escreve para ${mail}.</p>
 
@@ -72,17 +72,17 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2>Onde ficam os dados</h2>
 <p>A Zerops s.r.o. aloja por nossa conta o servidor Panoramax e a base de dados dele, na República Checa; as imagens desse servidor e o armazenamento privado dos envios ficam na Cloudflare.</p>
-<p>A Cloudflare, Inc. trata os dados por nossa conta: alojamento, base de dados, armazenamento das fotos e registos técnicos. A base de dados fica na União Europeia. A Cloudflare é uma empresa dos Estados Unidos: os pedidos passam pelo centro de dados dela mais próximo de ti, e os registos técnicos podem ficar fora da União Europeia, com as garantias do <a href="${LINKS.cfDpa}">acordo de tratamento de dados da Cloudflare</a>. Ver também a <a href="${LINKS.cfPrivacy}">política de privacidade da Cloudflare</a>.</p>
+<p>A Cloudflare, Inc. trata os dados por nossa conta: alojamento, base de dados, armazenamento das fotos e registos técnicos. A base de dados fica na União Europeia. A Cloudflare é uma empresa dos Estados Unidos: os pedidos passam pelo centro de dados dela mais próximo de ti, e os registos técnicos podem ficar fora da União Europeia, com as garantias do <a href="${LINKS.cfDpa}" target="_blank" rel="noopener">acordo de tratamento de dados da Cloudflare</a>. Ver também a <a href="${LINKS.cfPrivacy}" target="_blank" rel="noopener">política de privacidade da Cloudflare</a>.</p>
 <p>Não vendemos dados, não fazemos publicidade nem perfis, e não tomamos decisões automáticas sobre ti.</p>
 
 <h2>Os teus direitos</h2>
-<p>Podes pedir acesso, retificação, apagamento, limitação ou portabilidade dos teus dados, ou opor-te aos registos técnicos, escrevendo para ${mail}. Respondemos no prazo de um mês. Também podes apresentar queixa à <a href="${LINKS.cnpd}">CNPD</a>.</p>
+<p>Podes pedir acesso, retificação, apagamento, limitação ou portabilidade dos teus dados, ou opor-te aos registos técnicos, escrevendo para ${mail}. Respondemos no prazo de um mês. Também podes apresentar queixa à <a href="${LINKS.cnpd}" target="_blank" rel="noopener">CNPD</a>.</p>
 
 <h2>Dados dos postos</h2>
 <p>Os dados dos postos vêm de fontes públicas (NAP Portugal/MOBI.E e OpenStreetMap) e descrevem equipamentos e operadores, não pessoas. Se encontrares aqui um dado pessoal que não devia estar, escreve-nos e retiramo-lo.</p>
 
 <h2>Alterações</h2>
-<p>Quando esta política mudar, a versão nova fica nesta página. As versões anteriores estão no <a href="${LINKS.history}">histórico do código</a>.</p>
+<p>Quando esta política mudar, a versão nova fica nesta página. As versões anteriores estão no <a href="${LINKS.history}" target="_blank" rel="noopener">histórico do código</a>.</p>
 <p><a href="${accountPath('pt')}">Conta</a> · <a href="${homePath('pt')}">Início</a></p>`,
   },
   en: {
@@ -107,11 +107,11 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <li><code>__Host-oop_session</code>: keeps you signed in for 30 days, or until you sign out. Our database keeps only a fingerprint (hash) of it, which cannot be used to sign in.</li>
 </ul>
 <p>The legal basis is providing the service you ask for when you create the account (GDPR Article 6(1)(b)). The data is kept while you have an account. For now, to delete your account, write to ${mail}.</p>
-<p>Signing in takes you through the OpenStreetMap site, which handles your data under the <a href="${LINKS.osmf}">OpenStreetMap Foundation privacy policy</a>.</p>
+<p>Signing in takes you through the OpenStreetMap site, which handles your data under the <a href="${LINKS.osmf}" target="_blank" rel="noopener">OpenStreetMap Foundation privacy policy</a>.</p>
 
 <h2>Photo uploads</h2>
 <p>The upload page handles the photo on your device: it opens it (HEIC photos too, converted on the device), reads its date and GPS, looks for faces to suggest the areas to blur, blurs the areas you confirm over faces and number plates, and makes three sizes (2048, 1024 and 400 px) without metadata. The original photo is never sent, and the face search runs on your device, with a program and a model served by this site. To suggest stations, the page rounds the GPS to about 100 metres and asks us for the stations around that point; that request goes into the technical log like any other.</p>
-<p>If you open the map to choose the station, your browser asks OpenStreetMap’s servers for the map images (tiles), and they receive your IP address and the area of the map you look at, under the <a href="${LINKS.osmf}">OpenStreetMap Foundation privacy policy</a>. The map only opens if you tap the button. The “Go to my location” button asks your browser for your position; it only centres the map, and what reaches us is the centre of the map rounded to about 100 metres, to list the stations.</p>
+<p>If you open the map to choose the station, your browser asks OpenStreetMap’s servers for the map images (tiles), and they receive your IP address and the area of the map you look at, under the <a href="${LINKS.osmf}" target="_blank" rel="noopener">OpenStreetMap Foundation privacy policy</a>. The map only opens if you tap the button. The “Go to my location” button asks your browser for your position; it only centres the map, and what reaches us is the centre of the map rounded to about 100 metres, to list the stations.</p>
 <p>If you propose a new station, we keep what you wrote (name, operator, code, position and note), who proposed it and when, and the moderator’s decision. Until it is approved, it is not public and only the moderators see it; once approved, its name, operator, code and position are public like those of the other stations, without your name.</p>
 <p>When you send a photo, we receive the three sizes and, separately, the photo’s date and exact GPS, if it has them. We keep:</p>
 <ul>
@@ -119,7 +119,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <li>the 1024 and 400 px versions in private storage;</li>
 <li>in our database: the station or socket, the photo’s date and GPS, the distance to the station, the author name, who sent it, when, and the date you accepted the licence and the <a href="${termsPath('en')}">terms</a>.</li>
 </ul>
-<p>With uploads open, the page uses Cloudflare Turnstile to confirm that the sender is a person and not a program. Turnstile runs in your browser, collects technical signals (for example, your IP address and browser characteristics) and uses no cookies; we receive only a single-use code, which we check with Cloudflare together with your IP address. The basis is our legitimate interest in stopping automated uploads (Article 6(1)(f) GDPR). See the <a href="${LINKS.turnstilePrivacy}">Turnstile privacy addendum</a>.</p>
+<p>With uploads open, the page uses Cloudflare Turnstile to confirm that the sender is a person and not a program. Turnstile runs in your browser, collects technical signals (for example, your IP address and browser characteristics) and uses no cookies; we receive only a single-use code, which we check with Cloudflare together with your IP address. The basis is our legitimate interest in stopping automated uploads (Article 6(1)(f) GDPR). See the <a href="${LINKS.turnstilePrivacy}" target="_blank" rel="noopener">Turnstile privacy addendum</a>.</p>
 <p>Until a moderator approves it, the photo is visible only to moderators. Once approved, it becomes public with the author name, the date and the CC BY-SA 4.0 licence (with permission for ODbL data), on Panoramax and through the static links. The photo’s GPS is never published: it only helps moderators confirm the station, and it is kept for as long as the photo exists. A rejected photo is deleted from Panoramax and from the private storage; for a refused or removed photo we keep the reason (from a fixed list), a short note from the moderator, the account that decided and when, to show you why on the “My uploads” page and to give moderation a history of decisions. Only you and the moderators see this data.</p>
 <p>The legal basis is providing the service you ask for when you send it (Article 6(1)(b) GDPR). We count uploads per person per day to stop abuse. To take down one of your photos, write to ${mail}.</p>
 
@@ -138,17 +138,17 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2>Where the data lives</h2>
 <p>Zerops s.r.o. hosts our Panoramax server and its database on our behalf, in the Czech Republic; that server’s images and the private storage for uploads are with Cloudflare.</p>
-<p>Cloudflare, Inc. processes the data on our behalf: hosting, database, photo storage and technical logs. The database is in the European Union. Cloudflare is a United States company: requests go through its data centre nearest to you, and technical logs may be kept outside the European Union, under the safeguards of the <a href="${LINKS.cfDpa}">Cloudflare data processing agreement</a>. See also the <a href="${LINKS.cfPrivacy}">Cloudflare privacy policy</a>.</p>
+<p>Cloudflare, Inc. processes the data on our behalf: hosting, database, photo storage and technical logs. The database is in the European Union. Cloudflare is a United States company: requests go through its data centre nearest to you, and technical logs may be kept outside the European Union, under the safeguards of the <a href="${LINKS.cfDpa}" target="_blank" rel="noopener">Cloudflare data processing agreement</a>. See also the <a href="${LINKS.cfPrivacy}" target="_blank" rel="noopener">Cloudflare privacy policy</a>.</p>
 <p>We do not sell data, show ads or build profiles, and we make no automated decisions about you.</p>
 
 <h2>Your rights</h2>
-<p>You can ask for access, rectification, erasure, restriction or portability of your data, or object to the technical logs, by writing to ${mail}. We reply within one month. You can also complain to the Portuguese data protection authority, the <a href="${LINKS.cnpd}" hreflang="pt-PT">CNPD</a>.</p>
+<p>You can ask for access, rectification, erasure, restriction or portability of your data, or object to the technical logs, by writing to ${mail}. We reply within one month. You can also complain to the Portuguese data protection authority, the <a href="${LINKS.cnpd}" hreflang="pt-PT" target="_blank" rel="noopener">CNPD</a>.</p>
 
 <h2>Station data</h2>
 <p>Station data comes from public sources (NAP Portugal/MOBI.E and OpenStreetMap) and describes equipment and operators, not people. If you find personal data here that should not be, write to us and we will remove it.</p>
 
 <h2>Changes</h2>
-<p>When this policy changes, the new version is on this page. Earlier versions are in the <a href="${LINKS.history}">code history</a>.</p>
+<p>When this policy changes, the new version is on this page. Earlier versions are in the <a href="${LINKS.history}" target="_blank" rel="noopener">code history</a>.</p>
 <p><a href="${accountPath('en')}">Account</a> · <a href="${homePath('en')}">Home</a></p>`,
   },
 };

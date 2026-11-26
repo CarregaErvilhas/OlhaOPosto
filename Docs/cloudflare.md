@@ -389,7 +389,10 @@ o botão passa a "Enviar a foto" e manda os três tamanhos ao Worker:
    `jpeg.js` (só esses campos; nunca lança erro com um ficheiro mau).
 3. Com GPS, arredonda a 3 casas decimais (cerca de 100 m) e pede os postos
    a 500 m; mostra a distância calculada com o GPS exato, que não sai do
-   dispositivo. Sem GPS, pesquisa por texto. Depois pede o posto para listar
+   dispositivo. Sem GPS, pesquisa por texto. Com `?posto=<id>` (a página do
+   posto sem foto e o NAP dashboard ligam assim), esse posto vem primeiro,
+   com a distância ao GPS da foto, e o login e a troca de língua mantêm-no;
+   um id desconhecido conta como ausente. Depois pede o posto para listar
    as tomadas com código EVSE.
 4. A pessoa desenha zonas por cima de caras e matrículas (rato, toque ou
    teclado). Cada zona leva um mosaico de cerca de 8 blocos no lado maior.

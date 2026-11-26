@@ -15,7 +15,7 @@ import { isCleanJpeg, jpegSize } from '../public/jpeg.js';
 import { currentUser, loginEnabled, page, sameOrigin, type AuthEnv, type Db, type Waiter } from './auth.ts';
 import { PANORAMAX_URL, type Lang } from './pages.ts';
 import { distanceM, FAR_M, STATION_ID } from './types.ts';
-import { TURNSTILE_ACTION, uploadPage } from './upload.ts';
+import { TURNSTILE_ACTION, presetStation, uploadPage } from './upload.ts';
 import { allowed, type RateEnv } from './ratelimit.ts';
 
 // The slice of R2 used here, so the tests typecheck under Node.
@@ -87,7 +87,8 @@ export async function uploadHtml(lang: Lang, request: Request, env: PhotoEnv, he
   // A D1 hiccup reads as signed out, never as a 500.
   const user = enabled ? await currentUser(request, env).catch(() => null) : null;
   const sending = uploadsOpen(env);
-  return page(lang, uploadPage(lang, { user, enabled, sending, sitekey: sending ? env.TURNSTILE_SITEKEY : undefined }), 200, headers);
+  const station = presetStation(new URL(request.url).searchParams.get('posto'));
+  return page(lang, uploadPage(lang, { user, enabled, sending, sitekey: sending ? env.TURNSTILE_SITEKEY : undefined, station }), 200, headers);
 }
 
 const reply = (status: number, body: Record<string, unknown>) =>

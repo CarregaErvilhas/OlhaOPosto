@@ -26,9 +26,9 @@
 // The report is filed without our token on purpose: Panoramax checks
 // "reporter" before "owner", and a reporter cannot close a report as ignored.
 
-import { reasonForReport } from './reasons.ts';
+import { reasonForReport, type Reason as RefusalReason } from './reasons.ts';
 import { currentUser, page, sameOrigin, type SessionUser } from './auth.ts';
-import { BRAND, PANORAMAX_URL, accountPath, esc, layout, privacyPath, stationPath, type Lang } from './pages.ts';
+import { BRAND, PANORAMAX_URL, SITE, accountPath, esc, layout, privacyPath, stationPath, type Lang } from './pages.ts';
 import { turnstileOk, type PhotoEnv } from './photos.ts';
 import { pictureUrls, publishMain, purgeUrls, type PublishEnv } from './publish.ts';
 import { canModerate, STAGING_PREFIX } from './moderation.ts';
@@ -51,6 +51,8 @@ export const takedownFormPath = (lang: Lang) => (lang === 'pt' ? '/report' : '/e
 export const takedownsPath = (lang: Lang) => (lang === 'pt' ? '/admin/remocoes' : '/en/admin/takedowns');
 export const TAKEDOWN_DECIDE = '/admin/remocao';
 export const DEADLINE_H = 72;
+// Lists of photos by id, cached by the Worker for a day (src/photoapi.ts).
+export const EXPORT_URLS = [`${SITE}/api/v1/photos.json`];
 
 // The Panoramax issues its trigger hides at once (migration report_visibility).
 export const AUTO_HIDE = ['blur_missing', 'inappropriate', 'privacy', 'copyright'];
@@ -254,7 +256,7 @@ interface Found { id: string; panoramax_id: string | null; status: string }
 async function resolvePhoto(env: PhotoEnv, asked: { target?: string; picture?: string }): Promise<Found | null> {
   if (asked.picture) {
     return db(env).prepare(
-      `SELECT id, panoramax_id, status FROM photos WHERE (panoramax_id = ?1 OR id = ?1) AND status IN ('published', 'hidden') LIMIT 1`,
+      `SELECT id, panoramax_id, status FROM photos WHERE (panoramax_id = ?1 OR id = ?1) AND status IN ('published', 'hidden') AND origin = 'olhaoposto' LIMIT 1`,
     ).bind(asked.picture).first<Found>();
   }
   if (!asked.target) return null;
@@ -273,7 +275,7 @@ async function resolvePhoto(env: PhotoEnv, asked: { target?: string; picture?: s
   for (const target of targets) {
     const row = await db(env).prepare(
       `SELECT id, panoramax_id, status FROM photos
-        WHERE status = 'hidden' AND (evse_compact = ?1 OR station_id = ?1) LIMIT 1`,
+        WHERE status = 'hidden' AND origin = 'olhaoposto' AND (evse_compact = ?1 OR station_id = ?1) LIMIT 1`,
     ).bind(target).first<Found>();
     if (row) return row;
   }
@@ -341,6 +343,45 @@ export async function hideCopies(env: TakedownEnv, photoId: string, fetcher: Fet
       .bind(now.toISOString(), photoId).run();
   }
   return failed;
+}
+
+export interface Removal {
+  reason: RefusalReason | null;
+  note?: string | null;
+  // A moderator's own decision (it also lands in the decisions history); a
+  // removal by the author or by a report leaves this out.
+  decidedBy?: string | null;
+}
+
+// Removes a photo for good: our copies first (static links, cache, a lost
+// main photo goes to «Sem foto principal»), then the upload set on Panoramax,
+// then the row and the staging files. The one path for a removal request, a
+// moderator and the author (DELETE /api/v1/photos/{id}). 'panoramax' means
+// Panoramax did not answer: nothing more was done, and repeating is safe.
+// Points need nothing here: the ranking only adds up published photos.
+export async function removePhoto(
+  env: TakedownEnv, photo: { id: string; panoramax_set: string | null; status: string },
+  fetcher: Fetch, now: Date, removal: Removal,
+): Promise<'ok' | 'panoramax'> {
+  // A pending photo has nothing public to hide.
+  if (photo.status !== 'pending') await hideCopies(env, photo.id, fetcher, now).catch(() => {});
+  if (photo.panoramax_set) {
+    // 404: already gone, which is what we want.
+    const r = await fetcher(`${panoBase(env)}/api/upload_sets/${encodeURIComponent(photo.panoramax_set)}`, {
+      method: 'DELETE', headers: authed(env),
+    }).catch(() => null);
+    if (!r || (!r.ok && r.status !== 404)) return 'panoramax';
+  }
+  const by = removal.decidedBy ?? null;
+  await db(env).prepare(
+    `UPDATE photos SET status = 'removed', refusal_reason = ?1, refusal_note = ?2, refused_by = ?3,
+            approved_by = COALESCE(?3, approved_by), approved_at = CASE WHEN ?3 IS NULL THEN approved_at ELSE ?4 END
+      WHERE id = ?5 AND status IN ('pending', 'published', 'hidden')`,
+  ).bind(removal.reason, removal.note ?? null, by, now.toISOString(), photo.id).run();
+  if (env.STAGING) await env.STAGING.delete([`${photo.id}/main.jpg`, `${photo.id}/thumb.jpg`]).catch(() => {});
+  // The exports list photos by id: do not leave a removed one in the edge cache.
+  await purgeUrls(env, EXPORT_URLS, fetcher).catch(() => false);
+  return 'ok';
 }
 
 const hides = (r: Report) =>
@@ -610,18 +651,8 @@ export async function decideTakedown(request: Request, env: TakedownEnv, fetcher
   if (!photo) return back('erro=stale');
 
   if (action === 'remove') {
-    // Our copies first, while the photo can still be found; then the source.
-    await hideCopies(env, photo.id, fetcher, now).catch(() => {});
-    if (photo.panoramax_set) {
-      // 404: already gone, which is what we want.
-      const r = await fetcher(`${base}/api/upload_sets/${encodeURIComponent(photo.panoramax_set)}`, { method: 'DELETE', headers: authed(env) }).catch(() => null);
-      if (!r || (!r.ok && r.status !== 404)) return back('erro=panoramax');
-    }
-    await db(env).prepare(
-      `UPDATE photos SET status = 'removed', refusal_reason = ? WHERE id = ? AND status IN ('published', 'hidden')`,
-    ).bind(reasonForReport(report.issue), photo.id).run();
-    if (env.STAGING) await env.STAGING.delete([`${photo.id}/main.jpg`, `${photo.id}/thumb.jpg`]).catch(() => {});
-    return back('ok=remove');
+    const r = await removePhoto(env, photo, fetcher, now, { reason: reasonForReport(report.issue) });
+    return back(r === 'ok' ? 'ok=remove' : 'erro=panoramax');
   }
 
   // keep: close every open report on this picture first, or the next

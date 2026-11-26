@@ -4,7 +4,7 @@
 // operators): it only reaches the markup through esc(). That text is
 // Portuguese whatever the page language, and English pages mark it as such
 // (lang="pt-PT") so screen readers read it with the right voice.
-import { MAX_QUERY, type EvseMatch, type MainPhotos, type PointRow, type SearchRow, type StationRow } from './types.ts';
+import { MAX_QUERY, type EvseMatch, type ExternalPhoto, type MainPhotos, type PointRow, type SearchRow, type StationRow } from './types.ts';
 import { MEDALS, POINTS, SAME_TARGET_DAYS, type Medal, type RankingRow } from './points.ts';
 
 // The brand as written. The apostrophes keep it out of every technical name
@@ -36,6 +36,7 @@ export const termsPath = (lang: Lang) => (lang === 'pt' ? '/condicoes' : '/en/te
 export const groupPath = (lang: Lang) => (lang === 'pt' ? '/grupo' : '/en/group');
 export const accountPath = (lang: Lang) => (lang === 'pt' ? '/conta' : '/en/account');
 export const uploadPath = (lang: Lang) => (lang === 'pt' ? '/enviar' : '/en/upload');
+export const withoutPhotoPath = (lang: Lang) => (lang === 'pt' ? '/postos/sem-foto' : '/en/stations/without-photo');
 export const rankingPath = (lang: Lang) => (lang === 'pt' ? '/ranking' : '/en/ranking');
 export const socketAnchor =(compact: string) => `#t-${encodeURIComponent(compact)}`;
 
@@ -71,6 +72,12 @@ const T = {
     emptySend: 'Envia a primeira',
     hasPhoto: 'Com foto',
     photoBy: 'Foto:',
+    externalHeading: 'Noutras fontes',
+    externalIntro: 'Fotos que outras pessoas puseram no OpenStreetMap (Panoramax, Wikimedia Commons). Ficam na origem, com o autor e a licença deles; não são a foto principal nem têm link estático.',
+    externalAlt: (id: string, n: number) => `Foto ${n} do posto ${id} noutra fonte`,
+    externalOrigin: { osm_panoramax: 'Panoramax', commons: 'Wikimedia Commons' } as Record<string, string>,
+    externalSource: 'Ver na origem',
+    externalMark: 'Externa',
     creditAlt: (code: string) => `Foto da tomada ${code}: ver o crédito`,
     askRemoval: 'Pedir remoção',
     photoAlt: (id: string) => `Foto principal do posto ${id}`,
@@ -122,6 +129,7 @@ const T = {
     homeExample: 'Exemplo:',
     homeExampleLink: 'posto EZC-AMD-00051',
     homeApi: 'API:',
+    homeNoPhoto: 'Postos que ainda não têm foto',
     and: 'e',
     searchLabel: 'Procurar um posto',
     searchHint: 'Código do posto ou da tomada, localidade, morada ou operador.',
@@ -184,6 +192,12 @@ const T = {
     emptySend: 'Send the first one',
     hasPhoto: 'Has a photo',
     photoBy: 'Photo:',
+    externalHeading: 'From other sources',
+    externalIntro: 'Photos other people added to OpenStreetMap (Panoramax, Wikimedia Commons). They stay at their source, with their author and licence; they are not the main photo and have no static link.',
+    externalAlt: (id: string, n: number) => `Photo ${n} of station ${id} from another source`,
+    externalOrigin: { osm_panoramax: 'Panoramax', commons: 'Wikimedia Commons' } as Record<string, string>,
+    externalSource: 'View at the source',
+    externalMark: 'External',
     creditAlt: (code: string) => `Photo of socket ${code}: see the credit`,
     askRemoval: 'Ask for removal',
     photoAlt: (id: string) => `Main photo of station ${id}`,
@@ -235,6 +249,7 @@ const T = {
     homeExample: 'Example:',
     homeExampleLink: 'station EZC-AMD-00051',
     homeApi: 'API:',
+    homeNoPhoto: 'Stations that still have no photo',
     and: 'and',
     searchLabel: 'Find a station',
     searchHint: 'Station or socket code, town, address or operator.',
@@ -310,7 +325,7 @@ const kw = (lang: Lang, v: number | null) =>
 const plug = (lang: Lang, c: string | null) => (c ? CONNECTORS[lang][c] ?? c : T[lang].unknownPlug);
 
 // NAP text on an English page: escaped, and marked as Portuguese.
-const nap = (lang: Lang, v: string) => (lang === 'pt' ? esc(v) : `<span lang="pt-PT">${esc(v)}</span>`);
+export const nap = (lang: Lang, v: string) => (lang === 'pt' ? esc(v) : `<span lang="pt-PT">${esc(v)}</span>`);
 
 // OSM elements as the import stores them (node/123). Anything else is not linked.
 const OSM_ELEMENT = /^(node|way|relation)\/\d+$/;
@@ -456,7 +471,37 @@ function socketItem(lang: Lang, p: PointRow, i: number, main?: MainPhotos[string
     </li>`;
 }
 
-export function stationPage(lang: Lang, s: StationRow, points: PointRow[], mains: MainPhotos = {}): string {
+// The licence as text, with a link when it is a Creative Commons one we can
+// name. Third-party text: only through esc().
+function licenseHtml(lang: Lang, license: string): string {
+  const cc = /^CC[- ]BY(?:[- ](SA))?[- ](\d\.\d)$/i.exec(license.trim());
+  if (!cc) return esc(license);
+  const code = `by${cc[1] ? '-sa' : ''}`;
+  return `<a href="https://creativecommons.org/licenses/${code}/${cc[2]}/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">${esc(license)}</a>`;
+}
+
+// Photos that live at their origin: a reference with author, licence and a
+// link, clearly marked as external. They only ever show here, never as main.
+function externalGallery(lang: Lang, stationId: string, photos: ExternalPhoto[]): string {
+  if (!photos.length) return '';
+  const t = T[lang];
+  return `<section class="external" aria-labelledby="ext-h">
+      <h2 id="ext-h">${t.externalHeading}</h2>
+      <p class="hint">${t.externalIntro}</p>
+      <ul class="external-list" role="list">
+        ${photos.map((p, i) => `<li>
+          <figure class="external-photo">
+            <a target="_blank" rel="noopener noreferrer" href="${esc(p.source)}"><img src="${esc(p.thumb)}" alt="${esc(t.externalAlt(stationId, i + 1))}" loading="lazy" referrerpolicy="no-referrer"></a>
+            <figcaption><span class="chip">${t.externalMark} · ${esc(t.externalOrigin[p.origin] ?? p.origin)}</span>
+              <span>${t.photoBy} <span lang="">${esc(p.credit ?? '?')}</span> · ${licenseHtml(lang, p.license)}</span>
+              <a target="_blank" rel="noopener noreferrer" href="${esc(p.source)}">${t.externalSource}</a></figcaption>
+          </figure>
+        </li>`).join('\n        ')}
+      </ul>
+    </section>`;
+}
+
+export function stationPage(lang: Lang, s: StationRow, points: PointRow[], mains: MainPhotos = {}, externals: ExternalPhoto[] = []): string {
   const t = T[lang];
   const missing = s.status === 'missing_from_nap';
   const main = mains[s.id];
@@ -506,6 +551,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
       <a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.emptySend}</a>
     </div>`}
     <p class="hint">${t.hint}</p>
+    ${externalGallery(lang, s.id, externals)}
   </section>
   <div class="side">
     <section class="card">
@@ -679,7 +725,7 @@ export function homePage(lang: Lang): string {
 ${searchForm(lang)}
 <p>${t.homeExample} <a href="${stationPath(lang, 'EZC-AMD-00051')}">${t.homeExampleLink}</a>.</p>
 <p>${t.homeApi} <code>/api/v1/stations?q=</code>, <code>/api/v1/stations/{id}</code> ${t.and} <code>/api/v1/evses/{evse}</code>.</p>
-<p><a href="${rankingPath(lang)}">${lang === 'pt' ? 'Ranking de contribuidores' : 'Contributor ranking'}</a>.</p>
+<p><a href="${withoutPhotoPath(lang)}">${t.homeNoPhoto}</a> · <a href="${rankingPath(lang)}">${lang === 'pt' ? 'Ranking de contribuidores' : 'Contributor ranking'}</a></p>
 </div>`,
   });
 }

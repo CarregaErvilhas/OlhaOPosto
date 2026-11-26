@@ -2,19 +2,22 @@
 // both read through here, so visibility rules live in one place.
 import {
   boundingBox, compactCode, distanceM, ftsQuery, isPublic, STATION_ID,
-  type EvseMatch, type NearQuery, type PointRow, type SearchRow, type StationRow,
-  type MainPhotoRow, type MainPhotos,
+  type EvseMatch, type NearQuery, type PointRow, type SearchRow, type StationFilters, type StationRow,
+  type ExternalPhoto, type MainPhotoRow, type MainPhotos,
 } from './types.ts';
+
+// The most external photos shown for one station.
+const EXTERNAL_LIMIT = 12;
 
 export interface Env {
   DB: D1Database;
 }
 
-export async function getStation(env: Env, id: string): Promise<{ station: StationRow; points: PointRow[]; mains: MainPhotos } | null> {
+export async function getStation(env: Env, id: string): Promise<{ station: StationRow; points: PointRow[]; mains: MainPhotos; externals: ExternalPhoto[] } | null> {
   if (!STATION_ID.test(id)) return null;
   // One round trip for both queries: the D1 primary is in the EU jurisdiction
   // (Eastern Europe), so every extra query is another trip from the edge.
-  const [station, points, mains] = await env.DB.batch([
+  const [station, points, mains, externals] = await env.DB.batch([
     env.DB.prepare(
       `SELECT id, code, opc, operator, name, address, municipality, region, lat, lon,
               status, osm_ref, updated_at
@@ -29,6 +32,14 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
          FROM selections sel JOIN photos p ON p.id = sel.photo_id
         WHERE sel.station_id = ? AND sel.published_at IS NOT NULL AND p.status = 'published'`,
     ).bind(id),
+    // References to photos at their origin (the daily import writes them).
+    // Few per station; the cap keeps a page and the API bounded.
+    env.DB.prepare(
+      `SELECT id, origin, external_src AS thumb, credit, license, source_url AS source, taken_at
+         FROM photos
+        WHERE station_id = ? AND origin <> 'olhaoposto' AND status = 'published' AND external_src IS NOT NULL
+        ORDER BY origin, taken_at DESC, id LIMIT ${EXTERNAL_LIMIT}`,
+    ).bind(id),
   ]);
   const s = (station.results as StationRow[])[0];
   if (!s || !isPublic(s)) return null;
@@ -36,7 +47,7 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
   for (const m of mains.results as { target: string; credit: string | null; panoramax_id: string | null; photo_id: string }[]) {
     byTarget[m.target] = { credit: m.credit, panoramax_id: m.panoramax_id, photo_id: m.photo_id };
   }
-  return { station: s, points: points.results as PointRow[], mains: byTarget };
+  return { station: s, points: points.results as PointRow[], mains: byTarget, externals: externals.results as ExternalPhoto[] };
 }
 
 // Every published main photo of a public station or socket, for sites that
@@ -93,20 +104,40 @@ export async function listStations(env: Env): Promise<{ id: string; lastmod: str
   return results;
 }
 
+// The station has a published main photo: its static link answers 200.
+const HAS_MAIN = `EXISTS (SELECT 1 FROM selections sel JOIN photos ph ON ph.id = sel.photo_id
+   WHERE sel.target = s.id AND sel.published_at IS NOT NULL AND sel.lost_at IS NULL AND ph.status = 'published')`;
+
+// The extra WHERE terms of a station query on `stations s`, with their binds
+// in order. Always starts with AND, so it follows a status test.
+export function filterSql(f: StationFilters): { sql: string; binds: string[] } {
+  const parts: string[] = [];
+  const binds: string[] = [];
+  if (f.opc) { parts.push('s.opc = ? COLLATE NOCASE'); binds.push(f.opc); }
+  if (f.municipality) { parts.push('s.municipality = ? COLLATE NOCASE'); binds.push(f.municipality); }
+  if (f.hasPhoto === true) parts.push(HAS_MAIN);
+  if (f.hasPhoto === false) parts.push(`NOT ${HAS_MAIN}`);
+  return { sql: parts.map((p) => ` AND ${p}`).join(''), binds };
+}
+
+const PUBLIC = `s.status IN ('active', 'missing_from_nap')`;
+const SEARCH_COLUMNS = 's.id, s.name, s.opc, s.operator, s.address, s.municipality, s.region, s.lat, s.lon, s.status';
+
 // Public stations whose code, name, address, town or operator match every
 // word typed, best match first (FTS5 bm25). Reads the index entries that match
 // plus one stations row per result, not the whole table.
-export async function searchStations(env: Env, raw: string, limit: number): Promise<SearchRow[]> {
+export async function searchStations(env: Env, raw: string, limit: number, filters: StationFilters = {}): Promise<SearchRow[]> {
   const match = ftsQuery(raw);
   if (!match) return [];
+  const f = filterSql(filters);
   try {
     const { results } = await env.DB.prepare(
-      `SELECT s.id, s.name, s.opc, s.operator, s.address, s.municipality, s.region, s.lat, s.lon, s.status
+      `SELECT ${SEARCH_COLUMNS}
          FROM stations_fts f JOIN stations s ON s.rowid = f.rowid
-        WHERE stations_fts MATCH ?1 AND s.status IN ('active', 'missing_from_nap')
+        WHERE stations_fts MATCH ? AND ${PUBLIC}${f.sql}
         ORDER BY f.rank
-        LIMIT ?2`,
-    ).bind(match, limit).all<SearchRow>();
+        LIMIT ?`,
+    ).bind(match, ...f.binds, limit).all<SearchRow>();
     return results;
   } catch {
     // ftsQuery leaves no syntax for MATCH to choke on, but a search must never
@@ -119,14 +150,14 @@ export type NearRow = SearchRow & { distance_m: number };
 
 // Public stations within q.radius metres, nearest first. The box comes from
 // the stations_lat_lon index; the circle and the order are done here.
-export async function nearStations(env: Env, q: NearQuery, limit: number): Promise<NearRow[]> {
+export async function nearStations(env: Env, q: NearQuery, limit: number, filters: StationFilters = {}): Promise<NearRow[]> {
   const b = boundingBox(q);
+  const f = filterSql(filters);
   const { results } = await env.DB.prepare(
-    `SELECT id, name, opc, operator, address, municipality, region, lat, lon, status
-       FROM stations
-      WHERE lat BETWEEN ?1 AND ?2 AND lon BETWEEN ?3 AND ?4
-        AND status IN ('active', 'missing_from_nap')`,
-  ).bind(b.minLat, b.maxLat, b.minLon, b.maxLon).all<SearchRow>();
+    `SELECT ${SEARCH_COLUMNS}
+       FROM stations s
+      WHERE s.lat BETWEEN ? AND ? AND s.lon BETWEEN ? AND ? AND ${PUBLIC}${f.sql}`,
+  ).bind(b.minLat, b.maxLat, b.minLon, b.maxLon, ...f.binds).all<SearchRow>();
   return results
     .map((r) => ({ ...r, distance_m: Math.round(distanceM(q.lat, q.lon, r.lat, r.lon)) }))
     .filter((r) => r.distance_m <= q.radius)
@@ -134,68 +165,46 @@ export async function nearStations(env: Env, q: NearQuery, limit: number): Promi
     .slice(0, limit);
 }
 
-
-// --- filters: operator, municipality and "has a main photo" ---
-// The MCP tools (src/mcp.ts) browse stations without words or a place, for
-// campaigns ("stations without a photo in Sintra"). A full scan of the
-// public stations (about 9k rows), so the callers cap the results.
-
-export interface StationFilter {
-  // NAP operator id (EZC3), the id prefix (EZC) or part of the operator's name.
-  operator?: string | null;
-  municipality?: string | null;
-  // true: only stations with a published main photo; false: only without.
-  hasPhoto?: boolean | null;
-  // Only stations still in the NAP: a campaign has no use for the others.
-  activeOnly?: boolean;
-}
-
-const HAS_MAIN = `EXISTS (SELECT 1 FROM selections sel JOIN photos p ON p.id = sel.photo_id
-  WHERE sel.target = s.id AND sel.published_at IS NOT NULL AND p.status = 'published')`;
-
-function filterSql(f: StationFilter, first: number): { where: string; binds: unknown[] } {
-  const where: string[] = [f.activeOnly ? `s.status = 'active'` : `s.status IN ('active', 'missing_from_nap')`];
-  const binds: unknown[] = [];
-  let n = first;
-  const op = f.operator?.trim();
-  if (op) {
-    where.push(`(upper(s.opc) = upper(?${n}) OR s.id LIKE ?${n + 1} OR s.operator LIKE ?${n + 2})`);
-    binds.push(op, `${op.replace(/[%_]/g, '')}-%`, `%${op.replace(/[%_]/g, '')}%`);
-    n += 3;
-  }
-  const town = f.municipality?.trim();
-  if (town) {
-    where.push(`s.municipality = ?${n} COLLATE NOCASE`);
-    binds.push(town);
-    n += 1;
-  }
-  if (f.hasPhoto === true) where.push(HAS_MAIN);
-  if (f.hasPhoto === false) where.push(`NOT ${HAS_MAIN}`);
-  return { where: where.join(' AND '), binds };
-}
-
-export async function browseStations(env: Env, f: StationFilter, limit: number, offset = 0): Promise<SearchRow[]> {
-  const { where, binds } = filterSql(f, 1);
+// Public stations that match the filters alone, by id, a page after the id
+// `after` (keyset paging). Asks for one more than `limit`: the caller sees
+// from it whether there is a next page.
+export async function filterStations(env: Env, filters: StationFilters, limit: number, after = ''): Promise<{ rows: SearchRow[]; next: string | null }> {
+  const f = filterSql(filters);
   const { results } = await env.DB.prepare(
-    `SELECT s.id, s.name, s.opc, s.operator, s.address, s.municipality, s.region, s.lat, s.lon, s.status
-       FROM stations s WHERE ${where}
-      ORDER BY s.municipality, s.id
-      LIMIT ${Math.trunc(limit)} OFFSET ${Math.trunc(offset)}`,
-  ).bind(...binds).all<SearchRow>();
-  return results;
+    `SELECT ${SEARCH_COLUMNS} FROM stations s WHERE ${PUBLIC} AND s.id > ?${f.sql} ORDER BY s.id LIMIT ?`,
+  ).bind(after, ...f.binds, limit + 1).all<SearchRow>();
+  const rows = results.slice(0, limit);
+  return { rows, next: results.length > limit ? rows[rows.length - 1].id : null };
 }
 
-// Does a search result match the filter? For words and places, whose own
-// queries stay as they are: the filter runs on what they found.
-export async function matchesFilter<R extends SearchRow>(env: Env, rows: R[], f: StationFilter): Promise<R[]> {
-  if (!rows.length || (!f.operator?.trim() && !f.municipality?.trim() && f.hasPhoto == null && !f.activeOnly)) return rows;
-  const ids = rows.map((r) => r.id);
-  const { where, binds } = filterSql(f, ids.length + 1);
+export interface Facet { value: string; label: string; n: number }
+
+// Stations without a main photo, counted by town and by operator, for the
+// filters of the "sem foto" page. One scan of the stations table; the page is
+// cached for a few minutes.
+export async function withoutPhotoFacets(env: Env): Promise<{ total: number; municipalities: Facet[]; operators: Facet[] }> {
   const { results } = await env.DB.prepare(
-    `SELECT s.id FROM stations s WHERE s.id IN (${ids.map((_, i) => `?${i + 1}`).join(', ')}) AND ${where}`,
-  ).bind(...ids, ...binds).all<{ id: string }>();
-  const keep = new Set(results.map((r) => r.id));
-  return rows.filter((r) => keep.has(r.id));
+    `SELECT s.municipality, s.opc, s.operator, COUNT(*) AS n
+       FROM stations s WHERE ${PUBLIC} AND NOT ${HAS_MAIN}
+      GROUP BY s.municipality, s.opc, s.operator`,
+  ).all<{ municipality: string | null; opc: string | null; operator: string | null; n: number }>();
+  const town = new Map<string, number>();
+  const op = new Map<string, Facet>();
+  let total = 0;
+  for (const r of results) {
+    total += r.n;
+    if (r.municipality) town.set(r.municipality, (town.get(r.municipality) ?? 0) + r.n);
+    if (r.opc) {
+      const prev = op.get(r.opc);
+      op.set(r.opc, { value: r.opc, label: r.operator ?? r.opc, n: (prev?.n ?? 0) + r.n });
+    }
+  }
+  const byLabel = (a: Facet, b: Facet) => a.label.localeCompare(b.label, 'pt');
+  return {
+    total,
+    municipalities: [...town].map(([value, n]) => ({ value, label: value, n })).sort(byLabel),
+    operators: [...op.values()].sort(byLabel),
+  };
 }
 
 export interface MissingSocket {
@@ -210,19 +219,27 @@ export interface MissingSocket {
 }
 
 // Sockets with a NAP EVSE code (they have a static link) and no main photo
-// yet, on active stations. Only codes that are not repeated elsewhere would
-// be ideal, but a repeated code still names a real socket of this station.
-export async function socketsWithoutPhoto(env: Env, f: StationFilter, limit: number, offset = 0): Promise<MissingSocket[]> {
-  const { where, binds } = filterSql({ ...f, hasPhoto: null }, 1);
+// yet, on active stations, for the MCP campaigns (src/mcp.ts). Keyset paging
+// on (station id, point id) as in filterStations.
+export async function socketsWithoutPhoto(
+  env: Env, filters: StationFilters, limit: number, after = '',
+): Promise<{ rows: MissingSocket[]; next: string | null }> {
+  const f = filterSql({ ...filters, hasPhoto: undefined });
   const { results } = await env.DB.prepare(
-    `SELECT e.station_id, s.name, s.municipality, s.operator, e.evse_id, e.evse_compact, e.connector, e.max_kw
+    `SELECT e.station_id, s.name, s.municipality, s.operator, e.evse_id, e.evse_compact, e.connector, e.max_kw,
+            e.station_id || '|' || e.point_id AS cursor
        FROM evses e JOIN stations s ON s.id = e.station_id
-      WHERE ${where} AND e.evse_compact IS NOT NULL AND e.status = 'active'
-        AND NOT EXISTS (SELECT 1 FROM selections sel JOIN photos p ON p.id = sel.photo_id
+      WHERE s.status = 'active' AND e.evse_compact IS NOT NULL AND e.status = 'active'
+        AND e.station_id || '|' || e.point_id > ?${f.sql}
+        AND NOT EXISTS (SELECT 1 FROM selections sel JOIN photos ph ON ph.id = sel.photo_id
           WHERE sel.target = e.evse_compact AND sel.station_id = e.station_id
-            AND sel.published_at IS NOT NULL AND p.status = 'published')
-      ORDER BY s.municipality, e.station_id, e.point_id
-      LIMIT ${Math.trunc(limit)} OFFSET ${Math.trunc(offset)}`,
-  ).bind(...binds).all<MissingSocket>();
-  return results;
+            AND sel.published_at IS NOT NULL AND ph.status = 'published')
+      ORDER BY e.station_id, e.point_id
+      LIMIT ?`,
+  ).bind(after, ...f.binds, limit + 1).all<MissingSocket & { cursor: string }>();
+  const page = results.slice(0, limit);
+  return {
+    rows: page.map(({ cursor: _c, ...r }) => r),
+    next: results.length > limit ? page[page.length - 1].cursor : null,
+  };
 }

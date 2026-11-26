@@ -13,7 +13,7 @@ Este documento só tem o que ainda não existe. O que já está a funcionar (ser
 - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
 - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
 - entrada na federação, depois da conversa com a comunidade.
-3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), o resto da API (OpenAPI, `GET /photos/{id}`, `DELETE /photos/{id}`, filtros), exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
+3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade) e o `photos.json` lido pelo NAP dashboard e pelo ohmigo.
 4. **Desfocagem no servidor**, quando houver uma GPU a um custo razoável.
 
 ## Panoramax: etiquetas e federação
@@ -40,30 +40,17 @@ E uma coluna para o motivo de uma recusa em `photos` (hoje fica só o estado `re
 
 ## Publicação dos links estáticos
 
-A primeira foto aprovada de cada alvo já é publicada, e a principal já se troca ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta:
+A primeira foto aprovada de cada alvo já é publicada, a principal já se troca e as fotos externas já aparecem na galeria ([`arquitetura.md`](arquitetura.md), *Links estáticos* e *Fotos externas*). Falta decidir se vale a pena a opção A.
 
-- **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
+### Fotos externas: copiar quando escolhida como principal (opção A, para discutir mais tarde)
 
-### Fotos externas e links estáticos
+Hoje (opção B) o link estático só existe para fotos enviadas pelo olh'o'posto, e muitos postos que já têm foto noutro lado dão `404`. A alternativa:
 
-**Caso de uso.** Um posto tem uma foto que alguém pôs no OSM (pelo MapComplete, guardada no Panoramax deles) ou no Commons, mas ninguém a enviou pelo olh'o'posto. O NAP dashboard já a mostra. O link estático `pictures.ocarroeletrico.com/<id>.jpg`, porém, só serve ficheiros que estejam no bucket: o `pictures.*` não tem Worker e não faz redirects.
-
-**Em comum às duas opções.** O cron diário lê as fotos que o `charger_photos.py` do NAP dashboard já recolhe do OSM (`panoramax=`, `wikimedia_commons=`, `mapillary=`, `image=`, com autor, licença e miniatura) e guarda-as em `photos` com `origin=osm_panoramax` ou `commons`, só como referência, com o autor e a licença de origem. A API e a página do posto mostram-nas com o link para a origem. As do Mapillary ficam de fora (a API deles pede uma chave).
-
-**B — só na galeria (decidido).**
-
-- As externas aparecem na página do posto e na API, mas nunca são a principal.
-- O link estático só existe para fotos enviadas pelo olh'o'posto.
-- A favor: sem cópias de fotos de terceiros, sem sincronizar remoções.
-- Contra: no início, muitos postos que já têm foto noutro lado dão `404` no link estático.
-
-**A — copiar quando é escolhida como principal (para discutir mais tarde).**
-
-- O Worker vai buscar a imagem à origem (2048 px do Panoramax, ou a miniatura do Commons) e grava as três chaves em `pictures`, com o crédito do autor original no XMP.
+- O Worker vai buscar a imagem à origem (2048 px do Panoramax, ou a miniatura do Commons) quando um moderador a escolhe como principal, e grava as três chaves em `pictures`, com o crédito do autor original no XMP.
 - A favor: o link estático cobre logo todos os postos que já têm foto.
-- Contra: guardamos cópias de fotos de outras pessoas (a licença permite-o com crédito). Se a foto sair da origem (o autor apaga-a ou há um pedido de remoção lá), o cron diário tem de o detetar e apagar a cópia.
+- Contra: guardamos cópias de fotos de outras pessoas (a licença permite-o com crédito). Se a foto sair da origem (o autor apaga-a ou há um pedido de remoção lá), o cron diário tem de o detetar e apagar a cópia. Obrigaria a tirar as externas das exclusões de `selections` e de `publish.ts`.
 
-Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto pelo olh'o'posto, ou um host separado com Worker que faça redirect para a origem (sem cópia, mas com o custo de pedidos dos Workers).
+Outras alternativas a procurar: convidar o autor a reenviar a foto pelo olh'o'posto, ou um host separado com Worker que faça redirect para a origem (sem cópia, mas com o custo de pedidos dos Workers).
 
 ## OSM
 
@@ -82,22 +69,15 @@ Na fase 3, o refresh do NAP dashboard lê a exportação `olhaoposto.ocarroeletr
 
 ## API e llms.txt
 
-A camada de serviço no Worker serve a página, a API REST e o servidor MCP ([`arquitetura.md`](arquitetura.md), *Servidor MCP*), para as regras (validação, licença, desfocagem, moderação) serem as mesmas para pessoas e para agentes. O que já existe está em [`api.md`](api.md).
+A camada de serviço no Worker serve a página, a API REST e o servidor MCP ([`arquitetura.md`](arquitetura.md), *Servidor MCP*), para as regras (validação, licença, desfocagem, moderação) serem as mesmas para pessoas e para agentes: os *handlers* do `src/index.ts` são finos e a lógica está em funções (`src/photoapi.ts`, `src/data.ts`, `src/publish.ts`, `src/takedown.ts`). O que já existe está em [`api.md`](api.md).
 
 ### API REST (`/api/v1`)
 
-Falta descrevê-la em OpenAPI 3.1 em `/api/v1/openapi.json`, e:
-
-| Método e rota | Faz | Auth |
-| --- | --- | --- |
-| `GET /stations?opc=&has_photo=` | Juntar às pesquisas por texto e por proximidade: operador ou falta de foto | — |
-| `GET /photos/{id}` | Metadados: autor, licença, data, URLs | — |
-| `GET /photos.json` | Exportação diária completa | — |
-| `DELETE /photos/{id}` | Retirar uma foto (autor ou moderador) | sessão/token |
+Feita, em [`api.md`](api.md) (e em OpenAPI 3.1 em `/api/v1/openapi.json`). Falta ligar o `charger_photos.py` do NAP dashboard ao `photos.json` (ver *Ligação ao NAP dashboard e ao ohmigo*).
 
 ### llms.txt
 
-O `/llms.txt` já descreve as páginas, a API de leitura e de escrita, o servidor MCP, os links estáticos e as licenças, e as páginas HTML apontam para ele no cabeçalho `Link`. Falta uma página `.md` para cada parte (o que a [proposta](https://llmstxt.org/) pede para os links).
+O `/llms.txt` já descreve as páginas, a API de leitura e de escrita (com o OpenAPI), o servidor MCP, os links estáticos e as licenças, e as páginas HTML apontam para ele no cabeçalho `Link`. Falta uma página `.md` para cada parte (o que a [proposta](https://llmstxt.org/) pede para os links).
 
 ## Crédito
 
@@ -135,5 +115,5 @@ Orçamento: **10 €/mês** no total.
 - [ ] Modelo de deteção de matrículas para o browser, com pesos de licença permissiva.
 - [ ] Resposta da OSM Portugal e da equipa do Panoramax (federação, nome, bot).
 - [ ] Convenção do MapComplete para várias fotos no mesmo elemento (`panoramax:1=`?).
-- [ ] Fotos externas e links estáticos: rever a opção B (em uso) contra a A ou outras alternativas.
+- [ ] Fotos externas e links estáticos: rever a opção B (em uso) contra a A (*Publicação dos links estáticos*) ou outras alternativas.
 - [ ] Os mosaicos do mapa vêm do `tile.openstreetmap.org`, cuja política de uso aceita sites pequenos com atribuição. Se o uso crescer, passar para um fornecedor próprio ou mosaicos servidos por nós.

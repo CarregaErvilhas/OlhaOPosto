@@ -3,11 +3,11 @@
 // thing about a station and its photos (Docs/api.md).
 import { PICTURES, SITE, socketAnchor, stationPath } from './pages.ts';
 import { photoLink } from './photolinks.ts';
-import type { EvseMatch, MainPhotoRow, MainPhotos, PointRow, SearchRow, StationRow } from './types.ts';
+import type { EvseMatch, ExternalPhoto, MainPhotoRow, MainPhotos, PointRow, SearchRow, StationRow } from './types.ts';
 
 // GET /api/v1/stations/{id}
-export function stationBody(found: { station: StationRow; points: PointRow[]; mains: MainPhotos }) {
-  const { station: s, points, mains } = found;
+export function stationBody(found: { station: StationRow; points: PointRow[]; mains: MainPhotos; externals?: ExternalPhoto[] }) {
+  const { station: s, points, mains, externals = [] } = found;
   const photo = (target: string | null) => {
     const m = target ? mains[target] : undefined;
     return m && target
@@ -27,6 +27,18 @@ export function stationBody(found: { station: StationRow; points: PointRow[]; ma
     status: s.status,
     osm: s.osm_ref,
     photo: photo(s.id),
+    // Photos at their origin (Panoramax, Commons), as references: never a main
+    // photo, no static link. Show the author, the licence and the source link.
+    externalPhotos: externals.map((p) => ({
+      id: p.id,
+      external: true,
+      origin: p.origin,
+      thumb: p.thumb,
+      credit: p.credit,
+      license: p.license,
+      source: p.source,
+      takenAt: p.taken_at,
+    })),
     points: points.map((p) => ({
       id: p.point_id,
       evse: p.evse_id,

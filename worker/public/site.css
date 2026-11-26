@@ -497,3 +497,10 @@ ul.uploads > .queue-item { list-style: none; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0 0 14px; font-size: 0.9375rem; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Photos at their origin (Panoramax, Commons): small, marked as external */
+.external h2 { font-size: 1rem; margin: 8px 0 4px; }
+.external-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.external-photo { margin: 0; display: grid; gap: 6px; font-size: 0.8125rem; color: var(--muted); }
+.external-photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--empty); }
+.external-photo figcaption { display: grid; gap: 4px; justify-items: start; }

@@ -17,17 +17,19 @@ import * as z from 'zod';
 import type { SessionUser, Waiter } from './auth.ts';
 import { evseBody, mainPhotoBody, searchBody, stationBody } from './bodies.ts';
 import {
-  browseStations, findEvse, getStation, listMainPhotos, matchesFilter, nearStations, searchStations, socketsWithoutPhoto,
-  type Env, type StationFilter,
+  filterStations, findEvse, getStation, listMainPhotos, nearStations, searchStations, socketsWithoutPhoto, type Env,
 } from './data.ts';
 import { SITE, stationPath, uploadPath } from './pages.ts';
 import { LICENSE, LICENSE_URL, SIZE_PX } from './photolinks.ts';
 import { MAX_BODY, submitPhoto } from './photos.ts';
+import { PHOTO_ID, deletePhoto, getPhoto } from './photoapi.ts';
+import type { TakedownEnv } from './takedown.ts';
+import { REASONS } from './reasons.ts';
 import { ranking, type PointsDb } from './points.ts';
 import { proposeStation } from './proposals.ts';
 import { chooseMain, type PublishEnv } from './publish.ts';
 import { canChooseMain, type Scope } from './tokens.ts';
-import { compactCode, ftsQuery, MAX_QUERY, NEAR_MAX_M, STATION_ID } from './types.ts';
+import { type StationFilters, compactCode, ftsQuery, MAX_QUERY, NEAR_MAX_M, STATION_ID } from './types.ts';
 
 export const MCP_NAME = 'OlhaOPosto';
 export const MCP_VERSION = '1.0.0';
@@ -43,6 +45,7 @@ export const WRITE_TOOLS: Record<string, Scope> = {
   submit_photo: 'photos:write',
   propose_station: 'photos:write',
   set_primary_photo: 'selections:write',
+  delete_photo: 'photos:write',
 };
 
 // Who is calling: null when nobody signed in.
@@ -51,7 +54,7 @@ export interface McpCaller {
   scopes: Scope[];
 }
 
-export type McpEnv = Env & PublishEnv;
+export type McpEnv = Env & PublishEnv & TakedownEnv;
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface McpDeps {
@@ -112,16 +115,17 @@ function signedIn(caller: McpCaller | null, scope: Scope): Result | McpCaller {
   return caller;
 }
 
-const operatorArg = z.string().max(120).optional()
-  .describe('Operator: NAP operator id (EZC3), station id prefix (EZC) or part of the operator name.');
+const operatorArg = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/).optional()
+  .describe('NAP operator id (opc), e.g. EZC3; get_station and search results show it as operator.id.');
 const municipalityArg = z.string().max(80).optional().describe('Municipality (concelho), e.g. "Sintra".');
 const limitArg = z.number().int().min(1).max(MAX_RESULTS).optional().describe(`At most this many results (default 20, max ${MAX_RESULTS}).`);
 const offsetArg = z.number().int().min(0).max(10_000).optional().describe('Skip this many results, to page through.');
+const afterArg = z.string().max(160).optional().describe('The "next" value of the previous page, to get the following one.');
 const photoInput = (px: number, bytes: string) => z.string().min(8)
   .describe(`The ${px} px version (longest side at most ${px}, at most ${bytes}): base64 JPEG (a data: URL works too), or an https URL to fetch it from. Faces and number plates already blurred, no metadata.`);
 
-const toFilter = (a: { operator?: string; municipality?: string; has_photo?: boolean }): StationFilter =>
-  ({ operator: a.operator, municipality: a.municipality, hasPhoto: a.has_photo ?? null });
+const toFilter = (a: { operator?: string; municipality?: string; has_photo?: boolean }): StationFilters =>
+  ({ opc: a.operator, municipality: a.municipality?.trim() || undefined, hasPhoto: a.has_photo });
 
 // Image bytes from base64 or an https URL, capped before they are all read.
 export async function imageBytes(input: string, fetcher: Fetch, max: number): Promise<Uint8Array | string> {
@@ -192,7 +196,7 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
       municipality: municipalityArg,
       has_photo: z.boolean().optional().describe('true: only stations with a main photo; false: only stations without one.'),
       limit: limitArg,
-      offset: offsetArg,
+      after: afterArg.describe('Only when searching by filters alone: the "next" value of the previous page.'),
     }),
     annotations: read,
   }, async (a) => {
@@ -203,25 +207,22 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
     if (hasPlace) {
       if (a.lat === undefined || a.lon === undefined) return fail('bad_coordinates', 'Give both lat and lon.');
       const near = { lat: a.lat, lon: a.lon, radius: a.radius_m ?? 500 };
-      // The filter runs on what the place found; ask for more to fill the page.
-      const rows = await nearStations(env, near, MAX_RESULTS * 4);
-      const kept = (await matchesFilter(env, rows, filter)).slice(a.offset ?? 0, (a.offset ?? 0) + limit);
-      return ok({ ...near, results: kept.map((r) => ({ ...searchBody(r), distance_m: r.distance_m })) });
+      const rows = await nearStations(env, near, limit, filter);
+      return ok({ ...near, results: rows.map((r) => ({ ...searchBody(r), distance_m: r.distance_m })) });
     }
     if (a.q) {
       if (!ftsQuery(a.q)) return fail('q_required', 'q needs a word of at least two letters or digits.');
       // A station id or socket code goes straight to its station, as on the site.
       const direct = await directHit(env, a.q.trim());
       if (direct) return ok({ q: a.q, results: [direct] });
-      const rows = await searchStations(env, a.q, MAX_RESULTS * 2);
-      const kept = (await matchesFilter(env, rows, filter)).slice(a.offset ?? 0, (a.offset ?? 0) + limit);
-      return ok({ q: a.q, results: kept.map(searchBody) });
+      const rows = await searchStations(env, a.q, limit, filter);
+      return ok({ q: a.q, results: rows.map(searchBody) });
     }
-    if (!filter.operator && !filter.municipality && filter.hasPhoto == null) {
+    if (!filter.opc && !filter.municipality && filter.hasPhoto === undefined) {
       return fail('filter_required', 'Give q, or lat and lon, or at least one of operator, municipality, has_photo.');
     }
-    const rows = await browseStations(env, filter, limit, a.offset ?? 0);
-    return ok({ results: rows.map(searchBody) });
+    const page = await filterStations(env, filter, limit, a.after ?? '');
+    return ok({ results: page.rows.map(searchBody), next: page.next });
   });
 
   server.registerTool('get_station', {
@@ -279,33 +280,35 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
   server.registerTool('list_missing_photos', {
     title: 'Stations or sockets without a photo',
     description: 'Active stations, or sockets with an EVSE code, that have no photo yet, for photo campaigns. '
-      + 'Filter by municipality and/or operator; page with offset.',
+      + 'Filter by municipality and/or operator; page with the "next" value.',
     inputSchema: z.object({
       kind: z.enum(['station', 'socket']).optional().describe('station (default) or socket.'),
       municipality: municipalityArg,
       operator: operatorArg,
       limit: limitArg,
-      offset: offsetArg,
+      after: afterArg,
     }),
     annotations: read,
   }, async (a) => {
-    const filter: StationFilter = { operator: a.operator, municipality: a.municipality, activeOnly: true };
+    const filter = toFilter(a);
     const limit = a.limit ?? 20;
     if (a.kind === 'socket') {
-      const rows = await socketsWithoutPhoto(env, filter, limit, a.offset ?? 0);
+      const page = await socketsWithoutPhoto(env, filter, limit, a.after ?? '');
       return ok({
         kind: 'socket',
-        results: rows.map((r) => ({
+        next: page.next,
+        results: page.rows.map((r) => ({
           station: r.station_id, name: r.name, municipality: r.municipality, operator: r.operator,
           evse: r.evse_id, compact: r.evse_compact, connector: r.connector, kw: r.max_kw,
           upload_page: `${SITE}${uploadPath('pt')}?posto=${encodeURIComponent(r.station_id)}`,
         })),
       });
     }
-    const rows = await browseStations(env, { ...filter, hasPhoto: false }, limit, a.offset ?? 0);
+    const page = await filterStations(env, { ...filter, hasPhoto: false }, limit, a.after ?? '');
     return ok({
       kind: 'station',
-      results: rows.map((r) => ({ ...searchBody(r), upload_page: `${SITE}${uploadPath('pt')}?posto=${encodeURIComponent(r.id)}` })),
+      next: page.next,
+      results: page.rows.map((r) => ({ ...searchBody(r), upload_page: `${SITE}${uploadPath('pt')}?posto=${encodeURIComponent(r.id)}` })),
     });
   });
 
@@ -431,6 +434,36 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
     } catch {
       return fail('publish_failed', 'Copying the photo to the static links failed; try again later.');
     }
+  });
+
+  server.registerTool('get_photo', {
+    title: 'One photo',
+    description: 'A photo by id (from the credit page /p/{id} or a station result): author, licence, date, station or socket, '
+      + 'and links. Published photos are public; the author and moderators also see their pending or refused ones.',
+    inputSchema: z.object({ id: z.string().regex(PHOTO_ID).describe('Photo id.') }),
+    annotations: read,
+  }, async ({ id }) => {
+    const r = await getPhoto(env, id, caller?.user ?? null);
+    if ('notFound' in r) return fail('not_found', 'No photo with this id that you can see.');
+    return ok({ ...r.photo });
+  });
+
+  server.registerTool('delete_photo', {
+    title: 'Remove a photo',
+    description: 'Remove a photo, as DELETE /api/v1/photos/{id} (needs photos:write): your own photo, or, for moderators, '
+      + `anyone's with a reason (${REASONS.join(', ')}). `
+      + 'It leaves the static links and Panoramax. To ask for the removal of someone else\'s photo, use the form at /report.',
+    inputSchema: z.object({
+      id: z.string().regex(PHOTO_ID).describe('Photo id.'),
+      reason: z.enum(REASONS).optional().describe('Moderators only: why it is removed (default other).'),
+      note: z.string().max(500).optional().describe('Moderators only: a note the author sees.'),
+    }),
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  }, async ({ id, reason, note }) => {
+    const who = signedIn(caller, 'photos:write');
+    if ('content' in who) return who;
+    const r = await deletePhoto(env, who.user, id, { reason, note }, fetcher, now());
+    return 'ok' in r ? ok({ removed: true }) : fail(r.error);
   });
 
   return server;

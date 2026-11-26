@@ -68,7 +68,7 @@ test('lists every tool, read and write, with English descriptions', async () => 
   const r = await request('tools/list');
   const names = r.result!.tools!.map((t) => t.name).sort();
   assert.deepEqual(names, [
-    'get_photo_link', 'get_ranking', 'get_station', 'list_main_photos', 'list_missing_photos',
+    'delete_photo', 'get_photo', 'get_photo_link', 'get_ranking', 'get_station', 'list_main_photos', 'list_missing_photos',
     'propose_station', 'search_stations', 'set_primary_photo', 'submit_photo',
   ]);
   for (const name of Object.keys(WRITE_TOOLS)) assert.ok(names.includes(name));
@@ -78,7 +78,7 @@ test('search_stations: words, place, filters, and never a proposal', async () =>
   const { call } = await connect(world());
   const words = await call('search_stations', { q: 'sintra' });
   assert.deepEqual(words.data.results.map((r: { id: string }) => r.id).sort(), ['EZC-SNT-00001', 'MOB-SNT-00002']);
-  const byOperator = await call('search_stations', { q: 'sintra', operator: 'EZC' });
+  const byOperator = await call('search_stations', { q: 'sintra', operator: 'EZC3' });
   assert.deepEqual(byOperator.data.results.map((r: { id: string }) => r.id), ['EZC-SNT-00001']);
   const near = await call('search_stations', { lat: 38.80, lon: -9.38, radius_m: 500 });
   assert.equal(near.data.results[0].id, 'EZC-SNT-00001');
@@ -122,10 +122,18 @@ test('list_missing_photos: stations and sockets, by municipality and operator', 
   const { call } = await connect(world());
   const st = await call('list_missing_photos', { municipality: 'SINTRA' });
   assert.deepEqual(st.data.results.map((r: { id: string }) => r.id).sort(), ['EZC-SNT-00001', 'MOB-SNT-00002']);
-  const op = await call('list_missing_photos', { municipality: 'sintra', operator: 'Outro' });
+  const op = await call('list_missing_photos', { municipality: 'sintra', operator: 'MOB1' });
   assert.deepEqual(op.data.results.map((r: { id: string }) => r.id), ['MOB-SNT-00002']);
   const sockets = await call('list_missing_photos', { kind: 'socket' });
   assert.deepEqual(sockets.data.results.map((r: { compact: string }) => r.compact), ['PTEZCEAMD000512']);
+});
+
+test('get_photo: a published photo is public; delete_photo needs sign-in', async () => {
+  const { call } = await connect(world());
+  const p = await call('get_photo', { id: 'p1' });
+  assert.equal(p.isError, false);
+  assert.equal((await call('get_photo', { id: 'nope' })).data.error, 'not_found');
+  assert.equal((await call('delete_photo', { id: 'p1' })).data.error, 'sign_in_required');
 });
 
 test('list_main_photos and get_ranking', async () => {

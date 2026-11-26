@@ -18,7 +18,8 @@ const CONFIG = join(WORKER_DIR, 'wrangler.json');
 // `migrations_dir` resolve the same way.
 const REMOTE_CONFIG = join(WORKER_DIR, '.wrangler.remote.json');
 export const DB_NAME = 'pictures';
-// The OAuth grants of the MCP server (src/oauth.ts). Optional: without it the
+// The OAuth grants of the MCP server (src/oauth.ts). The deploy creates it when
+// missing; when it cannot, the
 // Worker deploys without the binding and OAuth answers 503.
 export const OAUTH_KV_TITLE = 'olhaoposto-oauth';
 
@@ -45,12 +46,23 @@ function remoteKvId(title: string): string | null {
   return list.find((n) => n.title === title)?.id ?? null;
 }
 
-// Calls fn with the path of a config that points at the real D1 and KV, then removes it.
-export function withRemoteConfig<T>(fn: (config: string) => T): T {
+// Creates the KV namespace; null when the credentials cannot (no KV permission).
+function createKv(title: string): string | null {
+  try {
+    wrangler(['kv', 'namespace', 'create', title], true);
+  } catch {
+    return null;
+  }
+  return remoteKvId(title);
+}
+
+// Calls fn with the path of a config that points at the real D1 and KV, then
+// removes it. With create (the deploy), a missing OAuth KV is created first.
+export function withRemoteConfig<T>(fn: (config: string) => T, create = false): T {
   const config = JSON.parse(readFileSync(CONFIG, 'utf8'));
   const id = remoteDatabaseId();
   for (const db of config.d1_databases) if (db.database_name === DB_NAME) db.database_id = id;
-  const kv = remoteKvId(OAUTH_KV_TITLE);
+  const kv = remoteKvId(OAUTH_KV_TITLE) ?? (create ? createKv(OAUTH_KV_TITLE) : null);
   if (kv) {
     for (const ns of config.kv_namespaces) if (ns.binding === 'OAUTH_KV') ns.id = kv;
   } else {

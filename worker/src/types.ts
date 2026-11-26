@@ -90,6 +90,7 @@ export interface SearchRow {
 // MATCH as syntax; each word goes in double quotes. One-letter words are
 // dropped (they would match half the table), and the query is capped.
 export const MAX_QUERY = 100;
+export const API_MAX_RESULTS = 50;
 const MAX_TERMS = 6;
 
 export function ftsQuery(raw: string): string | null {
@@ -127,6 +128,41 @@ export function parseNear(params: URLSearchParams): NearQuery | 'bad' | null {
   return { lat, lon, radius };
 }
 
+// Filters of the station search (GET /api/v1/stations?opc=&has_photo=&municipality=)
+// and of the list of stations without a photo. hasPhoto is about the station's
+// own static link (its main photo), not about its sockets.
+export interface StationFilters {
+  opc?: string;
+  municipality?: string;
+  hasPhoto?: boolean;
+}
+const OPC = /^[A-Za-z0-9_-]{1,40}$/;
+export const MAX_MUNICIPALITY = 80;
+
+// 'bad': a filter was given but not usable. An empty value counts as absent.
+export function parseFilters(params: URLSearchParams): StationFilters | 'bad' {
+  const f: StationFilters = {};
+  const opc = params.get('opc')?.trim();
+  if (opc) {
+    if (!OPC.test(opc)) return 'bad';
+    f.opc = opc;
+  }
+  const municipality = params.get('municipality')?.trim();
+  if (municipality) {
+    if (municipality.length > MAX_MUNICIPALITY) return 'bad';
+    f.municipality = municipality;
+  }
+  const has = params.get('has_photo')?.trim().toLowerCase();
+  if (has) {
+    if (has === 'true' || has === '1') f.hasPhoto = true;
+    else if (has === 'false' || has === '0') f.hasPhoto = false;
+    else return 'bad';
+  }
+  return f;
+}
+
+export const hasFilters = (f: StationFilters) => f.opc !== undefined || f.municipality !== undefined || f.hasPhoto !== undefined;
+
 const EARTH_M = 6_371_008.8; // mean radius
 const rad = (d: number) => (d * Math.PI) / 180;
 
@@ -149,6 +185,18 @@ export function boundingBox(q: NearQuery): { minLat: number; maxLat: number; min
 // Published main photos of a station and its sockets, by target (station id
 // or compact EVSE code).
 export type MainPhotos = Record<string, { credit: string | null; panoramax_id?: string | null; photo_id?: string }>;
+
+// A photo that lives at its origin (Panoramax, Commons), shown in the gallery
+// as a reference with its author, licence and link. Never a main photo.
+export type ExternalPhoto = {
+  id: string;
+  origin: 'osm_panoramax' | 'commons';
+  thumb: string;
+  credit: string | null;
+  license: string;
+  source: string;
+  taken_at: string | null;
+};
 
 // One published main photo, for apps that copy them (nap.ocarroeletrico.com).
 export type MainPhotoRow = {

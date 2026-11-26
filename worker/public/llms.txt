@@ -9,18 +9,23 @@ Pages are in European Portuguese, with English under /en/. Station and socket da
 - [Station page](https://olhaoposto.ocarroeletrico.com/en/stations/EZC-AMD-00051): `/en/stations/{station id}` in English, `/postos/{station id}` in Portuguese.
 - Photo credit page: `/en/p/{photo id}` (or `/p/{photo id}`): the photo, its author, date and licence (CC BY-SA 4.0), the station or socket it shows and a link to Panoramax. Only published photos have one; the XMP of each new static copy points to it, and the station page links each photo to it.
 - [Search](https://olhaoposto.ocarroeletrico.com/en/search?q=amadora): `/en/search?q=` (or `/pesquisa?q=`). A full station or socket code goes straight to its page.
+- [Stations without a photo](https://olhaoposto.ocarroeletrico.com/en/stations/without-photo): `/en/stations/without-photo` (or `/postos/sem-foto`), filterable by municipality and operator; each links to the upload page for that station.
 - Socket lookup: `/en/sockets/{EVSE code}` (or `/tomadas/{EVSE code}`) redirects to the station page, anchored on that socket. The code works with or without the `*` (`PT*EZC*E*AMD*00051*1` or `PTEZCEAMD000511`).
 
 ## API
 
-Read-only JSON, open CORS, no key.
+JSON, open CORS, no key for reads (the OpenAPI description is at `/api/v1/openapi.json`).
 
 - `GET /api/v1/stations/{station id}`: the station, its operator, address, coordinates, OSM element and sockets. Each socket has its EVSE code as published (`evse`) and without the `*` (`compact`), which is the name of its static link. The station and each socket carry `photo` (or `null`): credit, licence, a ready-to-paste `attribution`, the three sizes (`thumb`, `main`, `full`, each with `url` and `maxPx`, the longest side), the station page and the Panoramax viewer link.
 - `GET /api/v1/stations?q={words}&limit={1-50}`: full-text search over station code, name, address, town and operator. Every word must match, as a prefix, accents ignored. Public stations only, best match first.
 - `GET /api/v1/stations?lat={deg}&lon={deg}&radius={metres, default 500, max 5000}&limit={1-50}`: public stations near a point, nearest first, each with `distance_m`. Use either `q` or `lat`/`lon`, not both.
+- `GET /api/v1/stations?opc={operator id}&municipality={name}&has_photo=true|false`: filters, on their own (a list by id, paged with `after`/`next`) or narrowing a text or place search. `has_photo=false` lists the stations whose static link is still 404: the ones to photograph.
+- `GET /api/v1/photos/{photo id}`: one published photo: credit, licence, target (station or socket), station, sizes, Panoramax id, `attribution`.
+- `GET /api/v1/photos.json`: every published photo, gallery included, for reusers (cached a day; the station's position, never the photo's GPS).
 - `GET /api/v1/main-photos`: every published main photo (station or socket) with its credit, the three sizes on pictures.ocarroeletrico.com, the station page and the Panoramax picture id. Licence CC BY-SA 4.0: credit the author.
 - `GET /api/v1/evses/{EVSE code}`: the socket and its station, each with `photo` (or `null`) as above. 300 with `candidates` when the NAP lists the same code at more than one station, 404 when unknown.
 - `GET /api/v1/ranking?period=month|all`: top contributors (`rank`, `name`, `points`, `photos`, `medal`), month = current month, UTC.
+- `GET /api/v1/openapi.json`: the whole API in OpenAPI 3.1.
 
 ## Writing with a token
 
@@ -28,14 +33,15 @@ Writes need a personal access token, created by a signed-in person on their acco
 
 - `POST /api/v1/photos` (`photos:write`): multipart with three clean JPEGs, already blurred and without any metadata: `full` (longest side ≤ 2048 px), `main` (≤ 1024), `thumb` (≤ 400), all the same picture; and `meta`, JSON: `{"station": "<station id>", "target": "<station id or compact EVSE code>", "taken_at": "2026-11-20T10:15:00Z" | null, "exif_lat": number | null, "exif_lon": number | null, "license": true, "no_people": true}`. The GPS is for moderators only and is never published. 201 `{id, status}`: `pending` until a moderator approves it, `published` for trusted accounts on site. Files with EXIF are refused.
 - `POST /api/v1/stations` (`photos:write`): propose a station missing from the NAP, JSON `{"name", "operator", "code"?, "lat", "lon", "note"?}`. 409 `station_nearby` with the stations within 60 m; repeat with `?force=1` if it is another one. 201 `{id, status: "pending_review"}`; its photos wait for a moderator with it.
+- `DELETE /api/v1/photos/{photo id}` (`photos:write`): remove a photo: yours, or any if you are a moderator (optional JSON `{"reason", "note"}`). Static copies and cache go; a lost main photo waits for a moderator to choose the next.
 - `PUT /api/v1/selections/{target}` (`selections:write`): JSON `{"photo": "<photo id>"}` makes that published photo the main photo of the station or socket.
 
 ## MCP server
 
 Remote MCP server named `OlhaOPosto` at `https://olhaoposto.ocarroeletrico.com/mcp` (Streamable HTTP, stateless). The same data and rules as the API, as tools with English descriptions; every photo result carries its credit, licence and `attribution`.
 
-- Read, no sign-in: `search_stations` (words, a point and radius, or filters: `operator`, `municipality`, `has_photo`), `get_station` (station id or EVSE code: sockets and their photos), `get_photo_link` (one static link and its attribution), `list_missing_photos` (stations or sockets without a photo, for campaigns), `list_main_photos`, `get_ranking`.
-- Write, signed in: `submit_photo` (three clean JPEG sizes, base64 or https URLs, `photos:write`), `propose_station` (`photos:write`), `set_primary_photo` (`selections:write`, trusted accounts and moderators).
+- Read, no sign-in: `search_stations` (words, a point and radius, or filters: `operator` (NAP opc), `municipality`, `has_photo`), `get_station` (station id or EVSE code: sockets and their photos), `get_photo_link` (one static link and its attribution), `list_missing_photos` (stations or sockets without a photo, for campaigns), `list_main_photos`, `get_ranking`, `get_photo`.
+- Write, signed in: `submit_photo` (three clean JPEG sizes, base64 or https URLs, `photos:write`), `propose_station` (`photos:write`), `set_primary_photo` (`selections:write`, trusted accounts and moderators), `delete_photo` (your own, or any as a moderator, `photos:write`).
 - Sign-in: OAuth 2.1 with dynamic client registration (metadata at `/.well-known/oauth-protected-resource/mcp`); the person signs in with OpenStreetMap once and chooses what the agent may do. A call to a write tool without sign-in gets the 401 challenge. An API token (`Authorization: Bearer oop_…`) also works. Either way the agent acts as the person, with their current role and limits, and can be disconnected on the account page.
 
 ## Static photo links

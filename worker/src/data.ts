@@ -2,7 +2,7 @@
 // both read through here, so visibility rules live in one place.
 import {
   boundingBox, compactCode, distanceM, ftsQuery, isPublic, STATION_ID,
-  type EvseMatch, type NearQuery, type PointRow, type SearchRow, type StationRow,
+  type EvseMatch, type NearQuery, type PointRow, type SearchRow, type StationFilters, type StationRow,
   type ExternalPhoto, type MainPhotoRow, type MainPhotos,
 } from './types.ts';
 
@@ -104,20 +104,40 @@ export async function listStations(env: Env): Promise<{ id: string; lastmod: str
   return results;
 }
 
+// The station has a published main photo: its static link answers 200.
+const HAS_MAIN = `EXISTS (SELECT 1 FROM selections sel JOIN photos ph ON ph.id = sel.photo_id
+   WHERE sel.target = s.id AND sel.published_at IS NOT NULL AND sel.lost_at IS NULL AND ph.status = 'published')`;
+
+// The extra WHERE terms of a station query on `stations s`, with their binds
+// in order. Always starts with AND, so it follows a status test.
+export function filterSql(f: StationFilters): { sql: string; binds: string[] } {
+  const parts: string[] = [];
+  const binds: string[] = [];
+  if (f.opc) { parts.push('s.opc = ? COLLATE NOCASE'); binds.push(f.opc); }
+  if (f.municipality) { parts.push('s.municipality = ? COLLATE NOCASE'); binds.push(f.municipality); }
+  if (f.hasPhoto === true) parts.push(HAS_MAIN);
+  if (f.hasPhoto === false) parts.push(`NOT ${HAS_MAIN}`);
+  return { sql: parts.map((p) => ` AND ${p}`).join(''), binds };
+}
+
+const PUBLIC = `s.status IN ('active', 'missing_from_nap')`;
+const SEARCH_COLUMNS = 's.id, s.name, s.opc, s.operator, s.address, s.municipality, s.region, s.lat, s.lon, s.status';
+
 // Public stations whose code, name, address, town or operator match every
 // word typed, best match first (FTS5 bm25). Reads the index entries that match
 // plus one stations row per result, not the whole table.
-export async function searchStations(env: Env, raw: string, limit: number): Promise<SearchRow[]> {
+export async function searchStations(env: Env, raw: string, limit: number, filters: StationFilters = {}): Promise<SearchRow[]> {
   const match = ftsQuery(raw);
   if (!match) return [];
+  const f = filterSql(filters);
   try {
     const { results } = await env.DB.prepare(
-      `SELECT s.id, s.name, s.opc, s.operator, s.address, s.municipality, s.region, s.lat, s.lon, s.status
+      `SELECT ${SEARCH_COLUMNS}
          FROM stations_fts f JOIN stations s ON s.rowid = f.rowid
-        WHERE stations_fts MATCH ?1 AND s.status IN ('active', 'missing_from_nap')
+        WHERE stations_fts MATCH ? AND ${PUBLIC}${f.sql}
         ORDER BY f.rank
-        LIMIT ?2`,
-    ).bind(match, limit).all<SearchRow>();
+        LIMIT ?`,
+    ).bind(match, ...f.binds, limit).all<SearchRow>();
     return results;
   } catch {
     // ftsQuery leaves no syntax for MATCH to choke on, but a search must never
@@ -130,14 +150,14 @@ export type NearRow = SearchRow & { distance_m: number };
 
 // Public stations within q.radius metres, nearest first. The box comes from
 // the stations_lat_lon index; the circle and the order are done here.
-export async function nearStations(env: Env, q: NearQuery, limit: number): Promise<NearRow[]> {
+export async function nearStations(env: Env, q: NearQuery, limit: number, filters: StationFilters = {}): Promise<NearRow[]> {
   const b = boundingBox(q);
+  const f = filterSql(filters);
   const { results } = await env.DB.prepare(
-    `SELECT id, name, opc, operator, address, municipality, region, lat, lon, status
-       FROM stations
-      WHERE lat BETWEEN ?1 AND ?2 AND lon BETWEEN ?3 AND ?4
-        AND status IN ('active', 'missing_from_nap')`,
-  ).bind(b.minLat, b.maxLat, b.minLon, b.maxLon).all<SearchRow>();
+    `SELECT ${SEARCH_COLUMNS}
+       FROM stations s
+      WHERE s.lat BETWEEN ? AND ? AND s.lon BETWEEN ? AND ? AND ${PUBLIC}${f.sql}`,
+  ).bind(b.minLat, b.maxLat, b.minLon, b.maxLon, ...f.binds).all<SearchRow>();
   return results
     .map((r) => ({ ...r, distance_m: Math.round(distanceM(q.lat, q.lon, r.lat, r.lon)) }))
     .filter((r) => r.distance_m <= q.radius)
@@ -145,3 +165,44 @@ export async function nearStations(env: Env, q: NearQuery, limit: number): Promi
     .slice(0, limit);
 }
 
+// Public stations that match the filters alone, by id, a page after the id
+// `after` (keyset paging). Asks for one more than `limit`: the caller sees
+// from it whether there is a next page.
+export async function filterStations(env: Env, filters: StationFilters, limit: number, after = ''): Promise<{ rows: SearchRow[]; next: string | null }> {
+  const f = filterSql(filters);
+  const { results } = await env.DB.prepare(
+    `SELECT ${SEARCH_COLUMNS} FROM stations s WHERE ${PUBLIC} AND s.id > ?${f.sql} ORDER BY s.id LIMIT ?`,
+  ).bind(after, ...f.binds, limit + 1).all<SearchRow>();
+  const rows = results.slice(0, limit);
+  return { rows, next: results.length > limit ? rows[rows.length - 1].id : null };
+}
+
+export interface Facet { value: string; label: string; n: number }
+
+// Stations without a main photo, counted by town and by operator, for the
+// filters of the "sem foto" page. One scan of the stations table; the page is
+// cached for a few minutes.
+export async function withoutPhotoFacets(env: Env): Promise<{ total: number; municipalities: Facet[]; operators: Facet[] }> {
+  const { results } = await env.DB.prepare(
+    `SELECT s.municipality, s.opc, s.operator, COUNT(*) AS n
+       FROM stations s WHERE ${PUBLIC} AND NOT ${HAS_MAIN}
+      GROUP BY s.municipality, s.opc, s.operator`,
+  ).all<{ municipality: string | null; opc: string | null; operator: string | null; n: number }>();
+  const town = new Map<string, number>();
+  const op = new Map<string, Facet>();
+  let total = 0;
+  for (const r of results) {
+    total += r.n;
+    if (r.municipality) town.set(r.municipality, (town.get(r.municipality) ?? 0) + r.n);
+    if (r.opc) {
+      const prev = op.get(r.opc);
+      op.set(r.opc, { value: r.opc, label: r.operator ?? r.opc, n: (prev?.n ?? 0) + r.n });
+    }
+  }
+  const byLabel = (a: Facet, b: Facet) => a.label.localeCompare(b.label, 'pt');
+  return {
+    total,
+    municipalities: [...town].map(([value, n]) => ({ value, label: value, n })).sort(byLabel),
+    operators: [...op.values()].sort(byLabel),
+  };
+}

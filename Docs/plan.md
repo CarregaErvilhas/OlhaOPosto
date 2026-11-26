@@ -13,7 +13,7 @@ Este documento só tem o que ainda não existe. O que já está a funcionar (ser
 - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
 - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
 - entrada na federação, depois da conversa com a comunidade.
-3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP, o resto da API (OpenAPI, `GET /photos/{id}`, `DELETE /photos/{id}`, filtros), exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
+3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP (a API REST, o `photos.json` e a lista de postos sem foto já existem: o MCP usa as mesmas funções), e o `photos.json` lido pelo NAP dashboard e pelo ohmigo.
 4. **Desfocagem no servidor**, quando houver uma GPU a um custo razoável.
 
 ## Panoramax: etiquetas e federação
@@ -69,18 +69,11 @@ Na fase 3, o refresh do NAP dashboard lê a exportação `olhaoposto.ocarroeletr
 
 ## API, MCP e llms.txt
 
-A camada de serviço no Worker serve a página, a API REST e, mais tarde, o servidor MCP, para as regras (validação, licença, desfocagem, moderação) serem as mesmas para pessoas e para agentes. O que já existe está em [`api.md`](api.md).
+A camada de serviço no Worker serve a página, a API REST e, mais tarde, o servidor MCP, para as regras (validação, licença, desfocagem, moderação) serem as mesmas para pessoas e para agentes: os *handlers* do `src/index.ts` são finos e a lógica está em funções (`src/photoapi.ts`, `src/data.ts`, `src/publish.ts`, `src/takedown.ts`). O que já existe está em [`api.md`](api.md).
 
 ### API REST (`/api/v1`)
 
-Falta descrevê-la em OpenAPI 3.1 em `/api/v1/openapi.json`, e:
-
-| Método e rota | Faz | Auth |
-| --- | --- | --- |
-| `GET /stations?opc=&has_photo=` | Juntar às pesquisas por texto e por proximidade: operador ou falta de foto | — |
-| `GET /photos/{id}` | Metadados: autor, licença, data, URLs | — |
-| `GET /photos.json` | Exportação diária completa | — |
-| `DELETE /photos/{id}` | Retirar uma foto (autor ou moderador) | sessão/token |
+Feita, em [`api.md`](api.md) (e em OpenAPI 3.1 em `/api/v1/openapi.json`). Falta ligar o `charger_photos.py` do NAP dashboard ao `photos.json` (ver *Ligação ao NAP dashboard e ao ohmigo*).
 
 ### Servidor MCP (`/mcp`)
 
@@ -88,19 +81,20 @@ Servidor MCP remoto no mesmo Worker, com o transporte *Streamable HTTP*. A Cloud
 
 | Ferramenta | Faz | Auth |
 | --- | --- | --- |
-| `search_stations` | Por texto, coordenadas e raio, operador ou `has_photo=false` | — |
+| `search_stations` | Por texto, coordenadas e raio, operador ou `has_photo=false` (`searchStations`, `nearStations` e `filterStations` em `src/data.ts`) | — |
 | `get_station` | Posto, EVSE, fotos e links | — |
 | `get_photo_link` | Link estático de um posto ou tomada (com tamanho) e a atribuição pronta a colar | — |
-| `list_missing_photos` | Postos ou tomadas sem foto num concelho ou operador, para campanhas | — |
+| `list_missing_photos` | Postos ou tomadas sem foto num concelho ou operador, para campanhas (`filterStations` com `hasPhoto: false`; as tomadas sem foto ainda não têm lista) | — |
 | `submit_photo` | Envio a partir de URL ou base64, em `mode=clean` | `photos:write` |
 | `propose_station` | Posto novo para revisão | `photos:write` |
-| `set_primary_photo` | Escolher a foto principal | `moderator` |
+| `set_primary_photo` | Escolher a foto principal (`chooseMain`) | `moderator` |
+| `get_photo`, `delete_photo` | Uma foto e retirá-la (`getPhoto`, `deletePhoto` em `src/photoapi.ts`) | — / `photos:write` |
 
 As ferramentas de leitura funcionam sem login, para qualquer assistente poder mostrar fotos de um posto. O ohmigo pode incluir o link estático de cada posto nas respostas; não é preciso juntar os dois servidores.
 
 ### llms.txt
 
-O `/llms.txt` já descreve as páginas, a API de leitura e de escrita, os links estáticos e as licenças. Falta acrescentar o MCP quando existir, uma página `.md` para cada parte (o que a [proposta](https://llmstxt.org/) pede para os links), e o cabeçalho `Link: </llms.txt>; rel="describedby"; type="text/markdown"` nas páginas HTML.
+O `/llms.txt` já descreve as páginas, a API de leitura e de escrita (com o OpenAPI), os links estáticos e as licenças. Falta acrescentar o MCP quando existir, uma página `.md` para cada parte (o que a [proposta](https://llmstxt.org/) pede para os links), e o cabeçalho `Link: </llms.txt>; rel="describedby"; type="text/markdown"` nas páginas HTML.
 
 ## Crédito
 

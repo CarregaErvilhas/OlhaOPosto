@@ -22,7 +22,7 @@ test('xmpPacket: author escaped, licence and credit page', () => {
   const x = xmpPacket({ author: 'Ana <&> "x"', photoId: 'abc-123' });
   assert.ok(x.includes('<rdf:li>Ana &#60;&#38;&#62; &#34;x&#34;</rdf:li>'));
   assert.ok(x.includes('https://creativecommons.org/licenses/by-sa/4.0/'));
-  assert.ok(x.includes('https://olhaoposto.ocarroeletrico.com/p/abc-123'));
+  assert.match(x, /<xmpRights:WebStatement>https:\/\/olhaoposto\.ocarroeletrico\.com\/p\/abc-123<\/xmpRights:WebStatement>/);
   assert.ok(!/gps|lat|lon/i.test(x.replace(/xmlns|creativecommons|olhaoposto|xpacket|attribution/gi, '')));
 });
 

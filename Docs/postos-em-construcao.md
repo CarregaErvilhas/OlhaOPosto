@@ -1,6 +1,6 @@
 # Postos em construção — proposta de design
 
-Estado: proposta, para discussão. Nada disto está construído. Quando houver decisões, o que ficar passa para [`plan.md`](plan.md) e, depois de feito, para [`arquitetura.md`](arquitetura.md).
+Estado: decidido pelo Fernando (ver *Decisões*, no fim), à espera do Alexandre e do Telmo, e em implementação. Depois de feito, o que ficar passa para [`arquitetura.md`](arquitetura.md).
 
 ## Porquê
 
@@ -8,7 +8,7 @@ Queremos fotos de postos que ainda estão a ser construídos: o local, o quadro,
 
 Hoje isso não é possível:
 
-- O olh'o'posto só conhece postos do NAP (o import diário lê o modelo da rede do NAP dashboard). Um posto em construção não está no NAP, por isso não há onde pendurar a foto, a não ser propô-lo à mão (`source` `community`).
+- O olh'o'posto só conhece postos do NAP (o import diário lê o modelo da rede do NAP dashboard). Um posto em construção não está no NAP, por isso não há onde pendurar a foto. Até agora havia as propostas de postos novos (`source` `community`), que saem: um posto novo tem de vir do OSM, não de uma proposta no olh'o'posto.
 - O NAP dashboard já mostra os postos que o OpenStreetMap diz estarem em construção ou planeados (`scripts/osm_planned.py`, hoje cerca de 265), mas com o id do elemento OSM (`OSM-w1551836005`). Quem procura pelo código MOBI.E (`?posto=ALM-00114`) não encontra nada, e o Procurar esconde-os por defeito.
 - Quando o posto entra no NAP, chega com outro id (`<OPC>-ALM-00114`). Sem uma regra, ficariam dois postos para o mesmo sítio: um «em construção» com as fotos e outro do NAP sem nenhuma.
 
@@ -24,13 +24,13 @@ Um posto «em construção» é o que o OSM diz que ainda não abriu. O `osm_pla
 
 **Princípio em causa.** Hoje os dados oficiais (NAP/MOBI.E) são a base e o OSM só complementa. Aqui o OSM passa a ser a única fonte de um tipo de posto. A proposta limita isso aos postos que ainda não podem estar no NAP, mostra-os sempre marcados como «segundo o OpenStreetMap», e quando o NAP os publica é o NAP que manda.
 
-Cada local tem um ciclo de vida: `construction` (em obra) ou `planned` (planeado ou proposto). Neste documento, «em construção» cobre os dois, e a interface mostra a diferença.
+Cada local tem um ciclo de vida: `construction` (em obra) ou `planned` (planeado ou proposto). **O olh'o'posto só importa os `construction`:** num `planned` não há obra para fotografar. O feed traz os dois, para o NAP dashboard os poder mostrar. Se o OSM estiver desatualizado (a obra já começou e ainda diz `planned`), quem lá passa pode corrigir o OSM, e o posto entra no import seguinte.
 
 O código MOBI.E, quando existe, vem do `ref` do OSM ou do nome, em formatos variados: `ALM-00114/155`, `MLD-00036…39`, `SXL-00085/86`. Hoje cerca de 70 dos 265 trazem um.
 
 ### O que o feed dos postos tem de trazer
 
-O feed dos postos que o NAP dashboard publica está a ser redesenhado. A proposta desse redesenho mantém o mesmo endereço (`nap.ocarroeletrico.com/ohmigo/chargers.json`) e põe os postos em construção num array novo, `planned`, ao lado de `sites`. A cadência (várias vezes por dia) ainda está por decidir. O que este design precisa do feed:
+O feed dos postos que o NAP dashboard publica está a ser redesenhado. A proposta desse redesenho mantém o mesmo endereço (`nap.ocarroeletrico.com/ohmigo/chargers.json`) e põe os postos em construção num array novo, `planned`, ao lado de `sites`. A cadência passa a 4 vezes por dia. O que este design precisa do feed:
 
 - **Os postos em construção separados dos do NAP** (o array `planned`). O ohmigo nunca lhes pode dar preço nem os sugerir para carregar.
 - Para cada um: o id (`OSM-<n|w><número>`), o elemento OSM (`way/1551836005`), o ciclo de vida, os **códigos MOBI.E já expandidos** (`codes`: `["ALM-00114", "ALM-00155"]`, lista vazia quando não há), tirados do `ref` **e do nome** (o `ALM-00114/155` está no nome, não no `ref`), o nome, o operador, a posição, o número de pontos, a potência e as fichas, quando o OSM os tem.
@@ -48,7 +48,7 @@ Porque não o código MOBI.E: muitos não o têm; os que têm trazem intervalos 
 | --- | --- | --- |
 | Página do posto | `olhaoposto.ocarroeletrico.com/postos/OSM-w1551836005` | `301` → `/postos/<OPC>-ALM-00114` |
 | API | `/api/v1/stations/OSM-w1551836005` | `301` → `/api/v1/stations/<OPC>-ALM-00114` |
-| Link estático | `pictures.ocarroeletrico.com/OSM-w1551836005.jpg` (e `.thumb`, `.full`) | ver *Links estáticos depois da fusão* |
+| Link estático | não há | `pictures.ocarroeletrico.com/<OPC>-ALM-00114.jpg`, com a primeira foto aprovada do posto em construção, se o posto do NAP não tinha principal |
 | Procurar (NAP dashboard) | `nap.ocarroeletrico.com/?posto=OSM-w1551836005` ou `?posto=ALM-00114` | `?posto=<OPC>-ALM-00114`, `?posto=ALM-00114`; o `OSM-w…` continua a abrir o posto do NAP |
 | Tomadas | não há (sem EVSE) | as do NAP |
 
@@ -58,12 +58,12 @@ Porque não o código MOBI.E: muitos não o têm; os que têm trazem intervalos 
 
 ### No olh'o'posto
 
-- **Página do posto:** uma faixa no topo, «Em construção segundo o OpenStreetMap: ainda não está no NAP» (ou «Planeado»), com o link para o elemento no OSM. Sem tomadas, sem link para o NAP dashboard enquanto não tiver id do NAP (o `?posto=OSM-w…` também funciona, mas mostra pouco). O botão «Enviar foto» funciona como noutro posto qualquer.
+- **Página do posto:** uma faixa no topo, «Em construção segundo o OpenStreetMap: ainda não está no NAP» com o link para o elemento no OSM. Sem tomadas, sem link para o NAP dashboard enquanto não tiver id do NAP (o `?posto=OSM-w…` também funciona, mas mostra pouco). Sem link estático: a página diz que aparece quando o posto entrar no NAP. O botão «Enviar foto» funciona como noutro posto qualquer (`/enviar?posto=OSM-w1551836005`).
 - **Pesquisa** (`/pesquisa`, API `?q=`, `?lat=&lon=`): os postos em construção entram, com a mesma marca. A pesquisa por texto procura também os códigos MOBI.E (`ALM-00114`, `ALM-00155`), por isso entram no índice FTS.
 - **Página de envio:** aparecem nos postos sugeridos a 500 m do GPS, marcados «em construção», depois dos do NAP.
 - **`/postos/sem-foto`:** ficam de fora por defeito, com um filtro «incluir em construção». A lista é sobretudo para postos que se podem visitar e usar.
 - **`sitemap.xml`:** ficam de fora. São páginas que vão mudar de URL.
-- **MCP e API** (`get_station`, `search_stations`, `/api/v1/stations`): cada posto traz `lifecycle` (`construction` | `planned`, ausente nos do NAP). A descrição das ferramentas diz que um posto em construção não carrega, para nenhum agente o apresentar como disponível.
+- **MCP e API** (`get_station`, `search_stations`, `/api/v1/stations`): cada posto em construção traz `lifecycle: "construction"` (ausente nos do NAP). A descrição das ferramentas diz que um posto em construção não carrega, para nenhum agente o apresentar como disponível.
 
 ### No NAP dashboard (Procurar)
 
@@ -76,8 +76,10 @@ Porque não o código MOBI.E: muitos não o têm; os que têm trazem intervalos 
 
 Funcionam como as de um posto do NAP, com estas diferenças:
 
+- **Sem foto principal nem link estático.** Uma foto aprovada fica pública no Panoramax e na galeria do posto, mas não é copiada para o `pictures.*` (o `publishMain` e o `chooseMain` recusam um posto em construção). Assim um link estático nunca muda de chave na fusão.
+
 - **Só fotos do local.** Ainda não há tomadas com código EVSE. Depois da fusão, um moderador pode passar uma foto para uma tomada, como hoje.
-- **Publicação direta das contas `trusted`:** hoje exige um posto `active`. Proposta: vale também para os postos em construção, com a mesma regra dos 300 m. O sítio vem do OSM, que é o mais próximo de uma fonte que temos.
+- **Publicação direta das contas `trusted`:** como hoje, com a mesma regra dos 300 m. O sítio vem do OSM, que é o mais próximo de uma fonte que temos.
 - **Desfocagem:** numa obra há trabalhadores, e muitas vezes carrinhas com o nome da empresa. A deteção de caras é a mesma, mas a fila de moderação deve marcar estas fotos para uma revisão mais atenta.
 - **Pontos:** contam como as outras. A primeira foto de um posto em construção dá o bónus de primeira foto. Quando o posto entra no NAP, esse bónus não volta a ser dado a outra pessoa.
 
@@ -100,21 +102,17 @@ O import diário procura, para cada posto do NAP novo, um posto em construção 
 
 1. **Alias:** uma linha em `station_aliases` (`OSM-w…` → `<OPC>-ALM-00114`). A página e a API antigas passam a responder `301`, como num re-key do NAP.
 2. **Fotos:** `photos.station_id` passa para o id do NAP. Hoje um alias não move as fotos (fica só o redirect). Aqui tem de as mover, senão o posto do NAP fica sem nenhuma.
-3. **Foto principal:** a linha de `selections` do posto passa para o id novo, e as três cópias são gravadas nas chaves novas (`<OPC>-ALM-00114.jpg`, `.thumb`, `.full`). O XMP de cada cópia aponta para a página de crédito (`/p/{photo_id}`), que não muda. Se o posto do NAP já tinha principal (alguém enviou entretanto), fica a dele, e a do posto em construção fica na galeria.
-4. **Etiquetas no Panoramax:** `OlhaOPosto|site=OSM-w…` passa a `OlhaOPosto|site=<OPC>-ALM-00114`. Faz-se com uma coluna pendente, como o `author_tag_old` para o crédito, para uma falha do Panoramax não bloquear a fusão.
+3. **Foto principal:** o posto em construção não tinha. Se o posto do NAP também não tem, o *cron* do Worker publica a primeira foto aprovada que veio do posto em construção como principal dele (o import corre no GitHub Actions e só escreve na D1, não chega ao R2 nem ao Panoramax). Se o posto do NAP já tinha principal, as fotos entram na galeria.
+4. **Etiquetas no Panoramax:** `OlhaOPosto|site=OSM-w…` passa a `OlhaOPosto|site=<OPC>-ALM-00114`. Faz-se no *cron* com uma coluna pendente (`photos.site_tag_old`), como o `author_tag_old` para o crédito, para uma falha do Panoramax não bloquear a fusão.
 5. **OSM:** o `panoramax=<uuid>` aponta para a foto, não para o posto, por isso não muda.
 6. **Pontos:** estão ligados à foto, não ao posto, por isso ficam.
-7. **Estado:** o posto em construção passa a `merged` (ou fica com o alias e um estado que o esconde da pesquisa). Nunca é apagado.
+7. **Estado:** o posto em construção passa a `merged`, sai da pesquisa e fica com o alias. Nunca é apagado.
+
+A fusão manual (o moderador, na página dos postos fora do NAP) faz os mesmos passos que a automática: as mesmas instruções SQL, partilhadas pelo import e pelo Worker.
 
 ### Links estáticos depois da fusão
 
-O `pictures.*` é um bucket R2 servido diretamente: não faz redirects. O `OSM-w1551836005.jpg` não pode responder `301` para a chave nova.
-
-Opções:
-
-- **A. Manter a cópia na chave antiga** (proposta). Quem usou o link continua a ver a foto. As duas chaves passam a ser da mesma foto: trocar a principal ou um pedido de remoção têm de atualizar ou apagar **as duas**. O `removePhoto` passa a procurar todas as chaves em que a foto está publicada (a privacidade vem primeiro: uma cópia esquecida é exatamente o que não pode acontecer).
-- **B. Apagar a chave antiga.** Mais simples, mas o link antigo passa a `404`. Contradiz «o URL nunca muda».
-- **C. Não dar link estático aos postos em construção.** Evita o problema, mas a foto não serve para o OSM nem para outras apps até o posto entrar no NAP, e isso pode levar meses.
+Decidido: **sem link estático para os postos em construção** (era a opção C). O `pictures.*` é um bucket R2 servido diretamente e não faz redirects, por isso uma chave `OSM-w….jpg` não podia passar para a chave nova. Sem chave antiga, não há o que manter nem o que esquecer num pedido de remoção. O custo: a foto não serve para o OSM nem para outras apps pelo link estático até o posto entrar no NAP. O link da página de crédito (`/p/{photo_id}`) e o do Panoramax existem desde a aprovação.
 
 ### Postos que nunca chegam ao NAP
 
@@ -124,12 +122,12 @@ Proposta: passa a `missing_from_osm`, fica com as fotos e os links, sai da pesqu
 
 ## Base de dados (D1)
 
-Duas formas de guardar o ciclo de vida:
+- **`source`** passa a `nap` ou `osm` (sai o `community`, sem postos em produção).
+- **`status`** passa a `active`, `missing_from_nap`, `missing_from_osm` ou `merged` (saem o `pending_review` e o `rejected`, que eram das propostas e não têm postos).
+- **`codes`**: os códigos MOBI.E de um posto em construção, separados por espaços, também no índice FTS da pesquisa. Nulo nos do NAP.
+- **`photos.site_tag_old`**: a etiqueta `OlhaOPosto|site` que o Panoramax ainda tem, depois de uma fusão, até o *cron* a trocar.
 
-- **Uma coluna nova** (proposta): `ALTER TABLE stations ADD COLUMN lifecycle TEXT CHECK (lifecycle IN ('construction', 'planned'))`, nula para os postos do NAP. Juntam-se os estados `merged` e `missing_from_osm`. Como o `source` e o `status` são `CHECK` numa tabela `STRICT`, acrescentar valores obriga a **reconstruir a tabela `stations`**, que é apontada por `evses`, `photos`, `selections`, `station_aliases` e `review_queue`, e tem os *triggers* do FTS (cada linha escrita duas vezes). São cerca de 9 000 postos: cabe no limite diário de escritas do D1 Free, mas é uma migração para correr com cuidado e com cópia antes.
-- **Reaproveitar `community`:** os postos em construção entravam como propostas já aprovadas (`source` `community`, `status` `active`) com uma marca. Evita reconstruir a tabela, mas mistura postos propostos por pessoas com postos importados, e o import não pode mexer em postos `community` (regra de hoje).
-
-A primeira é mais clara. A reconstrução é uma vez só.
+Como o `source` e o `status` são `CHECK` numa tabela `STRICT`, mudar os valores obriga a **reconstruir a tabela `stations`**, que é apontada por `evses`, `photos`, `selections`, `station_aliases` e `review_queue` e tem os *triggers* do FTS. São cerca de 9 000 postos: cabe no limite diário de escritas do D1 Free. A migração aplica-se sozinha no deploy depois do merge, por isso o merge desse PR pede um *bookmark* do Time Travel da D1 antes.
 
 ## Fases
 
@@ -138,11 +136,13 @@ A primeira é mais clara. A reconstrução é uma vez só.
 3. **olh'o'posto, fusão primeiro:** a migração, a fusão automática e a fila do moderador, a atualização das duas chaves no `removePhoto`. Tem de estar pronta antes da fase 4, senão as primeiras fotos ficam no posto errado.
 4. **olh'o'posto, import e páginas:** importar os postos em construção, a faixa na página, a pesquisa, o MCP.
 
-## Perguntas para o Alexandre e o Telmo
+## Decisões
 
-1. **Id:** usar o elemento OSM (`OSM-w…`) parece-vos bem? Há casos em que o código MOBI.E aparece no terreno (autocolante, placa da obra) antes de estar no OSM?
-2. **Links estáticos:** A (manter a chave antiga), B (apagá-la) ou C (sem link até ao NAP)?
-3. **Fusão automática:** elemento OSM + código chegam, ou querem um humano em todas?
-4. **Base de dados:** coluna `lifecycle` nova, com a reconstrução da tabela, ou reaproveitar `community`?
-5. **Publicação direta:** as contas `trusted` publicam logo fotos de obra, ou passam todas pela fila por causa das caras?
-6. **Planeados:** mostramos também os `planned` (sem obra à vista), ou só os `construction`?
+Respostas do Fernando. O Alexandre e o Telmo ainda podem mudar qualquer uma.
+
+1. **Id:** o elemento OSM (`OSM-w…`).
+2. **Links estáticos:** nenhum até o posto entrar no NAP (opção C).
+3. **Fusão automática:** elemento OSM + código chegam. O resto vai para o moderador.
+4. **Base de dados:** a coluna e os estados novos, com a reconstrução da tabela. As propostas de postos pela comunidade saem do olh'o'posto: um posto novo tem de estar no OSM.
+5. **Publicação direta:** como hoje. Uma conta `trusted` publica logo.
+6. **Planeados:** só os `construction`.

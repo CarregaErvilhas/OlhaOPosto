@@ -93,12 +93,11 @@ test('changes, disappearances and returns are detected', () => {
   assert.deepEqual(d.missingEvses.map((e) => e.station_id), ['EZC-AMD-00052']);
 });
 
-test('community and pending rows are never touched by the import', () => {
+test('rows of another source are never touched by the NAP import', () => {
   const f = feed(site('EZC-AMD-00051'));
   const cur = asCurrent(f);
-  cur.stations[0].source = 'community';
-  cur.stations[0].status = 'pending_review';
-  cur.stations.push({ ...cur.stations[0], id: 'COM-1', source: 'community', status: 'active' });
+  cur.stations[0].source = 'osm';
+  cur.stations.push({ ...cur.stations[0], id: 'OSM-w1', source: 'osm', status: 'active' });
   const d = diff(toRows(f), cur);
   assert.deepEqual(d.conflicts, ['EZC-AMD-00051']);
   assert.deepEqual([d.updateStations, d.missingStations, d.insertEvses, d.updateEvses], [[], [], [], []]);

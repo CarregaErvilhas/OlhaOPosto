@@ -20,7 +20,7 @@ function world() {
       ('EZC-AMD-00051', 'AMD-00051', 'EZC3', 'EZCharge', 'Amadora Centro', 'Amadora', 'active', 38.7879, -9.2268, '2000-01-01'),
       ('EZC-SNT-00001', 'SNT-00001', 'EZC3', 'EZCharge', 'Sintra Vila', 'Sintra', 'active', 38.80, -9.38, '2000-01-01'),
       ('MOB-SNT-00002', 'SNT-00002', 'MOB1', 'Outro', 'Sintra Estação', 'Sintra', 'active', 38.801, -9.381, '2000-01-01'),
-      ('OOP-HIDDEN', NULL, NULL, 'X', 'Proposto', 'Sintra', 'pending_review', 38.81, -9.39, '2000-01-01');
+      ('OOP-HIDDEN', NULL, NULL, 'X', 'Proposto', 'Sintra', 'merged', 38.81, -9.39, '2000-01-01');
     INSERT INTO evses (station_id, point_id, evse_id, evse_compact, connector, max_kw, status, dc, updated_at) VALUES
       ('EZC-AMD-00051', 'AMD-00051-1', 'PT*EZC*E*AMD*00051*1', 'PTEZCEAMD000511', 'CCS', 50, 'active', 1, '2000-01-01'),
       ('EZC-AMD-00051', 'AMD-00051-2', 'PT*EZC*E*AMD*00051*2', 'PTEZCEAMD000512', 'T2', 22, 'active', 0, '2000-01-01');

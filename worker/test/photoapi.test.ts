@@ -14,14 +14,14 @@ const NOW = new Date('2026-11-26T12:00:00Z');
 const MAIN = '00000000-0000-0000-0000-000000000001';    // Ana's main photo of the station
 const GALLERY = '00000000-0000-0000-0000-000000000002'; // Bea's other published photo
 const WAIT = '00000000-0000-0000-0000-000000000003';    // Ana's, waiting for a moderator
-const HIDDEN_ST = '00000000-0000-0000-0000-000000000004'; // a photo of a proposed (not public) station
+const HIDDEN_ST = '00000000-0000-0000-0000-000000000004'; // a photo of a station that is not public (merged)
 
 async function world() {
   const db = d1();
   db.sql.exec(`
     INSERT INTO stations (id, code, opc, operator, name, municipality, lat, lon, status, updated_at) VALUES
       ('EZC-AMD-00051', 'AMD-00051', 'EZC3', 'EZ', 'Posto', 'Amadora', 38.5, -9.25, 'active', 'x'),
-      ('OOP-NEW', NULL, NULL, 'EZ', 'Novo', 'Amadora', 38.6, -9.3, 'pending_review', 'x');
+      ('OOP-NEW', NULL, NULL, 'EZ', 'Novo', 'Amadora', 38.6, -9.3, 'merged', 'x');
     INSERT INTO evses (station_id, point_id, evse_id, evse_compact, dc, updated_at) VALUES
       ('EZC-AMD-00051', 'AMD-00051-1', 'PT*EZC*E*AMD*00051*1', 'PTEZCEAMD000511', 0, 'x');
     INSERT INTO users (id, osm_uid, osm_name, role, created_at, last_login_at) VALUES

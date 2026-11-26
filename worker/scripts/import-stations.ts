@@ -1,5 +1,7 @@
-// Daily import of stations and charge points from the NAP dashboard network
-// model into D1. Runs in GitHub Actions (.github/workflows/import-stations.yml),
+// Import of stations and charge points from the NAP dashboard network model
+// into D1, and of the stations under construction that OSM knows of (the
+// feed's `planned` array, scripts/lib/construction.ts), with their merges
+// into the NAP stations they become. Runs in GitHub Actions (.github/workflows/import-stations.yml),
 // not in the Worker: parsing the ~12 MB feed does not fit the 10 ms CPU limit
 // of a Free-plan Cron Trigger.
 //
@@ -20,6 +22,9 @@ import {
   toRows, toSql, validateFeed,
   type CurrentEvse, type CurrentStation, type ExternalPhotoRow, EVSE_COLUMNS, STATION_COLUMNS,
 } from './lib/stations.ts';
+import {
+  checkConstructionMissing, constructionSql, diffConstruction, toConstructionRows, type CurrentRow,
+} from './lib/construction.ts';
 import { d1, type Target } from './lib/wrangler.ts';
 
 const FEED_URL = 'https://nap.ocarroeletrico.com/ohmigo/chargers.json';
@@ -70,6 +75,26 @@ d1(target, (db) => {
   const refusal = checkMissing(d, current.stations);
   if (refusal && !values['allow-mass-missing']) throw new Error(refusal);
 
+  // Stations under construction. The NAP stations they may merge into are D1
+  // as this run leaves it: the feed's rows active, the ones it dropped gone.
+  const osmCurrent = db.query<CurrentRow>(
+    `SELECT id, source, status, code, codes, operator, name, lat, lon, osm_ref FROM stations WHERE source = 'osm'`,
+  );
+  const gone = new Set(d.missingStations);
+  const nap = new Map(current.stations.filter((s) => s.source === 'nap')
+    .map((s) => [s.id, { id: s.id, status: gone.has(s.id) ? 'missing_from_nap' : s.status, code: s.code, osm_ref: s.osm_ref }]));
+  for (const s of rows.stations) {
+    if (!d.conflicts.includes(s.id)) nap.set(s.id, { id: s.id, status: 'active', code: s.code, osm_ref: s.osm_ref });
+  }
+  const planned = feed.planned === undefined ? null : toConstructionRows(feed.planned);
+  const cd = diffConstruction(planned, osmCurrent, [...nap.values()]);
+  console.log(planned === null
+    ? `under construction: no planned array in the feed; merges ${cd.merges.length}`
+    : `under construction: ${planned.length} in the feed, +/~${cd.upsert.length} missing ${cd.missing.length}` +
+      ` merges ${cd.merges.length}` + (cd.merges.length ? ` (${cd.merges.map((m) => `${m.from}->${m.to}`).join(', ')})` : ''));
+  const cRefusal = checkConstructionMissing(cd, osmCurrent);
+  if (cRefusal && !values['allow-mass-missing']) throw new Error(cRefusal);
+
   // External photos (references to Panoramax and Commons, never copies). Ours
   // are left out: their Panoramax UUID is in photos.panoramax_id.
   const own = new Set(db.query<{ panoramax_id: string }>(
@@ -83,10 +108,12 @@ d1(target, (db) => {
   const extRefusal = checkExternalRemovals(ext, externalCurrent.length);
   if (extRefusal && !values['allow-mass-missing']) throw new Error(extRefusal);
 
-  // The stations come first: photos.station_id references them. The
-  // generated_at marker goes last, so a failed run is rerun.
+  // The stations come first: photos.station_id references them, and the
+  // merges point at the NAP stations. The generated_at marker goes last, so a
+  // failed run is rerun.
   const marker = toSql(d, feed.generatedAt);
-  const statements = [...marker.slice(0, -1), ...externalSql(ext, feed.generatedAt), marker[marker.length - 1]];
+  const statements = [...marker.slice(0, -1), ...constructionSql(cd, feed.generatedAt),
+    ...externalSql(ext, feed.generatedAt), marker[marker.length - 1]];
   if (values['dry-run']) {
     console.log(`dry run: ${statements.length} statements, nothing written`);
     return;

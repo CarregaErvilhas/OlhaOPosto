@@ -42,10 +42,11 @@ async function suggestion(env: Env, r: { osm_ref: string | null; codes: string |
   const codes = (r.codes ?? '').split(' ').filter(Boolean);
   const d = 0.001;
   const { results } = await db(env).prepare(
+    // The box alone, so the stations_lat_lon index does the work; the same
+    // OSM element is scored below (a NAP station linked to it is this close).
     `SELECT id, code, osm_ref, lat, lon FROM stations
-      WHERE source = 'nap' AND status = 'active'
-        AND (osm_ref = ? OR (lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?))`,
-  ).bind(r.osm_ref ?? '', r.lat - d, r.lat + d, r.lon - d * 1.3, r.lon + d * 1.3)
+      WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? AND source = 'nap' AND status = 'active'`,
+  ).bind(r.lat - d, r.lat + d, r.lon - d * 1.3, r.lon + d * 1.3)
     .all<{ id: string; code: string | null; osm_ref: string | null; lat: number; lon: number }>();
   const score = (n: (typeof results)[number]) =>
     (n.osm_ref && n.osm_ref === r.osm_ref ? 2 : 0) + (n.code && codes.includes(n.code) ? 1 : 0);
@@ -100,7 +101,7 @@ const T = {
     title: 'Postos fora do NAP',
     intro: 'Postos que deixaram de aparecer no NAP mas ainda têm fotos, e postos em construção com fotos que o import não juntou sozinho a um posto do NAP. Escreve o código do posto novo para o link antigo passar a responder 301. Num posto em construção, as fotos passam também para o posto do NAP.',
     building: 'Em construção (OSM)',
-    buildingGone: 'Saiu do OSM',
+    buildingGone: 'Fora da lista de obras do OSM',
     suggest: 'Sugestão',
     merge: 'Juntar ao posto do NAP',
     empty: 'Nenhum posto fora do NAP com fotos.',
@@ -119,7 +120,7 @@ const T = {
     title: 'Stations missing from the NAP',
     intro: 'Stations that left the NAP but still have photos, and stations under construction with photos that the import did not merge into a NAP station on its own. Write the new station code so the old link answers 301. For a station under construction, its photos move to the NAP station too.',
     building: 'Under construction (OSM)',
-    buildingGone: 'Gone from OSM',
+    buildingGone: 'Off the OSM works list',
     suggest: 'Suggestion',
     merge: 'Merge into the NAP station',
     empty: 'No missing stations with photos.',

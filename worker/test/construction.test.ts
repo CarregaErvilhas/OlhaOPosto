@@ -84,9 +84,13 @@ test('no automatic merge on a code mismatch, two candidates or an inactive NAP s
   assert.deepEqual(d.merges, []);
 });
 
-test('a new site that already matches a NAP station is not added', () => {
-  const [a] = toConstructionRows([planned('OSM-w1')]);
-  assert.deepEqual(diffConstruction([a], [], [napAt('X-1', 'way/1', 'ALM-00114')]).upsert, []);
+test('a new site whose OSM element an active NAP station carries is not added', () => {
+  const [a, b, c] = toConstructionRows([planned('OSM-w1'), planned('OSM-w2', { codes: [] }), planned('OSM-w3')]);
+  const nap = [napAt('X-1', 'way/1', 'ALM-00114'), napAt('X-2', 'way/2', 'A'), napAt('X-3', 'way/2', 'B'),
+    napAt('X-4', 'way/3', 'ALM-00999')];
+  // A match, two NAP stations on one element, a code mismatch: all already open.
+  assert.deepEqual(diffConstruction([a, b, c], [], nap).upsert, []);
+  assert.deepEqual(diffConstruction([a], [], [napAt('X-5', 'way/1', 'ALM-00114', 'missing_from_nap')]).upsert.map((r) => r.id), ['OSM-w1']);
 });
 
 test('a feed without the planned array adds and drops nothing, but still merges', () => {

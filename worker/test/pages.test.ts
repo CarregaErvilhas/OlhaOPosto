@@ -213,5 +213,5 @@ test('station under construction: banner, codes, gallery, no static links or soc
   assert.match(withPhotos, /href="\/en\/p\/ph1"/);
   assert.match(withPhotos, /Under construction according to OpenStreetMap/);
   const gone = stationPage('pt', { ...s, status: 'missing_from_osm' }, []);
-  assert.match(gone, /deixou de dizer que este posto está em construção/);
+  assert.match(gone, /saiu da lista de obras que vem do OpenStreetMap/);
 });

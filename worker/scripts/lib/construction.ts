@@ -137,10 +137,12 @@ export function diffConstruction(
   for (const r of rows) {
     inFeed.add(r.id);
     const c = cur.get(r.id);
-    // A new one that already matches a NAP station has no photos to keep:
-    // leave it out rather than add it and merge it in the same run.
+    // A new one whose OSM element an active NAP station already carries is
+    // open (the NAP wins; OSM is behind): leave it out. Also when it matches
+    // several NAP stations (a shop with one element for many NAP sites),
+    // which no merge could pick from. It has no photos to keep.
     if (!c) {
-      if (!target(r)) d.upsert.push(r);
+      if (!byElement.has(r.osm_ref)) d.upsert.push(r);
       continue;
     }
     if (c.status === 'merged' || merging.has(c.id)) continue;

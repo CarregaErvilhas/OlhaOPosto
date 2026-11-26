@@ -299,6 +299,9 @@ function init(form, M) {
       return;
     }
     if (mine !== lookup || !s) return;
+    // A merged station under construction redirects to its NAP station: the
+    // photo goes to the id the API answered with, not the one in the link.
+    station = s.id;
     stationPos = { id: s.id, lat: s.lat, lon: s.lon };
     const sockets = (s.points ?? []).filter((p) => p.compact);
     targetList.replaceChildren(

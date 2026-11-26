@@ -35,16 +35,6 @@ const T = {
     mapNote: 'O mapa carrega os mosaicos do OpenStreetMap, que recebe o teu endereço IP, como qualquer site que os mostre. Só abre se tocares no botão.',
     locate: 'Ir para a minha localização',
     mapLabel: 'Mapa dos postos. Toca num posto para o escolher.',
-    proposeSummary: 'O posto não está na lista? Propor um posto novo',
-    proposeIntro: 'Um moderador confirma o posto antes de ficar público. As fotos que enviares dele esperam por essa confirmação.',
-    proposeName: 'Nome ou local',
-    proposeOperator: 'Operador',
-    proposeCode: 'Código no posto (se houver)',
-    proposeCodeHint: 'O código no autocolante ou no ecrã, por exemplo LSB-00123.',
-    proposePosition: 'Posição',
-    proposePositionHint: 'Vem do GPS da foto, ou do centro do mapa. Abre o mapa e centra-o no posto para a acertar.',
-    proposeNote: 'Nota para a moderação (opcional)',
-    proposeSend: 'Propor o posto',
     targetsLegend: 'Esta foto mostra',
     link: 'Link:',
     stepBlur: '3 · Privacidade',
@@ -83,18 +73,6 @@ const T = {
       mapStations: '{n} postos nesta zona. Toca num para o escolher.',
       locating: 'A procurar a tua localização…',
       locateFailed: 'Não foi possível saber a tua localização.',
-      proposeNeed: 'Escreve o nome e o operador, e indica a posição (pelo GPS da foto ou pelo mapa).',
-      proposeSending: 'A propor o posto…',
-      proposeDone: 'Posto proposto. Fica escolhido para esta foto, à espera da moderação.',
-      proposeNearby: 'Já há postos a menos de 60 m daqui: {list}. Se for um deles, escolhe-o; se não, carrega outra vez em «Propor o posto».',
-      proposeErrors: {
-        name_and_operator: 'Escreve o nome e o operador.',
-        bad_code: 'O código só pode ter letras, números, *, -, _ e pontos.',
-        bad_position: 'A posição tem de ser em Portugal.',
-        daily_limit: 'Chegaste ao limite de postos propostos por hoje.',
-        other: 'Não foi possível propor o posto. Tenta outra vez.',
-      },
-      proposedStation: 'Posto proposto (à espera da moderação)',
       tooBig: 'A foto tem mais de 40 MB. Escolhe outra.',
       gps: 'GPS lido da foto e arredondado a cerca de 100 m. Postos num raio de 500 m:',
       preset: 'Posto do link que abriste:',
@@ -163,16 +141,6 @@ const T = {
     mapNote: 'The map loads its tiles from OpenStreetMap, which receives your IP address, like any site that shows them. It only opens if you tap the button.',
     locate: 'Go to my location',
     mapLabel: 'Map of the stations. Tap a station to choose it.',
-    proposeSummary: 'Station not listed? Propose a new station',
-    proposeIntro: 'A moderator checks the station before it becomes public. The photos you send of it wait for that check.',
-    proposeName: 'Name or place',
-    proposeOperator: 'Operator',
-    proposeCode: 'Code on the station (if any)',
-    proposeCodeHint: 'The code on the sticker or screen, for example LSB-00123.',
-    proposePosition: 'Position',
-    proposePositionHint: 'From the photo’s GPS, or the centre of the map. Open the map and centre it on the station to get it right.',
-    proposeNote: 'Note for the moderators (optional)',
-    proposeSend: 'Propose the station',
     targetsLegend: 'This photo shows',
     link: 'Link:',
     stepBlur: '3 · Privacy',
@@ -210,18 +178,6 @@ const T = {
       mapStations: '{n} stations in this area. Tap one to choose it.',
       locating: 'Finding your location…',
       locateFailed: 'Couldn’t get your location.',
-      proposeNeed: 'Type the name and the operator, and set the position (from the photo’s GPS or the map).',
-      proposeSending: 'Proposing the station…',
-      proposeDone: 'Station proposed. It is chosen for this photo, waiting for moderation.',
-      proposeNearby: 'There are stations less than 60 m from here: {list}. If it is one of them, choose it; if not, press “Propose the station” again.',
-      proposeErrors: {
-        name_and_operator: 'Type the name and the operator.',
-        bad_code: 'The code can only have letters, numbers, *, -, _ and dots.',
-        bad_position: 'The position must be in Portugal.',
-        daily_limit: 'You have reached today’s limit of proposed stations.',
-        other: 'Couldn’t propose the station. Try again.',
-      },
-      proposedStation: 'Proposed station (waiting for moderation)',
       tooBig: 'The photo is over 40 MB. Choose another.',
       gps: 'GPS read from the photo and rounded to about 100 m. Stations within 500 m:',
       preset: 'Station from the link you opened:',
@@ -329,23 +285,6 @@ function form(lang: Lang, sending: boolean, sitekey?: string, station?: string |
       <p id="map-status" class="status" role="status"></p>
     </div>
   </div>
-  <details id="propose" class="propose">
-    <summary>${t.proposeSummary}</summary>
-    <p class="hint">${t.proposeIntro}</p>
-    <label for="p-name">${t.proposeName}</label>
-    <input id="p-name" maxlength="120" autocomplete="off">
-    <label for="p-operator">${t.proposeOperator}</label>
-    <input id="p-operator" maxlength="120" autocomplete="off">
-    <label for="p-code">${t.proposeCode}</label>
-    <input id="p-code" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="p-code-hint">
-    <p id="p-code-hint" class="hint">${t.proposeCodeHint}</p>
-    <p><strong>${t.proposePosition}:</strong> <span id="p-position">—</span></p>
-    <p class="hint">${t.proposePositionHint}</p>
-    <label for="p-note">${t.proposeNote}</label>
-    <textarea id="p-note" maxlength="500" rows="2"></textarea>
-    <p><button type="button" id="propose-send" class="button secondary">${t.proposeSend}</button></p>
-    <p id="propose-status" class="status" role="status"></p>
-  </details>
   <fieldset id="targets" hidden>
     <legend>${t.targetsLegend}</legend>
     <div class="choices" id="target-list"></div>

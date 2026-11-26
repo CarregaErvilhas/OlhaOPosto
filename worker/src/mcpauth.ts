@@ -102,7 +102,7 @@ const T = {
     signedIn: (n: string) => `Signed in as <strong lang="">${n}</strong>.`,
     readAll: 'Reading stations, photos and the ranking needs no authorisation. The agent will also be able to:',
     scope: {
-      'photos:write': 'send photos and propose new stations, moderated like yours',
+      'photos:write': 'send photos, moderated like yours',
       'selections:write': 'choose the main photo of a station or socket',
     } as Record<Scope, string>,
     rules: `The agent acts as you: with your role, your limits and your name on the photos, and follows the <a href="${termsPath('en')}">terms of use</a>. You can disconnect it at any time on <a href="${accountPath('en')}#h-agents">your account</a>. What we keep is in the <a href="${privacyPath('en')}">privacy policy</a>.`,

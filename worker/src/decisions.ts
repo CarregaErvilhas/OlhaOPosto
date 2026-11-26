@@ -1,7 +1,7 @@
 // The decisions history for moderators (/admin/decisoes, /en/admin/decisions):
 // who approved or refused what, and when, with the reason. Photos come from
-// approved_by/approved_at (and refused_by + refusal_reason for a refusal),
-// proposed stations from review_queue. Removals by takedown have no
+// approved_by/approved_at (and refused_by + refusal_reason for a refusal).
+// Removals by takedown have no
 // moderator in our rows (the report lives in Panoramax), so they are not here.
 import { currentUser, page, type AuthEnv } from './auth.ts';
 import { BRAND, accountPath, esc, layout, stationPath, type Lang } from './pages.ts';
@@ -16,7 +16,7 @@ interface Stmt {
 }
 
 export interface DecisionRow {
-  kind: 'photo' | 'station';
+  kind: 'photo';
   id: string;
   station_id: string;
   station_name: string | null;
@@ -30,10 +30,10 @@ export interface DecisionRow {
 const T = {
   pt: {
     title: 'Histórico de decisões',
-    intro: 'As decisões mais recentes sobre fotos e postos propostos: quem decidiu, quando e porquê. As remoções por pedido de remoção não entram: ficam nas denúncias do Panoramax.',
+    intro: 'As decisões mais recentes sobre fotos: quem decidiu, quando e porquê. As remoções por pedido de remoção não entram: ficam nas denúncias do Panoramax.',
     empty: 'Ainda não há decisões.',
     when: 'Quando', who: 'Quem', what: 'O quê', result: 'Decisão', reason: 'Motivo',
-    photo: 'Foto', station: 'Posto proposto',
+    photo: 'Foto',
     approved: 'Aprovada', refused: 'Recusada',
     prev: 'Mais recentes', next: 'Mais antigas',
     queue: 'Fila de moderação', back: 'Voltar à conta',
@@ -41,10 +41,10 @@ const T = {
   },
   en: {
     title: 'Decisions history',
-    intro: 'The latest decisions on photos and proposed stations: who decided, when and why. Removals by removal request are not here: they live in the Panoramax reports.',
+    intro: 'The latest decisions on photos: who decided, when and why. Removals by removal request are not here: they live in the Panoramax reports.',
     empty: 'No decisions yet.',
     when: 'When', who: 'Who', what: 'What', result: 'Decision', reason: 'Reason',
-    photo: 'Photo', station: 'Proposed station',
+    photo: 'Photo',
     approved: 'Approved', refused: 'Refused',
     prev: 'Newer', next: 'Older',
     queue: 'Moderation queue', back: 'Back to account',
@@ -58,7 +58,7 @@ export function decisionsPage(lang: Lang, rows: DecisionRow[], pageNo: number, m
     const reason = r.reason && isReason(r.reason) ? REASON_TEXT[lang][r.reason] : '';
     return `<tr><td>${esc(r.decided_at.slice(0, 16).replace('T', ' '))}</td>
 <td lang="">${esc(r.moderator ?? '—')}</td>
-<td>${r.kind === 'photo' ? t.photo : t.station}: <a href="${stationPath(lang, r.station_id)}">${esc(r.station_name ?? r.station_id)}</a></td>
+<td>${t.photo}: <a href="${stationPath(lang, r.station_id)}">${esc(r.station_name ?? r.station_id)}</a></td>
 <td>${r.decision === 'approved' ? t.approved : t.refused}</td>
 <td>${esc(reason)}${r.note ? `${reason ? ' — ' : ''}<span lang="">${esc(r.note)}</span>` : ''}</td></tr>`;
   };
@@ -108,12 +108,6 @@ export async function decisionsHtml(lang: Lang, request: Request, env: AuthEnv, 
               COALESCE(u.pseudonym, u.osm_name) AS moderator
          FROM photos p JOIN stations s ON s.id = p.station_id LEFT JOIN users u ON u.id = p.approved_by
         WHERE p.approved_by IS NOT NULL AND p.approved_at IS NOT NULL AND p.origin = 'olhaoposto'
-       UNION ALL
-       SELECT 'station', q.id, q.station_id, s.name,
-              CASE WHEN q.status = 'rejected' THEN 'refused' ELSE 'approved' END,
-              NULL, q.note, q.decided_at, COALESCE(u.pseudonym, u.osm_name)
-         FROM review_queue q JOIN stations s ON s.id = q.station_id LEFT JOIN users u ON u.id = q.decided_by
-        WHERE q.status IN ('approved', 'rejected') AND q.decided_at IS NOT NULL
      ) ORDER BY decided_at DESC, id
      LIMIT ? OFFSET ?`,
   ).bind(DECISIONS_PAGE_SIZE + 1, (pageNo - 1) * DECISIONS_PAGE_SIZE).all<DecisionRow>();

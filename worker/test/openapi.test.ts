@@ -34,7 +34,7 @@ test('openapi: the methods match what index.ts serves for the write routes', () 
   assert.deepEqual(Object.keys(paths['/photos']), ['post']);
   assert.deepEqual(Object.keys(paths['/photos/{id}']).sort(), ['delete', 'get']);
   assert.deepEqual(Object.keys(paths['/selections/{target}']), ['put']);
-  assert.deepEqual(Object.keys(paths['/stations']).sort(), ['get', 'post']);
+  assert.deepEqual(Object.keys(paths['/stations']), ['get']);
   for (const m of ["method === 'DELETE'", "method === 'PUT'", "pathname === '/api/v1/photos'", "pathname === '/api/v1/stations'"]) {
     assert.ok(INDEX.includes(m), m);
   }

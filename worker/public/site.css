@@ -431,13 +431,9 @@ table.ranking .num { text-align: right; font-variant-numeric: tabular-nums; }
 .token-form fieldset { border: 0; padding: 0; margin: 8px 0; }
 .account-section > p { color: var(--text); font-size: 1rem; }
 
-/* Upload: map and new station */
+/* Upload: map */
 .station-map { margin: 16px 0 0; }
 .map { height: 320px; border-radius: 12px; border: 1px solid var(--line); margin: 8px 0; }
-.propose { margin: 16px 0 0; }
-.propose summary { cursor: pointer; font-weight: 600; }
-.propose input, .propose textarea { width: 100%; box-sizing: border-box; }
-.propose label { display: block; margin: 10px 0 4px; }
 /* The group (/grupo): each site's mascot beside a speech bubble, alternating sides,
    as on the other sites of the group. --c is that site's colour, only for the circle
    behind the mascot and the dot before its address: text keeps the page's colours. */

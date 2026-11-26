@@ -210,10 +210,6 @@ curl -X POST 'https://olhaoposto.ocarroeletrico.com/api/v1/photos' \
 
 Responde `201 { "id", "status": "pending"|"published" }`. Contas `trusted` publicam direto quando a foto foi tirada a 300 m ou menos de um posto ativo. O GPS é só para a moderação, nunca publicado. Erros: `400 bad_photo` (EXIF ou outro metadado, tamanho, forma), `400 bad_target`, `400 consent_required`, `429 daily_limit` (50 por dia para contribuidores), `429 too_fast`, `409 duplicate`.
 
-### `POST /stations`
-
-Propor um posto que não está no NAP. Corpo JSON: `{ "name", "operator", "code"?, "lat", "lon", "note"? }`, com a posição em Portugal. Se houver um posto a menos de 60 m: `409 { "error": "station_nearby", "stations": [ { "id", "name", "distance_m" } ] }`; repetir com `?force=1` se for outro. Responde `201 { "id": "OOP-…", "status": "pending_review" }`. O posto não é público até um moderador o aprovar; quem o propôs já pode enviar fotos dele (`station` e `target` = o id). Limite: 5 por dia para contribuidores.
-
 ### `DELETE /photos/{id}`
 
 Retirar uma foto. O autor retira as suas (à espera, publicadas ou ocultas); moderadores e administradores, qualquer uma. Usa o mesmo caminho dos pedidos de remoção: as cópias saem do armazenamento, a cache é purgada, a foto sai do Panoramax, e se era a principal o posto ou a tomada fica em «Sem foto principal» até um moderador escolher outra (a seguinte nunca passa a principal sozinha). Os pontos da foto deixam de contar.

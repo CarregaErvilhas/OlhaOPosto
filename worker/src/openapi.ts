@@ -68,22 +68,6 @@ export function openApiSpec() {
             429: err('`rate_limited`: wait a minute.'),
           },
         },
-        post: {
-          tags: ['Write'],
-          operationId: 'proposeStation',
-          summary: 'Propose a station missing from the NAP',
-          description: 'A moderator checks it before it becomes public. Photos of it wait for that check. Scope `photos:write`; 5 a day for contributors.',
-          security: AUTH,
-          parameters: [{ name: 'force', in: 'query', schema: { type: 'string', enum: ['1'] }, description: 'Repeat with 1 when `station_nearby` was another station.' }],
-          requestBody: { required: true, content: { 'application/json': { schema: ref('StationProposal') } } },
-          responses: {
-            201: json({ type: 'object', properties: { id: str, status: { const: 'pending_review' } } }, 'Proposed.'),
-            400: err('Invalid proposal.'),
-            409: json({ type: 'object', properties: { error: { const: 'station_nearby' }, stations: { type: 'array', items: { type: 'object', properties: { id: str, name: nstr, distance_m: num } } } } }, 'A station less than 60 m away.'),
-            429: err('`daily_limit`.'),
-            ...FORBIDDEN_TOKEN,
-          },
-        },
       },
       '/stations/{id}': {
         get: {
@@ -256,11 +240,6 @@ export function openApiSpec() {
         SearchResponse: {
           type: 'object',
           properties: { q: str, lat: num, lon: num, radius: { type: 'integer' }, results: { type: 'array', items: ref('SearchRow') }, next: { ...nstr, description: 'Filters-only listing: pass as `after` for the next page; null on the last.' } },
-        },
-        StationProposal: {
-          type: 'object',
-          required: ['name', 'operator', 'lat', 'lon'],
-          properties: { name: str, operator: str, code: str, lat: num, lon: num, note: str },
         },
         Sizes: {
           type: 'object',

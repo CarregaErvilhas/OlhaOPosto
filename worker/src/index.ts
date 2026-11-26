@@ -24,7 +24,6 @@ import {
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
 import { termsPage } from './terms.ts';
-import { proposeStation } from './proposals.ts';
 import { groupPage } from './grupo.ts';
 import { evseBody, mainPhotoBody, searchBody, stationBody } from './bodies.ts';
 import { creditPage, getCredit } from './photopage.ts';
@@ -394,7 +393,6 @@ export default {
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
     if (request.method === 'POST' && pathname === '/api/v1/photos') return submitPhoto(request, env, ctx);
-    if (request.method === 'POST' && pathname === '/api/v1/stations') return proposeStation(request, env);
     if (request.method === 'POST' && pathname === '/report') return submitTakedown(request, env);
     if (request.method === 'POST' && pathname === TAKEDOWN_DECIDE) return decideTakedown(request, env);
     if (request.method === 'POST' && pathname === PROMOTE_ACTION) return promoteMain(request, env);

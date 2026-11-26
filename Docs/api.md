@@ -71,7 +71,7 @@ Resposta: `{ "evse", "compact", "station": { "id", "name", "operator", "photo" }
 ```
 
 - `maxPx` é o lado maior, não a largura: a foto mantém a proporção.
-- `attribution` é o texto pronto a colar ao lado da foto (a licença pede o crédito); é o mesmo que vai no XMP de cada ficheiro.
+- `attribution` é o texto pronto a colar ao lado da foto (a licença pede o crédito); é o mesmo texto do XMP de cada ficheiro, que aponta para a página de crédito da foto (`/p/{photo_id}`).
 - `page` é a página do posto (com `#t-<tomada>` numa tomada); `panoramax` pode ser `null`; `report` abre o formulário de remoção já preenchido.
 - Os URLs de imagem são estáveis: quando a foto principal muda, o URL continua o mesmo.
 

@@ -29,6 +29,7 @@ export const stationPath = (lang: Lang, id: string) =>
   `${lang === 'pt' ? '/postos/' : '/en/stations/'}${encodeURIComponent(id)}`;
 export const socketPath = (lang: Lang, evse: string) =>
   `${lang === 'pt' ? '/tomadas/' : '/en/sockets/'}${encodeURIComponent(evse)}`;
+export const photoPath = (lang: Lang, id: string) => `${lang === 'pt' ? '/p/' : '/en/p/'}${encodeURIComponent(id)}`;
 export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/search');
 export const privacyPath = (lang: Lang) => (lang === 'pt' ? '/privacidade' : '/en/privacy');
 export const termsPath = (lang: Lang) => (lang === 'pt' ? '/condicoes' : '/en/terms');
@@ -70,6 +71,7 @@ const T = {
     emptySend: 'Envia a primeira',
     hasPhoto: 'Com foto',
     photoBy: 'Foto:',
+    creditAlt: (code: string) => `Foto da tomada ${code}: ver o crédito`,
     askRemoval: 'Pedir remoção',
     photoAlt: (id: string) => `Foto principal do posto ${id}`,
     hint: 'A foto principal é escolhida pela comunidade. O link estático continua o mesmo quando ela muda.',
@@ -108,6 +110,7 @@ const T = {
     notFoundDesc: 'Página não encontrada.',
     back: 'Voltar ao início',
     noStation: (id: string) => `Não há nenhum posto público com o código ${id}.`,
+    noPublishedPhoto: (id: string) => `Não há nenhuma foto publicada com o código ${id}.`,
     noSocket: (code: string) => `Não há nenhuma tomada com o código EVSE ${code}.`,
     badStation: 'Código de posto inválido.',
     badSocket: 'Código EVSE inválido.',
@@ -181,6 +184,7 @@ const T = {
     emptySend: 'Send the first one',
     hasPhoto: 'Has a photo',
     photoBy: 'Photo:',
+    creditAlt: (code: string) => `Photo of socket ${code}: see the credit`,
     askRemoval: 'Ask for removal',
     photoAlt: (id: string) => `Main photo of station ${id}`,
     hint: 'The community picks the main photo. The static link stays the same when it changes.',
@@ -219,6 +223,7 @@ const T = {
     notFoundDesc: 'Page not found.',
     back: 'Back to home',
     noStation: (id: string) => `There is no public station with the code ${id}.`,
+    noPublishedPhoto: (id: string) => `There is no published photo with the code ${id}.`,
     noSocket: (code: string) => `There is no socket with the EVSE code ${code}.`,
     badStation: 'Invalid station code.',
     badSocket: 'Invalid EVSE code.',
@@ -422,7 +427,13 @@ function copyRow(id: string, base: string, label: string): string {
         </div>`;
 }
 
-function socketItem(lang: Lang, p: PointRow, i: number, hasPhoto: boolean): string {
+// The thumbnail of a socket's main photo, linked to its credit page.
+function thumb(lang: Lang, compact: string, main: MainPhotos[string]): string {
+  const img = `<img class="thumb" src="${PICTURES}/${encodeURIComponent(compact)}.thumb.jpg" alt="${esc(T[lang].creditAlt(compact))}" loading="lazy">`;
+  return main.photo_id ? `<a href="${photoPath(lang, main.photo_id)}">${img}</a>` : img;
+}
+
+function socketItem(lang: Lang, p: PointRow, i: number, main?: MainPhotos[string]): string {
   const t = T[lang];
   const anchor = p.evse_compact ? ` id="t-${esc(p.evse_compact)}"` : '';
   const meta = [plug(lang, p.connector), kw(lang, p.max_kw), p.dc ? 'DC' : 'AC'];
@@ -434,8 +445,8 @@ function socketItem(lang: Lang, p: PointRow, i: number, hasPhoto: boolean): stri
     ? copyRow(`l-t${i}`, `${PICTURES}/${encodeURIComponent(p.evse_compact)}`, t.copySocket(p.evse_id ?? p.point_id))
     : '';
   return `<li class="socket"${anchor}>
-      ${hasPhoto && p.evse_compact
-        ? `<img class="thumb" src="${PICTURES}/${encodeURIComponent(p.evse_compact)}.thumb.jpg" alt="" loading="lazy">`
+      ${main && p.evse_compact
+        ? thumb(lang, p.evse_compact, main)
         : `<div class="thumb" aria-hidden="true">${t.noPhoto}</div>`}
       <div class="info">
         ${code}
@@ -487,7 +498,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
     ${main
       ? `<figure class="main-photo">
       <a href="${PICTURES}/${encodeURIComponent(s.id)}.full.jpg"><img src="${PICTURES}/${encodeURIComponent(s.id)}.jpg" alt="${esc(t.photoAlt(s.id))}"></a>
-      <figcaption>${t.photoBy} <span lang="">${esc(main.credit ?? BRAND)}</span> · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">CC BY-SA 4.0</a> · <a href="${lang === 'pt' ? '/report' : '/en/report'}?alvo=${encodeURIComponent(s.id)}" rel="nofollow">${t.askRemoval}</a></figcaption>
+      <figcaption>${t.photoBy} ${main.photo_id ? `<a href="${photoPath(lang, main.photo_id)}">` : ''}<span lang="">${esc(main.credit ?? BRAND)}</span>${main.photo_id ? '</a>' : ''} · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">CC BY-SA 4.0</a> · <a href="${lang === 'pt' ? '/report' : '/en/report'}?alvo=${encodeURIComponent(s.id)}" rel="nofollow">${t.askRemoval}</a></figcaption>
     </figure>`
       : `<div class="empty-photo">
       ${ICON_CAMERA}
@@ -517,7 +528,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
       <h2>${t.socketsTitle}</h2>
       <p>${t.socketsIntro}</p>
       <ul class="sockets" role="list">
-    ${points.map((p, i) => socketItem(lang, p, i, Boolean(p.evse_compact && mains[p.evse_compact]))).join('\n    ')}
+    ${points.map((p, i) => socketItem(lang, p, i, p.evse_compact ? mains[p.evse_compact] : undefined)).join('\n    ')}
       </ul>
     </section>
     <section class="card">

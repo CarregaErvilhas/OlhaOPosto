@@ -225,7 +225,7 @@ async function syncCopies(env: PublishEnv, fetcher: Fetch): Promise<number> {
     }
     if (!pictures) continue;
     try {
-      const packet = xmpPacket({ author: row.credit ?? 'olh\'o\'posto', stationId: row.station_id });
+      const packet = xmpPacket({ author: row.credit ?? 'olh\'o\'posto', photoId: row.photo_id });
       for (const size of SIZES) {
         const key = `${row.target}${size.suffix}.jpg`;
         const obj = await pictures.get(key);

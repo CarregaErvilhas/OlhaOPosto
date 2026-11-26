@@ -17,7 +17,7 @@ As fotos enviadas pelo olh'o'posto ficam sob a [Creative Commons Atribuição-Co
 
 Quem envia uma foto aceita estas condições uma vez, ao entrar, e declara que é o autor da foto.
 
-**Atribuição.** O autor e a licença vão nos metadados (XMP) das cópias públicas, que apontam para a página do posto, onde está o crédito. Uma página de crédito por foto (`/p/{photo_id}`) está no [`plan.md`](plan.md).
+**Atribuição.** O autor e a licença vão nos metadados (XMP) das cópias públicas, que apontam para a página de crédito da foto (`/p/{photo_id}`); as cópias publicadas antes dessa página continuam a apontar para a página do posto.
 
 Quem envia aceita também as [condições de utilização](https://olhaoposto.ocarroeletrico.com/condicoes) (`worker/src/terms.ts`), que repetem estas regras.
 

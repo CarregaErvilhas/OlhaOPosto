@@ -195,7 +195,7 @@ DELETE FROM tokens WHERE account_id = (SELECT id FROM accounts WHERE name = 'Olh
 
 Para revogar e emitir um novo, basta voltar a correr o script. Trocar o `FLASK_SECRET_KEY` invalida todos os tokens do servidor de uma vez.
 
-**Crédito por foto (ponto 5 do ensaio):** o STAC mostra sempre `providers: OlhaOPosto` e `geovisio:producer: OlhaOPosto` (o nome da conta). O autor só fica na etiqueta `OlhaOPosto|author=`. Por isso o crédito é dado pelo olh'o'posto e pelo XMP das cópias em `pictures.*` (`plan.md`, *Publicação dos links estáticos*).
+**Crédito por foto (ponto 5 do ensaio):** o STAC mostra sempre `providers: OlhaOPosto` e `geovisio:producer: OlhaOPosto` (o nome da conta). O autor só fica na etiqueta `OlhaOPosto|author=`. Por isso o crédito é dado pelo olh'o'posto e pelo XMP das cópias em `pictures.*` (`arquitetura.md`, *Links estáticos*).
 
 ### Acesso de admin
 

@@ -22,6 +22,7 @@ import { termsPage } from './terms.ts';
 import { proposeStation } from './proposals.ts';
 import { groupPage } from './grupo.ts';
 import { photoLink } from './photolinks.ts';
+import { creditPage, getCredit } from './photopage.ts';
 import { PROMOTE_ACTION, lostHtml, promoteMain } from './mains.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
@@ -71,6 +72,14 @@ const TURNSTILE_HEADERS = {
   'content-security-policy': HTML_HEADERS['content-security-policy']
     .replace("default-src 'none';", "default-src 'none'; connect-src 'self'; frame-src https://challenges.cloudflare.com;")
     .replace("script-src 'self'", "script-src 'self' https://challenges.cloudflare.com"),
+};
+
+// The credit page may show a published photo that is not the main one, which
+// only Panoramax serves (the sizes in pictures.* are the main photos').
+const CREDIT_HEADERS = {
+  ...HTML_HEADERS,
+  'content-security-policy': HTML_HEADERS['content-security-policy']
+    .replace("img-src 'self'", "img-src 'self' https://panoramax.ocarroeletrico.com"),
 };
 
 // 429 from the request limits (src/ratelimit.ts): JSON for the API, a short
@@ -207,6 +216,17 @@ function stationHtml(lang: Lang) {
   };
 }
 
+function creditHtml(lang: Lang) {
+  return async (env: Env, id: string): Promise<Response> => {
+    const row = await getCredit(env, id);
+    if (!row) return pageNotFound(lang, messages(lang).noPublishedPhoto(id));
+    return new Response(creditPage(lang, row), {
+      status: 200,
+      headers: { ...CREDIT_HEADERS, 'content-language': lang === 'pt' ? 'pt-PT' : 'en', 'cache-control': 'public, max-age=300' },
+    });
+  };
+}
+
 function evseHtml(lang: Lang) {
   return async (env: Env, raw: string): Promise<Response> => {
     const results = await findEvse(env, raw);
@@ -325,6 +345,8 @@ const ROUTES: [RegExp, Handler, () => Response][] = [
   [/^\/api\/v1\/evses\/([^/]+)$/, evseJson, notFound],
   [/^\/postos\/([^/]+)$/, stationHtml('pt'), () => pageNotFound('pt', messages('pt').badStation)],
   [/^\/tomadas\/([^/]+)$/, evseHtml('pt'), () => pageNotFound('pt', messages('pt').badSocket)],
+  [/^\/p\/([^/]+)$/, creditHtml('pt'), () => pageNotFound('pt', messages('pt').noPublishedPhoto('?'))],
+  [/^\/en\/p\/([^/]+)$/, creditHtml('en'), () => pageNotFound('en', messages('en').noPublishedPhoto('?'))],
   [/^\/en\/stations\/([^/]+)$/, stationHtml('en'), () => pageNotFound('en', messages('en').badStation)],
   [/^\/en\/sockets\/([^/]+)$/, evseHtml('en'), () => pageNotFound('en', messages('en').badSocket)],
 ];

@@ -56,7 +56,7 @@ function world(db: ReturnType<typeof d1>, opts: { panoramax?: number; purge?: nu
   const r2 = new Map<string, { bytes: Uint8Array; etag: string }>();
   const put = (key: string, bytes: Uint8Array) => r2.set(key, { bytes, etag: `e${++n}` });
   for (const [target, author] of [['S1', 'Ana'], ['S2', 'Mestre Bea'], ['PTS2E1', 'Ana']]) {
-    const packet = xmpPacket({ author, stationId: target });
+    const packet = xmpPacket({ author, photoId: target });
     put(`${target}.jpg`, withXmp(jpeg(1024, 768), packet));
     put(`${target}.thumb.jpg`, withXmp(jpeg(400, 300), packet));
     put(`${target}.full.jpg`, withXmp(jpeg(2048, 1536), packet));

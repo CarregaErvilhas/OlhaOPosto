@@ -486,3 +486,8 @@ table.ranking .num { text-align: right; font-variant-numeric: tabular-nums; }
   .mate-pic::before, .group-stage::before, .mate-bubble::before { display: none; }
   .mate-host::before { background: CanvasText; }
 }
+
+/* Credit page of a photo */
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0 0 14px; font-size: 0.9375rem; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }

@@ -477,7 +477,7 @@ function licenseHtml(lang: Lang, license: string): string {
   const cc = /^CC[- ]BY(?:[- ](SA))?[- ](\d\.\d)$/i.exec(license.trim());
   if (!cc) return esc(license);
   const code = `by${cc[1] ? '-sa' : ''}`;
-  return `<a href="https://creativecommons.org/licenses/${code}/${cc[2]}/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">${esc(license)}</a>`;
+  return `<a href="https://creativecommons.org/licenses/${code}/${cc[2]}/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license noopener" target="_blank">${esc(license)}</a>`;
 }
 
 // Photos that live at their origin: a reference with author, licence and a
@@ -542,8 +542,8 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
     <h2 class="sr-only">${t.photosHeading}</h2>
     ${main
       ? `<figure class="main-photo">
-      <a href="${PICTURES}/${encodeURIComponent(s.id)}.full.jpg"><img src="${PICTURES}/${encodeURIComponent(s.id)}.jpg" alt="${esc(t.photoAlt(s.id))}"></a>
-      <figcaption>${t.photoBy} ${main.photo_id ? `<a href="${photoPath(lang, main.photo_id)}">` : ''}<span lang="">${esc(main.credit ?? BRAND)}</span>${main.photo_id ? '</a>' : ''} · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">CC BY-SA 4.0</a> · <a href="${lang === 'pt' ? '/report' : '/en/report'}?alvo=${encodeURIComponent(s.id)}" rel="nofollow">${t.askRemoval}</a></figcaption>
+      <a href="${PICTURES}/${encodeURIComponent(s.id)}.full.jpg" target="_blank" rel="noopener"><img src="${PICTURES}/${encodeURIComponent(s.id)}.jpg" alt="${esc(t.photoAlt(s.id))}"></a>
+      <figcaption>${t.photoBy} ${main.photo_id ? `<a href="${photoPath(lang, main.photo_id)}">` : ''}<span lang="">${esc(main.credit ?? BRAND)}</span>${main.photo_id ? '</a>' : ''} · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license noopener" target="_blank">CC BY-SA 4.0</a> · <a href="${lang === 'pt' ? '/report' : '/en/report'}?alvo=${encodeURIComponent(s.id)}" rel="nofollow">${t.askRemoval}</a></figcaption>
     </figure>`
       : `<div class="empty-photo">
       ${ICON_CAMERA}

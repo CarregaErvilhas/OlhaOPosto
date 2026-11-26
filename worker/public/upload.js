@@ -680,7 +680,7 @@ function init(form, M) {
     map = L.map('map', { zoomControl: true }).setView(start, start === PT_CENTER ? 7 : 16);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
     }).addTo(map);
     markers = L.layerGroup().addTo(map);
     if (meta?.lat == null) setProposeAt(mapCentre());

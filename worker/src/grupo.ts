@@ -98,9 +98,9 @@ function mate(lang: Lang, g: Mate): string {
   const go = g.here
     ? `<span class="here">${t.here}</span>`
     : g.site
-      ? `<a class="button" href="${esc(g.site)}">${t.open}&nbsp;<span aria-hidden="true">→</span></a>`
+      ? `<a class="button" href="${esc(g.site)}" target="_blank" rel="noopener">${t.open}&nbsp;<span aria-hidden="true">→</span></a>`
       : '';
-  const code = `<a class="button secondary" href="${esc(g.repo)}">${g.private ? ICON_LOCK : ICON_CODE}${g.private ? t.private : t.code}</a>`;
+  const code = `<a class="button secondary" href="${esc(g.repo)}" target="_blank" rel="noopener">${g.private ? ICON_LOCK : ICON_CODE}${g.private ? t.private : t.code}</a>`;
   return `<li class="mate m-${g.id}">
   <div class="mate-pic"><img src="/grupo/${g.id}.svg" alt="${esc(s.mascot)}" width="${g.w}" height="${g.h}" loading="lazy"></div>
   <div class="mate-bubble">

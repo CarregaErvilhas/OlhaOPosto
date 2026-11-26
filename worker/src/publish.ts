@@ -99,15 +99,37 @@ interface Approved {
   panoramax_id: string | null;
 }
 
-// Targets this approval makes main, already claimed in `selections`.
-async function claim(env: PublishEnv, p: Approved, userId: string, now: string): Promise<string[]> {
+// A target this approval made main: a new row, or a lost one taken over
+// (`prior` is what to put back if the copies fail).
+interface Claim {
+  target: string;
+  prior: { photo_id: string; chosen_by: string | null; chosen_at: string; lost_at: string } | null;
+}
+
+// Targets this approval makes main, already claimed in `selections`. A
+// target whose main photo left (lost_at set) has no main either, so it is
+// claimed too; one with a live main photo is left alone.
+async function claim(env: PublishEnv, p: Approved, userId: string, now: string): Promise<Claim[]> {
   const targets = p.evse_compact ? [p.evse_compact, p.station_id] : [p.station_id];
-  const won: string[] = [];
+  const won: Claim[] = [];
   for (const target of targets) {
     const r = await db(env).prepare(
       `INSERT OR IGNORE INTO selections (target, station_id, photo_id, chosen_by, chosen_at) VALUES (?, ?, ?, ?, ?)`,
     ).bind(target, p.station_id, p.id, userId, now).run();
-    if (r.meta.changes === 1) won.push(target);
+    if (r.meta.changes === 1) {
+      won.push({ target, prior: null });
+      continue;
+    }
+    const prior = await db(env).prepare(
+      `SELECT photo_id, chosen_by, chosen_at, lost_at FROM selections WHERE target = ? AND lost_at IS NOT NULL`,
+    ).bind(target).first<NonNullable<Claim['prior']>>();
+    if (!prior) continue;
+    // Compare-and-set on the lost row read above: two approvals cannot both win.
+    const u = await db(env).prepare(
+      `UPDATE selections SET photo_id = ?, chosen_by = ?, chosen_at = ?, published_at = NULL, lost_at = NULL, credit_pending = 0
+        WHERE target = ? AND photo_id = ? AND lost_at = ?`,
+    ).bind(p.id, userId, now, target, prior.photo_id, prior.lost_at).run();
+    if (u.meta.changes === 1) won.push({ target, prior });
   }
   return won;
 }
@@ -123,8 +145,9 @@ export async function publishMain(
     `SELECT id, station_id, evse_compact, credit, panoramax_id FROM photos WHERE id = ? AND status = 'published'`,
   ).bind(photoId).first<Approved>();
   if (!p) return [];
-  const targets = await claim(env, p, userId, now.toISOString());
-  if (targets.length === 0) return [];
+  const claims = await claim(env, p, userId, now.toISOString());
+  if (claims.length === 0) return [];
+  const targets = claims.map((c) => c.target);
   const pictures = env.PICTURES as PublicBucket;
   const staging = env.STAGING as unknown as StagingBucket;
   const written: string[] = [];
@@ -164,8 +187,14 @@ export async function publishMain(
     return targets;
   } catch (err) {
     await pictures.delete(written).catch(() => {});
-    for (const target of targets) {
-      await db(env).prepare('DELETE FROM selections WHERE target = ? AND photo_id = ?').bind(target, p.id).run().catch(() => {});
+    for (const { target, prior } of claims) {
+      // A new row goes; a lost row taken over goes back to lost.
+      const undo = prior
+        ? db(env).prepare(
+          'UPDATE selections SET photo_id = ?, chosen_by = ?, chosen_at = ?, lost_at = ? WHERE target = ? AND photo_id = ?',
+        ).bind(prior.photo_id, prior.chosen_by, prior.chosen_at, prior.lost_at, target, p.id)
+        : db(env).prepare('DELETE FROM selections WHERE target = ? AND photo_id = ?').bind(target, p.id);
+      await undo.run().catch(() => {});
     }
     throw err;
   }
@@ -173,7 +202,10 @@ export async function publishMain(
 
 // Choose (or replace) the main photo of a target. Trusted or moderator only
 // (enforced by the caller). Copies the three sizes over the existing keys and
-// purges the cache. Returns the targets published.
+// purges the cache. Returns the targets published. Also how a target that
+// lost its main photo gets the next one: never on its own, always chosen by
+// a moderator (src/mains.ts), since the next photo may not be one anyone
+// would pick.
 export async function chooseMain(
   env: PublishEnv, target: string, photoId: string, userId: string,
   fetcher: Fetch = fetch, now = new Date(),
@@ -232,13 +264,14 @@ export async function chooseMain(
       `INSERT INTO selections (target, station_id, photo_id, chosen_by, chosen_at, published_at)
        VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(target) DO UPDATE SET photo_id=excluded.photo_id, chosen_by=excluded.chosen_by, chosen_at=excluded.chosen_at, published_at=excluded.published_at,
-         credit_pending=0`,
+         credit_pending=0, lost_at=NULL`,
     ).bind(target, stationId, photoId, userId, nowIso, nowIso).run();
 
     // Purge the cache for the three keys.
     await purgeCache(env, targets, fetcher).catch(() => {});
 
     // +2 for the author when the replaced main photo was over 12 months old.
+    // A lost main photo has published_at NULL: filling a gap is no refresh.
     if (old && old.photo_id !== photoId) {
       await awardRefresh(env.DB as unknown as PointsDb, photoId, old.published_at, now).catch(() => false);
     }

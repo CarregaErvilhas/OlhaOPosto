@@ -210,7 +210,7 @@ async function syncCopies(env: PublishEnv, fetcher: Fetch): Promise<number> {
   const { results } = await d.prepare(
     `SELECT s.target, s.photo_id, p.station_id, p.credit, p.status
      FROM selections s JOIN photos p ON p.id = s.photo_id
-     WHERE s.credit_pending = 1 ORDER BY s.chosen_at LIMIT ?`,
+     WHERE s.credit_pending = 1 AND s.lost_at IS NULL ORDER BY s.chosen_at LIMIT ?`,
   ).bind(COPY_BATCH).all<PendingCopy>();
   if (!results.length) return 0;
   const pictures = env.PICTURES as PicturesBucket | undefined;

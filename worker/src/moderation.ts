@@ -19,6 +19,7 @@ import { FAR_M } from './types.ts';
 import { publishMain } from './publish.ts';
 import { awardApproval, type PointsDb } from './points.ts';
 import { decideProposal, pendingProposals, proposalsSection, type ProposalRow } from './proposals.ts';
+import { lostSectionFor } from './mains.ts';
 
 export const queuePath = (lang: Lang) => (lang === 'pt' ? '/admin/fila' : '/en/admin/queue');
 // One POST for both languages; the form says which page to go back to.
@@ -159,7 +160,7 @@ ${warn}
 </article>`;
 }
 
-export function queuePage(lang: Lang, rows: QueueRow[], p: { ok?: string; error?: string; proposals?: ProposalRow[] }): string {
+export function queuePage(lang: Lang, rows: QueueRow[], p: { ok?: string; error?: string; proposals?: ProposalRow[]; lost?: string }): string {
   const t = T[lang];
   const parts = [`<h1>${t.title}</h1>`];
   const ok = p.ok ? t.ok[p.ok] : undefined;
@@ -174,6 +175,8 @@ export function queuePage(lang: Lang, rows: QueueRow[], p: { ok?: string; error?
     parts.push(rows.map((r) => card(lang, r)).join('\n'));
     if (rows.length >= QUEUE_LIMIT) parts.push(`<p class="muted">${t.more(QUEUE_LIMIT)}</p>`);
   }
+  // Targets that lost their main photo, to choose the next one (src/mains.ts).
+  if (p.lost) parts.push(p.lost);
   parts.push(`<p><a href="${accountPath(lang)}">${t.back}</a></p>`);
   return layout({
     lang,
@@ -220,8 +223,10 @@ export async function queueHtml(lang: Lang, request: Request, env: PhotoEnv, hea
   ).all<QueueRow>();
   const url = new URL(request.url);
   const proposals = await pendingProposals(env).catch(() => []);
+  const lost = await lostSectionFor(lang, env, request, 'queue');
   return page(lang, queuePage(lang, results ?? [], {
     proposals,
+    lost,
     ok: url.searchParams.get('ok') ?? undefined,
     error: url.searchParams.get('erro') ?? undefined,
   }), 200, headers);

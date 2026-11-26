@@ -1,19 +1,8 @@
 # Cloudflare — recursos do olh'o'posto
 
-Zona `ocarroeletrico.com`, na conta Cloudflare existente. O
-servidor Panoramax (Zerops, bucket `panoramax`, DNS do `panoramax.*`) está em
-[`infra.md`](infra.md). O porquê está em [`arquitetura.md`](arquitetura.md), secções *Nomes
-e domínios* e *Links estáticos*; a publicação das fotos, que falta, em
-[`plan.md`](plan.md).
+Zona `ocarroeletrico.com`, na conta Cloudflare existente. O servidor Panoramax (Zerops, bucket `panoramax`, DNS do `panoramax.*`) está em [`infra.md`](infra.md). O porquê está em [`arquitetura.md`](arquitetura.md), secções *Nomes e domínios* e *Links estáticos*; a publicação das fotos, que falta, em [`plan.md`](plan.md).
 
-**Que CLI.** Os recursos da conta e da zona (R2, domínios, DNS, Cache
-Rules, purgas) fazem-se com o `cf`. O Worker, a D1 e os segredos do Worker
-continuam com o wrangler, sempre pelos *scripts* do `npm` (`npm run dev`,
-`npm run deploy`, `npm run remote`): o projeto tem `wrangler.json`, o deploy
-depende do truque do ID da D1 (secção 4), o Workers Builds corre o
-`npm run deploy`, e o `cf` (em beta) ainda não faz `secret put`. Não correr
-`cf dev`, `cf deploy` nem `cf migrate` aqui: geram outra configuração que
-ignora o `wrangler.json`.
+**Que CLI.** Os recursos da conta e da zona (R2, domínios, DNS, Cache Rules, purgas) fazem-se com o `cf`. O Worker, a D1 e os segredos do Worker continuam com o wrangler, sempre pelos *scripts* do `npm` (`npm run dev`, `npm run deploy`, `npm run remote`): o projeto tem `wrangler.json`, o deploy depende do truque do ID da D1 (secção 4), o Workers Builds corre o `npm run deploy`, e o `cf` (em beta) ainda não faz `secret put`. Não correr `cf dev`, `cf deploy` nem `cf migrate` aqui: geram outra configuração que ignora o `wrangler.json`.
 
 ## 1. Estado
 
@@ -36,37 +25,20 @@ ignora o `wrangler.json`.
 | `pictures-staging` | Privado: sem domínio, `r2.dev` desligado | Versões de 1024 e 400 px até à aprovação |
 | `panoramax` | Privado ([`infra.md`](infra.md), secção 5) | Armazenamento do Panoramax |
 
-O `pictures-staging` tem de ser um bucket à parte, não um prefixo em
-`pictures`: tudo o que está em `pictures` fica público pelo domínio.
+O `pictures-staging` tem de ser um bucket à parte, não um prefixo em `pictures`: tudo o que está em `pictures` fica público pelo domínio.
 
 ## 3. `pictures.ocarroeletrico.com`
 
-**Custom domain.** TLS mínimo **1.3**. Fica de fora quem só fala TLS 1.2:
-Android 9 e mais antigos, iOS anterior ao 12.2, apps nativas do Windows 10 (Schannel, .NET Framework, PowerShell 5) e Java
-ou Python com OpenSSL antigo. Se alguma app ou mapa se queixar, baixar para
-1.2 com `cf r2 buckets domains custom update pictures.ocarroeletrico.com
---bucket-name pictures --min-tls 1.2`.
+**Custom domain.** TLS mínimo **1.3**. Fica de fora quem só fala TLS 1.2: Android 9 e mais antigos, iOS anterior ao 12.2, apps nativas do Windows 10 (Schannel, .NET Framework, PowerShell 5) e Java ou Python com OpenSSL antigo. Se alguma app ou mapa se queixar, baixar para 1.2 com `cf r2 buckets domains custom update pictures.ocarroeletrico.com --bucket-name pictures --min-tls 1.2`.
 
-**Cache Rule** (fase `http_request_cache_settings` da zona, a regra
-«pictures: static R2 links…», `http.host eq "pictures.ocarroeletrico.com"`):
+**Cache Rule** (fase `http_request_cache_settings` da zona, a regra «pictures: static R2 links…», `http.host eq "pictures.ocarroeletrico.com"`):
 
-- **Edge TTL de 30 dias**, ignorando o `Cache-Control` do objeto. A frescura
-  vem da purga que o Worker faz ao mudar a foto principal, não do TTL.
-- **4xx e 5xx: nunca ficam em cache** (4xx em *no-store*). Um posto sem
-  foto dá `404` e esse `404` não fica guardado, por isso uma primeira foto
-  aparece logo, sem purga. O custo é que cada pedido de um posto sem foto
-  chega ao R2 (uma leitura Classe B).
-- **Browser TTL: o do objeto.** O Worker grava cada objeto com
-  `Cache-Control: public, max-age=86400` (`httpMetadata.cacheControl` no
-  `put`). Sem isso o browser não recebe `Cache-Control` nenhum.
-- **Query strings fora da chave de cache.** `?x=1` serve a mesma cópia, por
-  isso ninguém fura a cache para gerar leituras Classe B no R2.
+- **Edge TTL de 30 dias**, ignorando o `Cache-Control` do objeto. A frescura vem da purga que o Worker faz ao mudar a foto principal, não do TTL.
+- **4xx e 5xx: nunca ficam em cache** (4xx em *no-store*). Um posto sem foto dá `404` e esse `404` não fica guardado, por isso uma primeira foto aparece logo, sem purga. O custo é que cada pedido de um posto sem foto chega ao R2 (uma leitura Classe B).
+- **Browser TTL: o do objeto.** O Worker grava cada objeto com `Cache-Control: public, max-age=86400` (`httpMetadata.cacheControl` no `put`). Sem isso o browser não recebe `Cache-Control` nenhum.
+- **Query strings fora da chave de cache.** `?x=1` serve a mesma cópia, por isso ninguém fura a cache para gerar leituras Classe B no R2.
 
-**CORS no bucket** (`public-read`): `GET` e `HEAD` de qualquer origem,
-`maxAgeSeconds` 86400. Um `<img>` não precisa disto, mas os mapas web
-(MapLibre) carregam imagens por `fetch` e falham sem
-`Access-Control-Allow-Origin`. Testado: com `Origin` a resposta leva `*`,
-também quando vem da cache (HIT).
+**CORS no bucket** (`public-read`): `GET` e `HEAD` de qualquer origem, `maxAgeSeconds` 86400. Um `<img>` não precisa disto, mas os mapas web (MapLibre) carregam imagens por `fetch` e falham sem `Access-Control-Allow-Origin`. Testado: com `Origin` a resposta leva `*`, também quando vem da cache (HIT).
 
 Verificar:
 
@@ -83,14 +55,11 @@ Purga à mão (o Worker faz o mesmo pela API ao mudar a principal):
 cf cache purge -z ocarroeletrico.com -f --body '{"files":["https://pictures.ocarroeletrico.com/<id>.jpg"]}'
 ```
 
-No `cf`, os comandos que apagam ou substituem (`r2 objects delete`,
-`r2 buckets cors update`) pedem `--force` quando não há terminal interativo.
+No `cf`, os comandos que apagam ou substituem (`r2 objects delete`, `r2 buckets cors update`) pedem `--force` quando não há terminal interativo.
 
 ## 4. Worker e D1
 
-O código está em `worker/`. O Worker chama-se `olhaoposto` e responde em
-`olhaoposto.ocarroeletrico.com` (custom domain; `workers.dev` e *preview URLs*
-desligados). Por agora tem:
+O código está em `worker/`. O Worker chama-se `olhaoposto` e responde em `olhaoposto.ocarroeletrico.com` (custom domain; `workers.dev` e *preview URLs* desligados). Por agora tem:
 
 | Pedido | Devolve |
 | --- | --- |
@@ -108,8 +77,8 @@ desligados). Por agora tem:
 | `GET /privacidade`, `/en/privacy` | Política de privacidade (`src/privacy.ts`), com ligação no rodapé de todas as páginas e no *sitemap*. Muda no mesmo PR que mudar o que o Worker guarda |
 | `GET /condicoes`, `/en/terms` | Condições de utilização (`src/terms.ts`): o que aceita quem envia fotos, propõe postos ou usa um *token*. Ligação no rodapé, no consentimento da página de envio e no *sitemap* |
 | `GET /grupo`, `/en/group` | Os outros sites do grupo d'O Carro Elétrico, cada um com a sua mascote (`src/grupo.ts`, imagens em `public/grupo/`; o servidor Panoramax leva o logótipo do Panoramax). Mesma ordem e mesmos textos da página igual do `ocarroeletrico.com`. Ligação no rodapé de todas as páginas e no *sitemap* |
-| `GET /conta`, `/en/account` | A conta de quem tem sessão (`src/account.ts`): nome, papel, ligação para o envio, pontos e medalha, sair ou voltar ao ranking, *tokens* de API (criar, listar, revogar) e o botão para terminar; ou o botão para iniciar sessão. Lê a sessão: `no-store` e `noindex` |
-| `POST /conta/acao` | As ações da conta (`action`: `create_token`, `revoke_token`, `ranking_out`, `ranking_in`), só do próprio site. Criar um *token* responde com a própria página, que o mostra uma vez; nunca vai num URL nem num redirect |
+| `GET /conta`, `/en/account` | A conta de quem tem sessão (`src/account.ts`): nome, papel, ligação para o envio, nome a mostrar (pseudónimo), pontos e medalha, sair ou voltar ao ranking, *tokens* de API (criar, listar, revogar) e o botão para terminar; ou o botão para iniciar sessão. Lê a sessão: `no-store` e `noindex` |
+| `POST /conta/acao` | As ações da conta (`action`: `set_credit`, `reset_credit`, `create_token`, `revoke_token`, `ranking_out`, `ranking_in`), só do próprio site. Criar um *token* responde com a própria página, que o mostra uma vez; nunca vai num URL nem num redirect |
 | `GET /ranking`, `/en/ranking`, `/api/v1/ranking?period=month\|all` | Tabela dos 50 primeiros (nome, medalha, fotos, pontos) e as regras dos pontos (`src/points.ts`). Só contam fotos publicadas; quem saiu do ranking não aparece |
 | `GET /enviar`, `/en/upload` | Página de envio (`src/upload.ts` e `public/upload.js`), só com sessão; sem ela, o botão para iniciar sessão. Lê a sessão: `no-store`, `noindex`, fora do *sitemap*. A CSP desta página acrescenta `connect-src 'self'` (pede postos à API, e os ficheiros do HEIC e da deteção de caras), `blob:` e `https://tile.openstreetmap.org` em `img-src` (a foto preparada e o mapa), `'wasm-unsafe-eval'` em `script-src` (compilar o WebAssembly do libheif e do MediaPipe; não permite `eval` de JavaScript) e o Turnstile. O formulário de remoção tem a sua CSP, só com o Turnstile |
 | `GET /auth/osm/login?next=` | `302` para o OpenStreetMap, com `state` e PKCE num *cookie* de 10 minutos. `503` enquanto não houver os segredos do OSM |
@@ -119,284 +88,82 @@ desligados). Por agora tem:
 | `POST /api/v1/stations` | Propor um posto que não está no NAP (`src/proposals.ts`, ver *Postos propostos*), com sessão do próprio site ou *token* `photos:write` |
 | `PUT /api/v1/selections/{target}` | Escolher a foto principal de um posto ou tomada (`{"photo": "<id>"}`), para `trusted`, moderadores e administradores, com sessão do próprio site ou *token* `selections:write`. Copia os três tamanhos por cima e faz *purge* |
 
-As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os
-ficheiros de `worker/public/` (CSS, *scripts*, fontes, ícones) são *static
-assets* do Worker: a Cloudflare serve-os antes de o código correr e não contam
-para o limite de pedidos. O `public/_headers` dá às fontes um ano de cache
-(`immutable`): uma fonte nova leva um nome de ficheiro novo. O CSS e os
-*scripts* (`site.js`, `theme.js`, `upload.js`, `jpeg.js`, `heif.js`, `heic.js`,
-`detect.js`) e as bibliotecas de `public/vendor/` mantêm o nome, por
-isso vão com `no-cache`: o browser confirma-os (ETag) em cada página e um
-deploy nunca junta HTML novo com CSS antigo.
+As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os ficheiros de `worker/public/` (CSS, *scripts*, fontes, ícones) são *static assets* do Worker: a Cloudflare serve-os antes de o código correr e não contam para o limite de pedidos. O `public/_headers` dá às fontes um ano de cache (`immutable`): uma fonte nova leva um nome de ficheiro novo. O CSS e os *scripts* (`site.js`, `theme.js`, `upload.js`, `jpeg.js`, `heif.js`, `heic.js`, `detect.js`) e as bibliotecas de `public/vendor/` mantêm o nome, por isso vão com `no-cache`: o browser confirma-os (ETag) em cada página e um deploy nunca junta HTML novo com CSS antigo.
 
-**Seletor de tema** (`public/theme.js`). Automático (segue o sistema), claro
-ou escuro, no cabeçalho. Carrega no `<head>` sem `defer`, para o tema estar
-posto antes de a página aparecer. "Automático" não guarda nada; claro ou
-escuro ficam em `localStorage` (`vf-theme`), só no browser. Sem JavaScript o
-seletor fica escondido e vale o tema do sistema.
+**Seletor de tema** (`public/theme.js`). Automático (segue o sistema), claro ou escuro, no cabeçalho. Carrega no `<head>` sem `defer`, para o tema estar posto antes de a página aparecer. "Automático" não guarda nada; claro ou escuro ficam em `localStorage` (`vf-theme`), só no browser. Sem JavaScript o seletor fica escondido e vale o tema do sistema.
 
-**Links externos** (OSM, o código no GitHub) e o JSON da API abrem num
-separador novo, com `rel="noopener"`.
+**Links externos** (OSM, o código no GitHub) e o JSON da API abrem num separador novo, com `rel="noopener"`.
 
-**Duas línguas, URLs fixos.** As páginas em pt-PT ficam onde estavam; o
-inglês vive em `/en/`. Não há redirecionamento pelo `Accept-Language` (os
-robôs de pesquisa só veriam uma língua): cada página tem um link para a
-outra língua, o seu próprio `canonical` e os `hreflang` das duas (`pt-PT`,
-`en`, `x-default` para o pt-PT). Os textos do NAP (nomes, moradas,
-operadores) não se traduzem; nas páginas em inglês vão marcados com
-`lang="pt-PT"` para os leitores de ecrã. Todas as frases estão num único
-dicionário em `src/pages.ts`.
+**Duas línguas, URLs fixos.** As páginas em pt-PT ficam onde estavam; o inglês vive em `/en/`. Não há redirecionamento pelo `Accept-Language` (os robôs de pesquisa só veriam uma língua): cada página tem um link para a outra língua, o seu próprio `canonical` e os `hreflang` das duas (`pt-PT`, `en`, `x-default` para o pt-PT). Os textos do NAP (nomes, moradas, operadores) não se traduzem; nas páginas em inglês vão marcados com `lang="pt-PT"` para os leitores de ecrã. Todas as frases estão num único dicionário em `src/pages.ts`.
 
-**Acessibilidade.** Contraste de pelo menos 4,5:1 no texto e 3:1 nos
-contornos dos botões, nos temas claro e escuro. Tamanhos
-de letra em `rem` e sem tamanho no `html`, para respeitar o tamanho de letra
-do browser e do sistema; a página passa a 320 px de largura com texto a
-200 % sem *scroll* horizontal. Há regras para `prefers-contrast: more` e para
-o modo de cores forçadas do Windows. O botão de copiar anuncia o resultado
-numa região `role="status"` e troca o ícone, em vez de mudar só a cor.
+**Acessibilidade.** Contraste de pelo menos 4,5:1 no texto e 3:1 nos contornos dos botões, nos temas claro e escuro. Tamanhos de letra em `rem` e sem tamanho no `html`, para respeitar o tamanho de letra do browser e do sistema; a página passa a 320 px de largura com texto a 200 % sem *scroll* horizontal. Há regras para `prefers-contrast: more` e para o modo de cores forçadas do Windows. O botão de copiar anuncia o resultado numa região `role="status"` e troca o ícone, em vez de mudar só a cor.
 
-**Nada de terceiros nas páginas.** As fontes (Inter, Space Grotesk, JetBrains
-Mono) estão alojadas em `public/fonts/`, não no Google Fonts. A CSP só deixa
-carregar ficheiros do próprio site e imagens de `pictures.*`, e não permite
-*scripts* nem estilos *inline*: tudo vai em `site.css` e nos *scripts* de
-`public/`. A página de envio é a única com uma CSP mais larga (ver a tabela
-acima): o Turnstile e, só se a pessoa abrir o mapa, os mosaicos do
-OpenStreetMap.
+**Nada de terceiros nas páginas.** As fontes (Inter, Space Grotesk, JetBrains Mono) estão alojadas em `public/fonts/`, não no Google Fonts. A CSP só deixa carregar ficheiros do próprio site e imagens de `pictures.*`, e não permite *scripts* nem estilos *inline*: tudo vai em `site.css` e nos *scripts* de `public/`. A página de envio é a única com uma CSP mais larga (ver a tabela acima): o Turnstile e, só se a pessoa abrir o mapa, os mosaicos do OpenStreetMap.
 
-**Bibliotecas do browser** (`scripts/vendor.ts`). A página de envio usa três
-bibliotecas, todas `devDependencies` com versão exata (o Dependabot do npm
-atualiza-as): `libheif-js` (LGPL-3.0, fotos HEIC), `@mediapipe/tasks-vision`
-(Apache-2.0, deteção de caras) e `leaflet` (BSD-2-Clause, o mapa). Nenhum
-ficheiro delas vai para o repositório: o `npm run vendor` copia-os de
-`node_modules` para `public/vendor/` (ignorada pelo git), e corre antes do
-`npm run dev` e no início do `npm run deploy`. O WebAssembly do MediaPipe tem
-cerca de 15 MB (o limite por ficheiro dos *static assets* é 25 MiB) e só se
-descarrega quando a página procura caras. O modelo de caras (BlazeFace,
-Apache-2.0, 230 kB) está em `public/models/`, com a origem e o SHA-256 no
-`README.txt` ao lado. As
-páginas levam também HSTS, `nosniff`, `referrer-policy` e COOP; a API leva
-`x-robots-tag: noindex`, porque é para apps e agentes, não para resultados de
-pesquisa.
+**Bibliotecas do browser** (`scripts/vendor.ts`). A página de envio usa três bibliotecas, todas `devDependencies` com versão exata (o Dependabot do npm atualiza-as): `libheif-js` (LGPL-3.0, fotos HEIC), `@mediapipe/tasks-vision` (Apache-2.0, deteção de caras) e `leaflet` (BSD-2-Clause, o mapa). Nenhum ficheiro delas vai para o repositório: o `npm run vendor` copia-os de `node_modules` para `public/vendor/` (ignorada pelo git), e corre antes do `npm run dev` e no início do `npm run deploy`. O WebAssembly do MediaPipe tem cerca de 15 MB (o limite por ficheiro dos *static assets* é 25 MiB) e só se descarrega quando a página procura caras. O modelo de caras (BlazeFace, Apache-2.0, 230 kB) está em `public/models/`, com a origem e o SHA-256 no `README.txt` ao lado. As páginas levam também HSTS, `nosniff`, `referrer-policy` e COOP; a API leva `x-robots-tag: noindex`, porque é para apps e agentes, não para resultados de pesquisa.
 
-**Registos do Worker** (`observability` no `wrangler.json`). Cada pedido
-fica nos Workers Logs com o URL (incluindo o texto das pesquisas), o IP, a
-localização que a Cloudflare tira dele e o navegador; os cabeçalhos `cookie`
-e `authorization` aparecem como `REDACTED`. Retenção: 3 dias no plano Free,
-até 7 com os preços novos da Cloudflare. É isto que a política de
-privacidade descreve; se a retenção ou os campos mudarem, ela muda também.
+**Registos do Worker** (`observability` no `wrangler.json`). Cada pedido fica nos Workers Logs com o URL (incluindo o texto das pesquisas), o IP, a localização que a Cloudflare tira dele e o navegador; os cabeçalhos `cookie` e `authorization` aparecem como `REDACTED`. Retenção: 3 dias no plano Free, até 7 com os preços novos da Cloudflare. É isto que a política de privacidade descreve; se a retenção ou os campos mudarem, ela muda também.
 
-**Início de sessão com o OpenStreetMap** (`src/auth.ts`, migração `0004`).
-OAuth2 com PKCE (S256), só o âmbito `read_prefs`: chega para ler o número e
-o nome da conta, não dá o email nem deixa editar o mapa. O *token* do OSM
-serve uma vez, para ler `user/details`, e é revogado logo a seguir. A sessão
-é do olh'o'posto: um *cookie* `__Host-oop_session` (`HttpOnly`, `Secure`,
-`SameSite=Lax`, 30 dias) com um valor aleatório, e na tabela `sessions` só o
-SHA-256 dele. As sessões expiradas saem no login seguinte. A tabela `users`
-guarda o número e o nome no OSM (o nome atualiza-se em cada login), o papel
-(`contributor` por omissão) e, para depois, pseudónimo, promoção e licença.
-As páginas dos postos e da pesquisa não leem a sessão, por isso continuam em
-cache e sem ida à D1; só a conta e o envio (`/conta`, `/enviar` e as versões
-em inglês) a leem.
+**Início de sessão com o OpenStreetMap** (`src/auth.ts`, migração `0004`). OAuth2 com PKCE (S256), só o âmbito `read_prefs`: chega para ler o número e o nome da conta, não dá o email nem deixa editar o mapa. O *token* do OSM serve uma vez, para ler `user/details`, e é revogado logo a seguir. A sessão é do olh'o'posto: um *cookie* `__Host-oop_session` (`HttpOnly`, `Secure`, `SameSite=Lax`, 30 dias) com um valor aleatório, e na tabela `sessions` só o SHA-256 dele. As sessões expiradas saem no login seguinte. A tabela `users` guarda o número e o nome no OSM (o nome e o `osm_key` atualizam-se em cada login), o papel (`contributor` por omissão), o pseudónimo, a promoção e a licença. As páginas dos postos e da pesquisa não leem a sessão, por isso continuam em cache e sem ida à D1; só a conta e o envio (`/conta`, `/enviar` e as versões em inglês) a leem.
 
-Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e
-`OSM_CLIENT_SECRET`: até lá, `/conta` e `/enviar` dizem que ainda não está disponível e
-`/auth/osm/*` responde `503`. Para ligar (só o Fernando):
+Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e `OSM_CLIENT_SECRET`: até lá, `/conta` e `/enviar` dizem que ainda não está disponível e `/auth/osm/*` responde `503`. Para ligar (só o Fernando):
 
-1. Confirmar que a política de privacidade (`/privacidade`) está publicada
-   e certa, incluindo o parágrafo sobre a página de envio.
-2. Registar a aplicação em `openstreetmap.org/oauth2/applications`: nome
-   "olh'o'posto", confidencial, só "Ler as preferências do utilizador"
-   (`read_prefs`), *redirect* `https://olhaoposto.ocarroeletrico.com/auth/osm/callback`.
-3. `npm run remote -- secret put OSM_CLIENT_ID` e o mesmo para
-   `OSM_CLIENT_SECRET` (pedem o valor; nunca num ficheiro do repositório).
+1. Confirmar que a política de privacidade (`/privacidade`) está publicada e certa, incluindo o parágrafo sobre a página de envio.
+2. Registar a aplicação em `openstreetmap.org/oauth2/applications`: nome "olh'o'posto", confidencial, só "Ler as preferências do utilizador" (`read_prefs`), *redirect* `https://olhaoposto.ocarroeletrico.com/auth/osm/callback`.
+3. `npm run remote -- secret put OSM_CLIENT_ID` e o mesmo para `OSM_CLIENT_SECRET` (pedem o valor; nunca num ficheiro do repositório).
 
-O `secret put` publica logo uma versão nova do Worker: não é preciso outro
-deploy. Ligar o login também abre `/enviar` a quem iniciar sessão: a página
-só prepara a foto, mas pede à API os postos à volta do GPS arredondado, e
-esse URL fica nos registos (a política já o diz). Para desligar outra vez, `npm run remote -- secret delete OSM_CLIENT_ID`.
+O `secret put` publica logo uma versão nova do Worker: não é preciso outro deploy. Ligar o login também abre `/enviar` a quem iniciar sessão: a página só prepara a foto, mas pede à API os postos à volta do GPS arredondado, e esse URL fica nos registos (a política já o diz). Para desligar outra vez, `npm run remote -- secret delete OSM_CLIENT_ID`.
 
-Em local, o `worker/.dev.vars` (ignorado pelo git) pode apontar `OSM_URL`
-para o servidor de testes do OSM (`https://master.apis.dev.openstreetmap.org`,
-com conta e aplicação próprias, *redirect* `http://127.0.0.1:8787/auth/osm/callback`)
-ou para um servidor falso. O `wrangler dev` mostra ao Worker o domínio de
-produção como *host*; com `--local-upstream 127.0.0.1:8787` o
-`redirect_uri` fica local.
+Em local, o `worker/.dev.vars` (ignorado pelo git) pode apontar `OSM_URL` para o servidor de testes do OSM (`https://master.apis.dev.openstreetmap.org`, com conta e aplicação próprias, *redirect* `http://127.0.0.1:8787/auth/osm/callback`) ou para um servidor falso. O `wrangler dev` mostra ao Worker o domínio de produção como *host*; com `--local-upstream 127.0.0.1:8787` o `redirect_uri` fica local.
 
-**Papéis** (`/admin/utilizadores` e `/en/admin/users`, `src/admin.ts`).
-Só para moderadores e administradores; quem não tem sessão vai para o login,
-outro papel recebe `403`. Lista as contas (as 200 com sessão mais recente,
-com pesquisa pelo nome no OSM) e muda o papel com um `POST /admin/papel`
-(mesma origem). Um administrador dá qualquer papel; um moderador só muda
-entre `contributor` e `trusted`, e nunca mexe em moderadores ou
-administradores. Ninguém muda o próprio papel, para o último administrador
-não se trancar fora. Cada mudança guarda `promoted_by` e `promoted_at`, e só
-escreve se o papel ainda for o que a página mostrava. O primeiro
-administrador foi promovido à mão na D1. Antes do Worker há uma segunda porta, o Cloudflare Access (*Acesso de administração*, abaixo).
+**Papéis** (`/admin/utilizadores` e `/en/admin/users`, `src/admin.ts`). Só para moderadores e administradores; quem não tem sessão vai para o login, outro papel recebe `403`. Lista as contas (as 200 com sessão mais recente, com pesquisa pelo nome no OSM) e muda o papel com um `POST /admin/papel` (mesma origem). Um administrador dá qualquer papel; um moderador só muda entre `contributor` e `trusted`, e nunca mexe em moderadores ou administradores. Ninguém muda o próprio papel, para o último administrador não se trancar fora. Cada mudança guarda `promoted_by` e `promoted_at`, e só escreve se o papel ainda for o que a página mostrava. O primeiro administrador foi promovido à mão na D1. Antes do Worker há uma segunda porta, o Cloudflare Access (*Acesso de administração*, abaixo).
 
-**Aliases de postos** (`/admin/postos-fora-do-nap` e `/en/admin/stations-missing`, `src/aliases.ts`).
-Só para moderadores e administradores. Lista os postos `missing_from_nap` que
-ainda têm fotos; o moderador escreve o código do posto novo e cria o alias
-(`POST /admin/rekey`). O link antigo responde `301` para o novo (páginas e
-`/api/v1/stations/{id}`). Migração `0009_station_aliases.sql`.
+**Aliases de postos** (`/admin/postos-fora-do-nap` e `/en/admin/stations-missing`, `src/aliases.ts`). Só para moderadores e administradores. Lista os postos `missing_from_nap` que ainda têm fotos; o moderador escreve o código do posto novo e cria o alias (`POST /admin/rekey`). O link antigo responde `301` para o novo (páginas e `/api/v1/stations/{id}`). Migração `0009_station_aliases.sql`.
 
-**Pedidos de remoção** (`/report` e `/en/report`, públicos, com o mesmo nome do Panoramax; `/admin/remocoes` e `/en/admin/takedowns`, só moderadores; `src/takedown.ts`).
-Assentam nas denúncias do próprio Panoramax (`/api/reports`), sem tabela
-nossa. No Panoramax, uma denúncia por desfocagem em falta, privacidade,
-conteúdo impróprio ou direitos de autor põe logo a foto em `owner-only` (um
-*trigger* da BD; a denúncia nasce `open_autofix`). O que o Panoramax não
-conhece são as nossas cópias, e é disso que o Worker trata.
+**Pedidos de remoção** (`/report` e `/en/report`, públicos, com o mesmo nome do Panoramax; `/admin/remocoes` e `/en/admin/takedowns`, só moderadores; `src/takedown.ts`). Assentam nas denúncias do próprio Panoramax (`/api/reports`), sem tabela nossa. No Panoramax, uma denúncia por desfocagem em falta, privacidade, conteúdo impróprio ou direitos de autor põe logo a foto em `owner-only` (um *trigger* da BD; a denúncia nasce `open_autofix`). O que o Panoramax não conhece são as nossas cópias, e é disso que o Worker trata.
 
-O formulário não pede conta nem contacto e usa o mesmo widget Turnstile do
-envio, com a ação `takedown` (um código do envio não serve aqui). A pessoa
-escreve o código do posto ou da tomada, ou cola o link da foto, da página ou
-do Panoramax; a página do posto tem um link «Pedir remoção» na legenda da
-foto que já o preenche. Se não corresponde a nenhuma foto publicada, a
-pessoa fica a saber (os links estáticos são públicos, não há nada a
-esconder). Se corresponde:
+O formulário não pede conta nem contacto e usa o mesmo widget Turnstile do envio, com a ação `takedown` (um código do envio não serve aqui). A pessoa escreve o código do posto ou da tomada, ou cola o link da foto, da página ou do Panoramax; a página do posto tem um link «Pedir remoção» na legenda da foto que já o preenche. Se não corresponde a nenhuma foto publicada, a pessoa fica a saber (os links estáticos são públicos, não há nada a esconder). Se corresponde:
 
-1. O Worker cria a denúncia no Panoramax **sem o token**: o Panoramax vê
-   primeiro se quem edita é o autor da denúncia e só depois se é o dono da
-   foto, e o autor não a pode fechar como ignorada. Todos os motivos do
-   formulário correspondem a um tipo que oculta logo; o motivo vai no início
-   do comentário.
-2. Oculta as nossas cópias: `photos.status` passa a `hidden` (o site, a API
-   e o `/main-photos` deixam de a mostrar, no máximo 5 minutos de cache), a
-   foto no Panoramax passa a `owner-only` (o mesmo que o *trigger* faz), as
-   cópias saem do R2 `pictures` e os URLs do `pictures.*` e das imagens do
-   `panoramax.*` são purgados. As linhas de `selections` só passam a
-   perdidas (`lost_at`, migração `0014`) depois de a purga correr bem:
-   enquanto não passarem, há algo por limpar. Depois ficam, para a lista
-   «Sem foto principal» (ver abaixo).
+1. O Worker cria a denúncia no Panoramax **sem o token**: o Panoramax vê primeiro se quem edita é o autor da denúncia e só depois se é o dono da foto, e o autor não a pode fechar como ignorada. Todos os motivos do formulário correspondem a um tipo que oculta logo; o motivo vai no início do comentário.
+2. Oculta as nossas cópias: `photos.status` passa a `hidden` (o site, a API e o `/main-photos` deixam de a mostrar, no máximo 5 minutos de cache), a foto no Panoramax passa a `owner-only` (o mesmo que o *trigger* faz), as cópias saem do R2 `pictures` e os URLs do `pictures.*` e das imagens do `panoramax.*` são purgados. As linhas de `selections` só passam a perdidas (`lost_at`, migração `0015`) depois de a purga correr bem: enquanto não passarem, há algo por limpar. Depois ficam, para a lista «Sem foto principal» (ver abaixo), e a sincronização dos créditos não lhes toca.
 
-**Cron a cada 6 horas** (`triggers.crons` no `wrangler.json`, `scheduled`
-no `src/index.ts`). É um *cron* e não um *webhook* porque o Panoramax não
-avisa ninguém quando chega uma denúncia. Com a regra WAF e o botão do
-visualizador a mandar toda a gente para o formulário, o formulário já oculta
-as cópias na hora, e o cron fica para o que pode falhar a meio:
+**Cron a cada 6 horas** (`triggers.crons` no `wrangler.json`, `scheduled` no `src/index.ts`). É um *cron* e não um *webhook* porque o Panoramax não avisa ninguém quando chega uma denúncia. Com a regra WAF e o botão do visualizador a mandar toda a gente para o formulário, o formulário já oculta as cópias na hora, e o cron fica para o que pode falhar a meio:
 
-- Repete as ocultações que deixaram linhas de `selections` por marcar como
-  perdidas (o R2 ou a purga falharam). Sem isto, um link estático ficava público até alguém abrir o
-  painel, ou até 30 dias na cache.
-- Rede de segurança: lê as denúncias abertas das fotos da conta de serviço
-  (`/api/users/me/reports`; é dona de todas, chega para as ler e fechar sem
-  ser admin) e oculta as nossas cópias de qualquer foto que o Panoramax tenha
-  ocultado sem passar pelo formulário (por exemplo, se a regra WAF for
-  desligada).
+- Repete as ocultações que deixaram linhas de `selections` por marcar como perdidas (o R2 ou a purga falharam). Sem isto, um link estático ficava público até alguém abrir o painel, ou até 30 dias na cache.
+- Rede de segurança: lê as denúncias abertas das fotos da conta de serviço (`/api/users/me/reports`; é dona de todas, chega para as ler e fechar sem ser admin) e oculta as nossas cópias de qualquer foto que o Panoramax tenha ocultado sem passar pelo formulário (por exemplo, se a regra WAF for desligada).
 
-O painel faz o mesmo ao abrir. É quase só espera de rede, por isso cabe nos 10 ms de CPU do plano
-Free.
+O painel faz o mesmo ao abrir. É quase só espera de rede, por isso cabe nos 10 ms de CPU do plano Free.
 
-No painel, **Remover** limpa as cópias, apaga o *upload set* no Panoramax (a
-denúncia vai com ele) e as cópias do `pictures-staging` (foto `removed`).
-**Manter** fecha primeiro todas as denúncias abertas da foto
-(`closed_ignored`; senão o cron voltava a ocultá-la), torna a foto pública e
-volta a preencher os links estáticos que ainda estão vazios. As denúncias de
-uma sequência inteira (só pelo formulário do próprio visualizador, que a
-regra WAF agora bloqueia) não têm botões: o cron não as segue e tratam-se
-pela API do Panoramax com o token da conta de serviço. O prazo é de 72 horas; o painel
-mostra o tempo que falta.
+Depois disso, o mesmo *cron* corre um lote do que falta das mudanças de crédito (*Pseudónimo*, abaixo).
 
-**Sem foto principal** (`/admin/sem-principal` e `/en/admin/no-main`, só
-moderadores e administradores, e no fim da fila de moderação e do painel de
-remoções quando há alguma; `src/mains.ts`). Os postos e tomadas cuja
-principal foi ocultada ou removida (`selections.lost_at`), cada um com uma
-galeria das outras fotos publicadas do mesmo alvo (miniaturas do
-`pictures-staging`) e um botão de escolha por foto. «Tornar principal»
-(`POST /admin/principal`, mesma origem) chama o `chooseMain` do
-`src/publish.ts`, o mesmo do `PUT /api/v1/selections/{target}`: copia os três
-tamanhos, faz *purge* e limpa o `lost_at`. Só aceita alvos ainda sem
-principal (um segundo moderador no mesmo alvo fica a saber que já foi
-escolhida). Sem outras fotos, a página diz que o alvo fica sem principal até
-chegar uma nova. Nada passa a principal sozinho.
+No painel, **Remover** limpa as cópias, apaga o *upload set* no Panoramax (a denúncia vai com ele) e as cópias do `pictures-staging` (foto `removed`). **Manter** fecha primeiro todas as denúncias abertas da foto (`closed_ignored`; senão o cron voltava a ocultá-la), torna a foto pública e volta a preencher os links estáticos que ainda estão vazios. As denúncias de uma sequência inteira (só pelo formulário do próprio visualizador, que a regra WAF agora bloqueia) não têm botões: o cron não as segue e tratam-se pela API do Panoramax com o token da conta de serviço. O prazo é de 72 horas; o painel mostra o tempo que falta.
 
-**O formulário fica fechado** (mostra o email) enquanto faltarem os
-segredos do Turnstile, da purga ou o `PANORAMAX_TOKEN`: sem purga, a foto
-continuaria na cache do `pictures.*` até 30 dias. Os segredos da purga
-(também usados na troca da foto principal, `PUT /api/v1/selections/{target}`):
+**Sem foto principal** (`/admin/sem-principal` e `/en/admin/no-main`, só moderadores e administradores, e no fim da fila de moderação e do painel de remoções quando há alguma; `src/mains.ts`). Os postos e tomadas cuja principal foi ocultada ou removida (`selections.lost_at`), cada um com uma galeria das outras fotos publicadas do mesmo alvo (miniaturas do `pictures-staging`) e um botão de escolha por foto. «Tornar principal» (`POST /admin/principal`, mesma origem) chama o `chooseMain` do `src/publish.ts`, o mesmo do `PUT /api/v1/selections/{target}`: copia os três tamanhos, faz *purge* e limpa o `lost_at`. Só aceita alvos ainda sem principal (um segundo moderador no mesmo alvo fica a saber que já foi escolhida). Sem outras fotos, a página diz que o alvo fica sem principal até chegar uma nova. Nada passa a principal sozinho.
 
-1. Um token de API só com *Zone → Cache Purge → Purge*, só na zona
-   `ocarroeletrico.com` (cobre o `pictures.*` e o `panoramax.*`).
-2. `npm run remote -- secret put CF_ZONE_ID` (o ID da zona) e
-   `npm run remote -- secret put CF_CACHE_PURGE_TOKEN` (o token).
-3. Depois do primeiro pedido real, os três URLs do `pictures.*` têm de dar
-   `404` (`curl -sI`), não um `HIT` da cache.
+**O formulário fica fechado** (mostra o email) enquanto faltarem os segredos do Turnstile, da purga ou o `PANORAMAX_TOKEN`: sem purga, a foto continuaria na cache do `pictures.*` até 30 dias. Os segredos da purga (também usados na troca da foto principal, `PUT /api/v1/selections/{target}`):
 
-**Regra WAF para as denúncias (aplicada).** O `POST /api/reports` do
-Panoramax não pede conta nem tem Turnstile, e oculta logo: sem filtro, um
-*script* pode ocultar todas as fotos. A regra só deixa passar as denúncias
-que trazem o cabeçalho que o Worker envia. O botão «Report» do nosso
-`/viewer` abre o formulário do olh'o'posto para essa foto
-(`/report?alvo=<id da foto>`, ou `/en/report` num browser que não esteja
-em português), em vez do formulário do próprio visualizador
-(`panoramax/templates/viewer.html`; o `tests/test_viewer.py` falha se uma
-versão nova do visualizador mudar o que o botão chama).
+1. Um token de API só com *Zone → Cache Purge → Purge*, só na zona `ocarroeletrico.com` (cobre o `pictures.*` e o `panoramax.*`).
+2. `npm run remote -- secret put CF_ZONE_ID` (o ID da zona) e `npm run remote -- secret put CF_CACHE_PURGE_TOKEN` (o token).
+3. Depois do primeiro pedido real, os três URLs do `pictures.*` têm de dar `404` (`curl -sI`), não um `HIT` da cache.
 
-1. `npm run remote -- secret put PANORAMAX_REPORT_KEY` (um valor aleatório
-   longo, por exemplo `openssl rand -hex 32`; nunca num ficheiro do
-   repositório). Antes da regra existir, o cabeçalho não muda nada.
-2. Na zona `ocarroeletrico.com`, *Security → WAF → Custom rules*, uma regra
-   *Block*: `http.host eq "panoramax.ocarroeletrico.com" and
-   http.request.method eq "POST" and starts_with(lower(http.request.uri.path), "/api/reports")
-   and not any(http.request.headers["x-olhaoposto-report"][*] eq "<o valor>")`.
-   **Não usar `eq "/api/reports"`:** o Panoramax aceita também
-   `/api/reports/` (com barra no fim), que um `eq` deixa passar.
-3. Testar, sem o valor: um `curl -X POST` sem o cabeçalho ou com um errado
-   dá `403` em `/api/reports`, `/api/reports/` e `/api/reports?x=1`; o
-   `GET /api/` continua a dar `200`. Um pedido no formulário continua a
-   criar a denúncia (o pedido do Worker chega com o cabeçalho).
+**Regra WAF para as denúncias (aplicada).** O `POST /api/reports` do Panoramax não pede conta nem tem Turnstile, e oculta logo: sem filtro, um *script* pode ocultar todas as fotos. A regra só deixa passar as denúncias que trazem o cabeçalho que o Worker envia. O botão «Report» do nosso `/viewer` abre o formulário do olh'o'posto para essa foto (`/report?alvo=<id da foto>`, ou `/en/report` num browser que não esteja em português), em vez do formulário do próprio visualizador (`panoramax/templates/viewer.html`; o `tests/test_viewer.py` falha se uma versão nova do visualizador mudar o que o botão chama).
 
-**Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`).
-Só para moderadores e administradores. Mostra as fotos `pending` da mais
-antiga para a mais recente (50 de cada vez), com o posto, quem enviou, a
-data, o GPS da foto e um aviso quando não há GPS ou a foto está a mais de
-300 m do posto. As imagens vêm do `pictures-staging` por
-`/admin/staging/{id}/{main|thumb}.jpg`, só para moderadores e sem cache.
-`POST /admin/decidir` (mesma origem):
+1. `npm run remote -- secret put PANORAMAX_REPORT_KEY` (um valor aleatório longo, por exemplo `openssl rand -hex 32`; nunca num ficheiro do repositório). Antes da regra existir, o cabeçalho não muda nada.
+2. Na zona `ocarroeletrico.com`, *Security → WAF → Custom rules*, uma regra *Block*: `http.host eq "panoramax.ocarroeletrico.com" and http.request.method eq "POST" and starts_with(lower(http.request.uri.path), "/api/reports") and not any(http.request.headers["x-olhaoposto-report"][*] eq "<o valor>")`. **Não usar `eq "/api/reports"`:** o Panoramax aceita também `/api/reports/` (com barra no fim), que um `eq` deixa passar.
+3. Testar, sem o valor: um `curl -X POST` sem o cabeçalho ou com um errado dá `403` em `/api/reports`, `/api/reports/` e `/api/reports?x=1`; o `GET /api/` continua a dar `200`. Um pedido no formulário continua a criar a denúncia (o pedido do Worker chega com o cabeçalho).
 
-- **Aprovar:** `PATCH` do upload set no Panoramax para `visibility: anyone`
-  e a foto passa a `published`. Se a tomada ou o posto ainda não têm foto
-  principal, o Worker publica-a em `pictures` (`src/publish.ts`, tabela
-  `selections`, migração `0007`; ver `arquitetura.md`, *Links estáticos*).
-  Se essa cópia falhar, a aprovação fica, as cópias feitas são apagadas e
-  a próxima aprovação desse alvo tenta outra vez. As cópias no
-  `pictures-staging` ficam.
-- **Recusar:** apaga o upload set no Panoramax (um `404` conta como
-  apagado), a foto passa a `removed` e as cópias saem do `pictures-staging`.
+**Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`). Só para moderadores e administradores. Mostra as fotos `pending` da mais antiga para a mais recente (50 de cada vez), com o posto, quem enviou, a data, o GPS da foto e um aviso quando não há GPS ou a foto está a mais de 300 m do posto. As imagens vêm do `pictures-staging` por `/admin/staging/{id}/{main|thumb}.jpg`, só para moderadores e sem cache. `POST /admin/decidir` (mesma origem):
 
-Se o Panoramax falhar, nada muda. `approved_by` e `approved_at` guardam
-quem decidiu e quando, nos dois casos, e só se escreve se a foto ainda
-estiver `pending`.
+- **Aprovar:** `PATCH` do upload set no Panoramax para `visibility: anyone` e a foto passa a `published`. Se a tomada ou o posto ainda não têm foto principal, o Worker publica-a em `pictures` (`src/publish.ts`, tabela `selections`, migração `0007`; ver `arquitetura.md`, *Links estáticos*). Se essa cópia falhar, a aprovação fica, as cópias feitas são apagadas e a próxima aprovação desse alvo tenta outra vez. As cópias no `pictures-staging` ficam.
+- **Recusar:** apaga o upload set no Panoramax (um `404` conta como apagado), a foto passa a `removed` e as cópias saem do `pictures-staging`.
 
-**Turnstile** (`src/photos.ts`, `src/upload.ts`, `public/upload.js`). Um
-widget no modo *managed*, só para `olhaoposto.ocarroeletrico.com`. Com o
-envio aberto, a página carrega o script do Turnstile e põe o widget no passo
-de envio (aparece só se o Turnstile precisar de uma interação); o
-`upload.js` manda o token no campo `turnstile` e faz *reset* ao widget
-depois de cada tentativa, porque cada token só serve uma vez e dura 300 s.
-O Worker confirma o token no `siteverify` antes de ler a foto ou escrever
-alguma coisa, com o IP de quem envia, e exige `hostname`
-`olhaoposto.ocarroeletrico.com` e `action` `upload`; senão responde `403`
-`turnstile`. A *site key* também é um segredo do Worker
-(`TURNSTILE_SITEKEY`), para o ID não ficar no repositório; sem os dois
-segredos, o envio fica fechado. A CSP só da página de envio abre
-`script-src` e `frame-src` a `https://challenges.cloudflare.com`. Em local,
-as chaves de teste da Cloudflare (*site key* `1x00000000000000000000AA`)
-geram um token falso, que o `siteverify` real não aceita.
+Se o Panoramax falhar, nada muda. `approved_by` e `approved_at` guardam quem decidiu e quando, nos dois casos, e só se escreve se a foto ainda estiver `pending`.
 
-**Acesso de administração (Cloudflare Access).** Uma aplicação Access
-(Zero Trust Free) cobre `/admin`, `/admin/*`, `/en/admin` e `/en/admin/*`:
-antes de chegar ao Worker, quem abre estas paths recebe o ecrã de login da
-Cloudflare e um código de uso único no email. Só passam os emails da regra
-*Moderadores*; a sessão dura 24 h. Depois, o Worker ainda pede o login OSM
-e o papel `moderator` ou `admin`. Nomear um moderador são dois passos: o
-email na regra do Access e o papel em `/admin/utilizadores`. Os emails
-vivem só na Cloudflare, nunca no repositório. O resto do site não passa
-pelo Access.
+**Turnstile** (`src/photos.ts`, `src/upload.ts`, `public/upload.js`). Um widget no modo *managed*, só para `olhaoposto.ocarroeletrico.com`. Com o envio aberto, a página carrega o script do Turnstile e põe o widget no passo de envio (aparece só se o Turnstile precisar de uma interação); o `upload.js` manda o token no campo `turnstile` e faz *reset* ao widget depois de cada tentativa, porque cada token só serve uma vez e dura 300 s. O Worker confirma o token no `siteverify` antes de ler a foto ou escrever alguma coisa, com o IP de quem envia, e exige `hostname` `olhaoposto.ocarroeletrico.com` e `action` `upload`; senão responde `403` `turnstile`. A *site key* também é um segredo do Worker (`TURNSTILE_SITEKEY`), para o ID não ficar no repositório; sem os dois segredos, o envio fica fechado. A CSP só da página de envio abre `script-src` e `frame-src` a `https://challenges.cloudflare.com`. Em local, as chaves de teste da Cloudflare (*site key* `1x00000000000000000000AA`) geram um token falso, que o `siteverify` real não aceita.
 
-**Limites de pedidos** (`src/ratelimit.ts`, `ratelimits` no `wrangler.json`).
-A zona está no plano Free, que só tem uma regra de *rate limiting* na WAF, e
-essa já é do `/mcp` do ohmigo. Por isso os limites ficam no Worker, com o
-*binding* de *rate limiting* dos Workers (grátis):
+**Acesso de administração (Cloudflare Access).** Uma aplicação Access (Zero Trust Free) cobre `/admin`, `/admin/*`, `/en/admin` e `/en/admin/*`: antes de chegar ao Worker, quem abre estas paths recebe o ecrã de login da Cloudflare e um código de uso único no email. Só passam os emails da regra *Moderadores*; a sessão dura 24 h. Depois, o Worker ainda pede o login OSM e o papel `moderator` ou `admin`. Nomear um moderador são dois passos: o email na regra do Access e o papel em `/admin/utilizadores`. Os emails vivem só na Cloudflare, nunca no repositório. O resto do site não passa pelo Access.
+
+**Limites de pedidos** (`src/ratelimit.ts`, `ratelimits` no `wrangler.json`). A zona está no plano Free, que só tem uma regra de *rate limiting* na WAF, e essa já é do `/mcp` do ohmigo. Por isso os limites ficam no Worker, com o *binding* de *rate limiting* dos Workers (grátis):
 
 | Binding | Chave | Limite | Onde |
 | --- | --- | --- | --- |
@@ -405,153 +172,45 @@ essa já é do `/mcp` do ohmigo. Por isso os limites ficam no Worker, com o
 | `SEARCH_LIMIT` | IP | 60 por minuto | `/api/v1/stations` (texto e proximidade), `/pesquisa`, `/en/search` |
 | `TAKEDOWN_LIMIT` | IP | 5 por minuto | `POST /report`; volta ao formulário com `erro=limit` |
 
-Acima do limite: `429` com `Retry-After: 60` (JSON na API, uma linha em
-pt e en nas páginas). Os contadores são por localização da Cloudflare e
-aproximados: travam scripts e enxurradas, não um ataque espalhado por muitas
-localizações. O limite exato continua a ser o diário da D1 (50 envios por dia
-para contribuidores). Se o *binding* faltar ou falhar, o pedido passa. As
-páginas dos postos não têm limite, para não travar os motores de busca.
+Acima do limite: `429` com `Retry-After: 60` (JSON na API, uma linha em pt e en nas páginas). Os contadores são por localização da Cloudflare e aproximados: travam scripts e enxurradas, não um ataque espalhado por muitas localizações. O limite exato continua a ser o diário da D1 (50 envios por dia para contribuidores). Se o *binding* faltar ou falhar, o pedido passa. As páginas dos postos não têm limite, para não travar os motores de busca.
 
-**Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js`,
-`public/jpeg.js`, `public/heif.js`, `public/heic.js` e `public/detect.js`).
-Tudo o que mexe na foto corre no browser. Com o envio fechado (falta um
-segredo), a página para no passo 5 e oferece o download para testar; aberto,
-o botão passa a "Enviar a foto" e manda os três tamanhos ao Worker:
+**Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js`, `public/jpeg.js`, `public/heif.js`, `public/heic.js` e `public/detect.js`). Tudo o que mexe na foto corre no browser. Com o envio fechado (falta um segredo), a página para no passo 5 e oferece o download para testar; aberto, o botão passa a "Enviar a foto" e manda os três tamanhos ao Worker:
 
-1. Abre um JPEG ou um HEIC (até 40 MB). Podem escolher-se várias fotos:
-   tratam-se uma de cada vez («Foto seguinte», «Saltar esta foto»), e o posto
-   da foto anterior enviada fica sugerido para a seguinte quando esta não tem
-   GPS ou foi tirada a menos de 500 m dele. O JPEG abre com
-   `createImageBitmap`, que aplica a rotação do EXIF. O HEIC tenta o mesmo
-   (o Safari descodifica-o) e, se o browser não souber, usa o libheif em
-   WebAssembly (`heic.js`), carregado só nessa altura. O lado maior fica em
-   2048 px.
-2. Lê o GPS, a `DateTimeOriginal` e a `Orientation` com o leitor próprio de
-   `jpeg.js`; num HEIC, o `heif.js` encontra o item Exif nas caixas
-   `meta`/`iinf`/`iloc` e passa o bloco TIFF ao mesmo leitor. Nunca lança
-   erro com um ficheiro mau.
-3. Com GPS, arredonda a 3 casas decimais (cerca de 100 m) e pede os postos
-   a 500 m; mostra a distância calculada com o GPS exato, que não sai do
-   dispositivo. Sem GPS, pesquisa por texto ou mapa. Com `?posto=<id>` (a página do
-   posto sem foto e o NAP dashboard ligam assim), esse posto vem primeiro,
-   com a distância ao GPS da foto, e o login e a troca de língua mantêm-no;
-   um id desconhecido conta como ausente. Depois pede o posto para listar
-   as tomadas com código EVSE.
-   - **Mapa** (Leaflet, mosaicos do OpenStreetMap), só se a pessoa tocar em
-     «Escolher no mapa». A partir do zoom 13 mostra os postos à volta do
-     centro (a API de proximidade, com o centro arredondado a ~100 m e o
-     raio até 5 km); tocar num escolhe-o. «Ir para a minha localização» usa
-     a geolocalização do browser só para centrar o mapa.
-   - **Posto novo**: «O posto não está na lista?» abre um formulário (nome,
-     operador, código, nota) com a posição do GPS da foto ou do centro do
-     mapa. Ver *Postos propostos*.
-4. A página procura caras (`detect.js`, MediaPipe Face Detector com o modelo
-   BlazeFace de curto alcance, no CPU): na foto inteira e numa grelha de 3 × 3
-   recortes sobrepostos, porque o modelo olha para um quadrado de 128 px e
-   uma cara a uns metros fica pequena demais na foto inteira. As caixas
-   juntam-se, crescem 25 % para cada lado e entram como zonas ligadas, que a
-   pessoa confirma. Com «poupar dados» ligado no browser, só procura quando
-   se toca em «Procurar caras». Não há detetor de matrículas (*Questões em
-   aberto* do `plan.md`). A pessoa desenha mais zonas por cima de caras e
-   matrículas (rato, toque ou teclado). Cada zona leva um mosaico de cerca de
-   8 blocos no lado maior. A pré-visualização é a própria imagem que vai ser
-   enviada.
-5. Gera 2048, 1024 e 400 px em JPEG 0,85 a partir dessa imagem, tira com o
-   `stripMetadata` todos os segmentos de metadados (fica o JFIF, o perfil de
-   cor e o Adobe) e tudo o que vem depois do fim da imagem, e confirma com o
-   `isCleanJpeg`, que percorre o ficheiro todo, incluindo entre as passagens
-   de um JPEG progressivo. O Chrome só escreve JFIF e o perfil de cor; os
-   outros browsers não foram testados.
+1. Abre um JPEG ou um HEIC (até 40 MB). Podem escolher-se várias fotos: tratam-se uma de cada vez («Foto seguinte», «Saltar esta foto»), e o posto da foto anterior enviada fica sugerido para a seguinte quando esta não tem GPS ou foi tirada a menos de 500 m dele. O JPEG abre com `createImageBitmap`, que aplica a rotação do EXIF. O HEIC tenta o mesmo (o Safari descodifica-o) e, se o browser não souber, usa o libheif em WebAssembly (`heic.js`), carregado só nessa altura. O lado maior fica em 2048 px.
+2. Lê o GPS, a `DateTimeOriginal` e a `Orientation` com o leitor próprio de `jpeg.js`; num HEIC, o `heif.js` encontra o item Exif nas caixas `meta`/`iinf`/`iloc` e passa o bloco TIFF ao mesmo leitor. Nunca lança erro com um ficheiro mau.
+3. Com GPS, arredonda a 3 casas decimais (cerca de 100 m) e pede os postos a 500 m; mostra a distância calculada com o GPS exato, que não sai do dispositivo. Sem GPS, pesquisa por texto ou mapa. Com `?posto=<id>` (a página do posto sem foto e o NAP dashboard ligam assim), esse posto vem primeiro, com a distância ao GPS da foto, e o login e a troca de língua mantêm-no; um id desconhecido conta como ausente. Depois pede o posto para listar as tomadas com código EVSE.
+- **Mapa** (Leaflet, mosaicos do OpenStreetMap), só se a pessoa tocar em «Escolher no mapa». A partir do zoom 13 mostra os postos à volta do centro (a API de proximidade, com o centro arredondado a ~100 m e o raio até 5 km); tocar num escolhe-o. «Ir para a minha localização» usa a geolocalização do browser só para centrar o mapa.
+- **Posto novo**: «O posto não está na lista?» abre um formulário (nome, operador, código, nota) com a posição do GPS da foto ou do centro do mapa. Ver *Postos propostos*.
+4. A página procura caras (`detect.js`, MediaPipe Face Detector com o modelo BlazeFace de curto alcance, no CPU): na foto inteira e numa grelha de 3 × 3 recortes sobrepostos, porque o modelo olha para um quadrado de 128 px e uma cara a uns metros fica pequena demais na foto inteira. As caixas juntam-se, crescem 25 % para cada lado e entram como zonas ligadas, que a pessoa confirma. Com «poupar dados» ligado no browser, só procura quando se toca em «Procurar caras». Não há detetor de matrículas (*Questões em aberto* do `plan.md`). A pessoa desenha mais zonas por cima de caras e matrículas (rato, toque ou teclado). Cada zona leva um mosaico de cerca de 8 blocos no lado maior. A pré-visualização é a própria imagem que vai ser enviada.
+5. Gera 2048, 1024 e 400 px em JPEG 0,85 a partir dessa imagem, tira com o `stripMetadata` todos os segmentos de metadados (fica o JFIF, o perfil de cor e o Adobe) e tudo o que vem depois do fim da imagem, e confirma com o `isCleanJpeg`, que percorre o ficheiro todo, incluindo entre as passagens de um JPEG progressivo. O Chrome só escreve JFIF e o perfil de cor; os outros browsers não foram testados.
 
-As duas confirmações (sem caras nem matrículas, licença) são campos
-obrigatórios do formulário. O `jpeg.js` é JavaScript simples para o browser
-o carregar sem *build* e o Worker o importar para validar os envios.
+As duas confirmações (sem caras nem matrículas, licença) são campos obrigatórios do formulário. O `jpeg.js` é JavaScript simples para o browser o carregar sem *build* e o Worker o importar para validar os envios.
 
-**Envio** (`POST /api/v1/photos`, `src/photos.ts`, migração `0006`). O
-pedido é `multipart`: `full`, `main` e `thumb` (os três JPEG) e `meta` (JSON
-com o posto, o alvo, a data e o GPS da foto e as duas confirmações). O GPS
-vai no corpo, nunca no URL, que fica nos registos. O Worker não confia no
-browser:
+**Envio** (`POST /api/v1/photos`, `src/photos.ts`, migração `0006`). O pedido é `multipart`: `full`, `main` e `thumb` (os três JPEG) e `meta` (JSON com o posto, o alvo, a data e o GPS da foto e as duas confirmações). O GPS vai no corpo, nunca no URL, que fica nos registos. O Worker não confia no browser:
 
-1. Sessão e origem do próprio site, ou um *token* com `photos:write` (sem
-   Turnstile; ver *Tokens de API*), e o limite diário (50 fotos por dia para
-   `contributor`, 500 para os outros papéis, por dia UTC).
-2. Cada ficheiro: tamanho máximo (6 MB, 2 MB e 500 kB), JPEG limpo
-   (`isCleanJpeg`), lado maior até 2048, 1024 e 400 px, e os três com a
-   mesma forma.
-3. O posto tem de ser público, ou uma proposta ainda por decidir de quem
-   envia, e a tomada tem de ser desse posto. A distância ao posto calcula-se
-   no Worker. Contas `trusted` publicam logo quando o posto está `active` e a
-   foto foi tirada a 300 m ou menos dele; o resto fica `pending`.
-4. Escreve a linha em `photos` como `uploading` antes de tudo o resto, guarda
-   as versões de 1024 e 400 px em `pictures-staging` (`{id}/main.jpg`,
-   `{id}/thumb.jpg`) e manda a de 2048 ao Panoramax: um *upload set*
-   `owner-only` só com esta foto, com as coordenadas do posto, a data da foto
-   e as etiquetas `osm|ref:EU:EVSE`, `OlhaOPosto|site` e `OlhaOPosto|author`.
-   No fim, a linha passa a `pending` com os IDs do Panoramax, e a conta fica
-   com `license_accepted_at`.
-5. Se alguma coisa falhar, apaga o que já tinha guardado (R2 e *upload set*)
-   e a linha fica `failed`. Um `409` do Panoramax (a mesma foto já enviada)
-   dá `409` `duplicate`.
+1. Sessão e origem do próprio site, ou um *token* com `photos:write` (sem Turnstile; ver *Tokens de API*), e o limite diário (50 fotos por dia para `contributor`, 500 para os outros papéis, por dia UTC).
+2. Cada ficheiro: tamanho máximo (6 MB, 2 MB e 500 kB), JPEG limpo (`isCleanJpeg`), lado maior até 2048, 1024 e 400 px, e os três com a mesma forma.
+3. O posto tem de ser público, ou uma proposta ainda por decidir de quem envia, e a tomada tem de ser desse posto. A distância ao posto calcula-se no Worker. Contas `trusted` publicam logo quando o posto está `active` e a foto foi tirada a 300 m ou menos dele; o resto fica `pending`.
+4. Escreve a linha em `photos` como `uploading` antes de tudo o resto, guarda as versões de 1024 e 400 px em `pictures-staging` (`{id}/main.jpg`, `{id}/thumb.jpg`) e manda a de 2048 ao Panoramax: um *upload set* `owner-only` só com esta foto, com as coordenadas do posto, a data da foto e as etiquetas `osm|ref:EU:EVSE`, `OlhaOPosto|site` e `OlhaOPosto|author`. No fim, a linha passa a `pending` com os IDs do Panoramax, e a conta fica com `license_accepted_at`.
+5. Se alguma coisa falhar, apaga o que já tinha guardado (R2 e *upload set*) e a linha fica `failed`. Um `409` do Panoramax (a mesma foto já enviada) dá `409` `duplicate`.
 
-Medido no Node, verificar 1,5 MB de JPEG leva 0,6 ms e ler o formulário com
-as três fotos cerca de 4,5 ms. O plano Free dá 10 ms de CPU por pedido. Falta
-confirmar o tempo real no primeiro envio em produção; se passar, a saída é o
-Workers Paid (5 $/mês, já no orçamento do `plan.md`).
+Medido no Node, verificar 1,5 MB de JPEG leva 0,6 ms e ler o formulário com as três fotos cerca de 4,5 ms. O plano Free dá 10 ms de CPU por pedido. Falta confirmar o tempo real no primeiro envio em produção; se passar, a saída é o Workers Paid (5 $/mês, já no orçamento do `plan.md`).
 
-**Abrir o envio.** Feito: login, Turnstile, `STAGING` e `PANORAMAX_TOKEN`
-estão postos. Sem qualquer um destes segredos, o envio volta a fechar
-(`503` `uploads_closed`) e a página só prepara as fotos. Em local,
-`--var PANORAMAX_TOKEN:x --var PANORAMAX_URL:http://127.0.0.1:...` aponta para
-um Panoramax falso; o R2 local guarda as versões.
+**Abrir o envio.** Feito: login, Turnstile, `STAGING` e `PANORAMAX_TOKEN` estão postos. Sem qualquer um destes segredos, o envio volta a fechar (`503` `uploads_closed`) e a página só prepara as fotos. Em local, `--var PANORAMAX_TOKEN:x --var PANORAMAX_URL:http://127.0.0.1:...` aponta para um Panoramax falso; o R2 local guarda as versões.
 
-**Tokens de API** (`src/tokens.ts`, `src/account.ts`, migração `0012`). Quem
-tem sessão cria *tokens* na conta: um nome, os âmbitos (`photos:write`, e
-`selections:write` só para `trusted`, moderadores e administradores) e a
-validade (30, 90 ou 365 dias), até 5 ativos. O *token* (`oop_` + 32 bytes
-aleatórios) aparece uma vez; a tabela `api_tokens` guarda só o SHA-256, o
-início (para o reconhecer na lista), as datas e o último uso (no máximo uma
-escrita por hora). Revogar marca `revoked_at`; os revogados e expirados
-apagam-se quando a pessoa cria outro. Os pedidos levam
-`Authorization: Bearer oop_…`; o Worker lê o papel da conta em cada pedido,
-por isso uma despromoção tira logo o `selections:write` a todos os *tokens*.
-Um pedido com *token* não precisa de origem nem de Turnstile; um pedido só
-com o *cookie* de sessão continua a ter de vir do próprio site.
+**Tokens de API** (`src/tokens.ts`, `src/account.ts`, migração `0012`). Quem tem sessão cria *tokens* na conta: um nome, os âmbitos (`photos:write`, e `selections:write` só para `trusted`, moderadores e administradores) e a validade (30, 90 ou 365 dias), até 5 ativos. O *token* (`oop_` + 32 bytes aleatórios) aparece uma vez; a tabela `api_tokens` guarda só o SHA-256, o início (para o reconhecer na lista), as datas e o último uso (no máximo uma escrita por hora). Revogar marca `revoked_at`; os revogados e expirados apagam-se quando a pessoa cria outro. Os pedidos levam `Authorization: Bearer oop_…`; o Worker lê o papel da conta em cada pedido, por isso uma despromoção tira logo o `selections:write` a todos os *tokens*. Um pedido com *token* não precisa de origem nem de Turnstile; um pedido só com o *cookie* de sessão continua a ter de vir do próprio site.
 
-**Postos propostos** (`src/proposals.ts`, migração `0013`).
-`POST /api/v1/stations` recebe `{name, operator, code?, lat, lon, note?}`,
-com a posição dentro de Portugal (continente e ilhas). Se houver um posto a
-menos de 60 m responde `409` `station_nearby` com a lista, e `?force=1`
-avança. Escreve um posto `source = 'community'`, `status = 'pending_review'`
-(id `OOP-` + 10 hexadecimais, nunca público) e uma linha em `review_queue`.
-Limite: 5 propostas por dia para `contributor`, 50 para os outros, e o
-`UPLOAD_LIMIT` por minuto. Quem propôs pode enviar fotos do posto logo; ficam
-`pending`. Na fila de moderação os postos propostos aparecem primeiro:
-aprovar passa o posto a `active` (o import diário só mexe em postos
-`source = 'nap'`); recusar passa-o a `rejected` e recusa as fotos dele que
-estavam à espera. Uma foto de um posto proposto só se aprova depois do posto.
+**Pseudónimo** (`src/credit.ts`, `src/account.ts`, migração `0014`). As regras estão em `arquitetura.md`, *Crédito*. A migração acrescenta a `users` o `pseudonym_key` (índice único parcial), o `osm_key` e o `pseudonym_changed_at`; a `photos` o `author_tag_old`; e a `selections` o `credit_pending`, os dois com índices parciais só nas linhas marcadas. As contas anteriores à migração recebem o `osm_key` no login seguinte ou na primeira verificação de um pseudónimo. `set_credit` e `reset_credit` em `POST /conta/acao` escrevem tudo numa transação da D1 e deixam marcas; o `syncCredits` faz um lote (5 alvos em `pictures`, com uma só purga de até 15 URLs, e 25 etiquetas no Panoramax) no `waitUntil` da própria mudança e em cada *cron*, depois da reconciliação das remoções. São no máximo 26 pedidos externos por execução, dentro dos 50 do plano Free, e o trabalho de CPU é copiar uns poucos MB por alvo. Uma cópia só se reescreve se a foto estiver `published` e se o objeto não mudou desde a leitura; uma marca só sai quando a purga correu bem (ou não há segredos de purga, em local) e o crédito ainda é o que se escreveu. Um `404` do Panoramax tira a marca da etiqueta.
 
-**Pontos** (`src/points.ts`). Na aprovação, pelo moderador ou direta para
-`trusted`, o autor da foto (nunca o moderador) recebe +1 e, se for a
-primeira foto publicada do alvo, +3. Uma segunda foto da mesma pessoa no
-mesmo alvo em 30 dias não dá pontos. Trocar a principal por uma foto quando
-a anterior tinha mais de 12 meses dá +2 ao autor da foto nova. Cada motivo
-só se dá uma vez por foto. O ranking e a conta só somam pontos de fotos
-`published`: uma foto ocultada ou retirada deixa de contar sem apagar linhas.
-Medalhas pelo total de sempre: bronze 10, prata 50, ouro 200.
+**Postos propostos** (`src/proposals.ts`, migração `0013`). `POST /api/v1/stations` recebe `{name, operator, code?, lat, lon, note?}`, com a posição dentro de Portugal (continente e ilhas). Se houver um posto a menos de 60 m responde `409` `station_nearby` com a lista, e `?force=1` avança. Escreve um posto `source = 'community'`, `status = 'pending_review'` (id `OOP-` + 10 hexadecimais, nunca público) e uma linha em `review_queue`. Limite: 5 propostas por dia para `contributor`, 50 para os outros, e o `UPLOAD_LIMIT` por minuto. Quem propôs pode enviar fotos do posto logo; ficam `pending`. Na fila de moderação os postos propostos aparecem primeiro: aprovar passa o posto a `active` (o import diário só mexe em postos `source = 'nap'`); recusar passa-o a `rejected` e recusa as fotos dele que estavam à espera. Uma foto de um posto proposto só se aprova depois do posto.
 
-**A D1 `pictures` está na jurisdição EU**: vai guardar dados de
-utilizadores (RGPD), e a jurisdição só se escolhe ao criar a base.
+**Pontos** (`src/points.ts`). Na aprovação, pelo moderador ou direta para `trusted`, o autor da foto (nunca o moderador) recebe +1 e, se for a primeira foto publicada do alvo, +3. Uma segunda foto da mesma pessoa no mesmo alvo em 30 dias não dá pontos. Trocar a principal por uma foto quando a anterior tinha mais de 12 meses dá +2 ao autor da foto nova. Cada motivo só se dá uma vez por foto. O ranking e a conta só somam pontos de fotos `published`: uma foto ocultada ou retirada deixa de contar sem apagar linhas. Medalhas pelo total de sempre: bronze 10, prata 50, ouro 200.
 
-**O ID da D1 não está no repositório.** O `wrangler.json` tem
-`database_id: "local-only"`, que só serve para o D1 local. Os comandos
-remotos passam pelo `npm run remote`, que procura o ID pelo nome com as
-credenciais de quem corre, escreve uma cópia temporária da configuração
-(`.wrangler.remote.json`, ignorada pelo git) e apaga-a no fim.
+**A D1 `pictures` está na jurisdição EU**: vai guardar dados de utilizadores (RGPD), e a jurisdição só se escolhe ao criar a base.
 
-**Nunca correr `wrangler deploy` diretamente.** Com o *placeholder* falha.
-Sem `database_id` nenhum, o wrangler criaria uma D1 nova e vazia e
-escreveria o ID dela no `wrangler.json`.
+**O ID da D1 não está no repositório.** O `wrangler.json` tem `database_id: "local-only"`, que só serve para o D1 local. Os comandos remotos passam pelo `npm run remote`, que procura o ID pelo nome com as credenciais de quem corre, escreve uma cópia temporária da configuração (`.wrangler.remote.json`, ignorada pelo git) e apaga-a no fim.
+
+**Nunca correr `wrangler deploy` diretamente.** Com o *placeholder* falha. Sem `database_id` nenhum, o wrangler criaria uma D1 nova e vazia e escreveria o ID dela no `wrangler.json`.
 
 Em local (sem login na Cloudflare):
 
@@ -564,9 +223,7 @@ npm run import:local      # importa o feed real para a D1 local
 npm run dev               # http://localhost:8787/api/v1/stations/EZC-AMD-00051
 ```
 
-Cada PR para `main` corre o workflow `checks.yml` (`npm run check`, `npm test`
-e um `wrangler deploy --dry-run`, sem credenciais). O job `worker` é um check
-obrigatório no ruleset `main`: sem ele verde, a PR não entra.
+Cada PR para `main` corre o workflow `checks.yml` (`npm run check`, `npm test` e um `wrangler deploy --dry-run`, sem credenciais). O job `worker` é um check obrigatório no ruleset `main`: sem ele verde, a PR não entra.
 
 Em produção, depois de `npx wrangler login`:
 
@@ -576,18 +233,9 @@ npm run deploy                                # migrações e depois o Worker
 node scripts/import-stations.ts --remote      # só no primeiro import
 ```
 
-O `npm run deploy` (`scripts/deploy.ts`) aplica as migrações que faltam e só
-depois publica o Worker, tudo com o ID procurado pelo nome. Sem migrações
-novas, esse passo não faz nada. Se uma migração falhar, o Worker não é
-publicado.
+O `npm run deploy` (`scripts/deploy.ts`) aplica as migrações que faltam e só depois publica o Worker, tudo com o ID procurado pelo nome. Sem migrações novas, esse passo não faz nada. Se uma migração falhar, o Worker não é publicado.
 
-**Deploy automático (Workers Builds).** O Worker está ligado ao repositório
-no painel da Cloudflare (Workers & Pages → `olhaoposto` → Settings →
-Builds) e cada push para `main` corre o `npm run deploy`. A app da
-Cloudflare no GitHub (*Cloudflare Workers and Pages*) está instalada na org
-`CarregaErvilhas` só com acesso a este repositório; sem ela, o painel não
-mostra a org para escolher. A configuração também se lê e muda pela API
-(`/accounts/{conta}/builds/workers/{script}/triggers`).
+**Deploy automático (Workers Builds).** O Worker está ligado ao repositório no painel da Cloudflare (Workers & Pages → `olhaoposto` → Settings → Builds) e cada push para `main` corre o `npm run deploy`. A app da Cloudflare no GitHub (*Cloudflare Workers and Pages*) está instalada na org `CarregaErvilhas` só com acesso a este repositório; sem ela, o painel não mostra a org para escolher. A configuração também se lê e muda pela API (`/accounts/{conta}/builds/workers/{script}/triggers`).
 
 | Campo | Valor |
 | --- | --- |
@@ -598,43 +246,15 @@ mostra a org para escolher. A configuração também se lê e muda pela API
 | Build watch paths | `*`: com o root em `/worker`, não é certo se os caminhos contam a partir da raiz do repositório ou de `worker/`, e um filtro errado nunca publicaria. Um PR só de docs publica o mesmo código outra vez, sem mal nenhum |
 | Builds de outras branches (*Preview builds*) | Desligados: o comando por omissão (`wrangler versions upload`) falha com o *placeholder* |
 
-O token que o Builds cria para a conta tem de poder ler e escrever na D1
-(listar as bases e aplicar migrações), além de publicar o Worker. Os
-registos de cada build ficam no separador Deployments do Worker.
+O token que o Builds cria para a conta tem de poder ler e escrever na D1 (listar as bases e aplicar migrações), além de publicar o Worker. Os registos de cada build ficam no separador Deployments do Worker.
 
-**Uma migração tem de funcionar com o código que já está no ar.** O
-deploy aplica-a e só depois publica o Worker novo, e durante esses segundos
-o Worker antigo usa o esquema novo. Acrescentar tabelas, colunas e índices
-não parte nada. Mudar o nome ou apagar uma coluna faz-se em dois PRs: um
-que deixa de a usar e, depois de publicado, outro com a migração. Criar um índice escreve uma linha por linha da
-tabela (cerca de 20 mil em `evses`), e isso conta para o limite diário da
-D1 Free (100 mil linhas escritas): não juntar no mesmo dia com um import que
-reescreva tudo.
+**Uma migração tem de funcionar com o código que já está no ar.** O deploy aplica-a e só depois publica o Worker novo, e durante esses segundos o Worker antigo usa o esquema novo. Acrescentar tabelas, colunas e índices não parte nada. Mudar o nome ou apagar uma coluna faz-se em dois PRs: um que deixa de a usar e, depois de publicado, outro com a migração. Criar um índice escreve uma linha por linha da tabela (cerca de 20 mil em `evses`), e isso conta para o limite diário da D1 Free (100 mil linhas escritas): não juntar no mesmo dia com um import que reescreva tudo.
 
-**A D1 tem uma tabela virtual** (`stations_fts`, FTS5, migração `0003`).
-Um `wrangler d1 export` normal falha por causa dela; com
-`--compatibility sqlite3_cli_only` funciona, mas esse ficheiro só serve para
-o SQLite e não volta a entrar na D1. Para uma cópia que volte a entrar:
-apagar a `stations_fts` e os *triggers*, exportar, e correr a `0003` outra
-vez. Se a tabela alguma vez se estragar, `INSERT INTO stations_fts
-(stations_fts) VALUES ('rebuild')` refaz o índice a partir de `stations`.
-Para confirmar que o índice bate com a tabela: `INSERT INTO stations_fts
-(stations_fts, rank) VALUES ('integrity-check', 1)` dá erro se não bater.
+**A D1 tem uma tabela virtual** (`stations_fts`, FTS5, migração `0003`). Um `wrangler d1 export` normal falha por causa dela; com `--compatibility sqlite3_cli_only` funciona, mas esse ficheiro só serve para o SQLite e não volta a entrar na D1. Para uma cópia que volte a entrar: apagar a `stations_fts` e os *triggers*, exportar, e correr a `0003` outra vez. Se a tabela alguma vez se estragar, `INSERT INTO stations_fts (stations_fts) VALUES ('rebuild')` refaz o índice a partir de `stations`. Para confirmar que o índice bate com a tabela: `INSERT INTO stations_fts (stations_fts, rank) VALUES ('integrity-check', 1)` dá erro se não bater.
 
-**Custo da pesquisa, medido na D1 de produção:** uma palavra comum
-(`edp`, com mais de 1600 postos) lê cerca de 40 linhas para os 20
-primeiros resultados; um código de posto completo lê 2. Um `LIKE` leria os
-cerca de 9 mil postos em cada pesquisa. Do lado das escritas, os *triggers*
-somam ao import duas linhas por posto alterado (a entrada antiga do índice
-sai, a nova entra) e uma por posto novo; um import que reescreva todos os
-postos escreve perto de 36 mil linhas só nos postos (as 27 mil dos
-*triggers* e da tabela, mais uma por posto no índice `stations_lat_lon`) e
-cerca de 20 mil nas tomadas: perto de 56 mil, ainda dentro do limite diário
-de 100 mil.
+**Custo da pesquisa, medido na D1 de produção:** uma palavra comum (`edp`, com mais de 1600 postos) lê cerca de 40 linhas para os 20 primeiros resultados; um código de posto completo lê 2. Um `LIKE` leria os cerca de 9 mil postos em cada pesquisa. Do lado das escritas, os *triggers* somam ao import duas linhas por posto alterado (a entrada antiga do índice sai, a nova entra) e uma por posto novo; um import que reescreva todos os postos escreve perto de 36 mil linhas só nos postos (as 27 mil dos *triggers* e da tabela, mais uma por posto no índice `stations_lat_lon`) e cerca de 20 mil nas tomadas: perto de 56 mil, ainda dentro do limite diário de 100 mil.
 
-**Custo da pesquisa por proximidade, medido na D1 de produção.** O índice
-`(lat, lon)` percorre a faixa de latitude do pedido e só vai à tabela pelos
-postos dentro da caixa. Linhas lidas por pedido:
+**Custo da pesquisa por proximidade, medido na D1 de produção.** O índice `(lat, lon)` percorre a faixa de latitude do pedido e só vai à tabela pelos postos dentro da caixa. Linhas lidas por pedido:
 
 | Ponto | Raio | Postos na caixa | Linhas lidas |
 | --- | --- | --- | --- |
@@ -644,46 +264,20 @@ postos dentro da caixa. Linhas lidas por pedido:
 | Centro de Coimbra | 500 m | 3 | 16 |
 | Centro de Faro | 500 m | 8 | 21 |
 
-Lisboa é o pior caso: a faixa de latitude atravessa a cidade inteira. Do
-lado das escritas, um *upsert* de um posto com os mesmos valores escreve 4
-linhas, mais uma do que antes da `0005`, porque o import reescreve `lat` e
-`lon`.
+Lisboa é o pior caso: a faixa de latitude atravessa a cidade inteira. Do lado das escritas, um *upsert* de um posto com os mesmos valores escreve 4 linhas, mais uma do que antes da `0005`, porque o import reescreve `lat` e `lon`.
 
-Quem chamar com a localização de uma pessoa deve arredondar as coordenadas
-a 3 casas decimais (cerca de 100 m) antes do pedido: os registos do Worker
-guardam o URL completo. A página de envio já o faz.
+Quem chamar com a localização de uma pessoa deve arredondar as coordenadas a 3 casas decimais (cerca de 100 m) antes do pedido: os registos do Worker guardam o URL completo. A página de envio já o faz.
 
 ## 5. Importação dos postos
 
-`worker/scripts/import-stations.ts` lê o modelo da rede do NAP dashboard
-(`https://nap.ocarroeletrico.com/ohmigo/chargers.json`, ~12 MB) e atualiza
-`stations` e `evses`. Corre no GitHub Actions
-(`.github/workflows/import-stations.yml`, todos os dias às 05:23 UTC e à mão
-com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem
-10 ms de CPU e só ler o JSON passa disso.
+`worker/scripts/import-stations.ts` lê o modelo da rede do NAP dashboard (`https://nap.ocarroeletrico.com/ohmigo/chargers.json`, ~12 MB) e atualiza `stations` e `evses`. Corre no GitHub Actions (`.github/workflows/import-stations.yml`, todos os dias às 05:23 UTC e à mão com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem 10 ms de CPU e só ler o JSON passa disso.
 
-- **Só escreve o que mudou.** Lê o estado da D1, compara e grava só as
-  linhas novas ou alteradas: a D1 Free conta as linhas escritas por dia. Se
-  o `generatedAt` do feed é o mesmo do último import, não faz nada
-  (`--force` para repetir).
-- **Nunca apaga.** Postos e pontos que saem do feed passam a
-  `missing_from_nap` e voltam a `active` se regressarem.
-- **Só mexe nas linhas do NAP.** Um posto `community` com o mesmo id fica
-  como está e aparece em *conflicts*, para um moderador decidir.
-- **Trava se o feed vier partido.** Recusa quando mais de 5 % dos postos
-  ativos passariam a `missing_from_nap` (`--allow-mass-missing` para
-  confirmar).
-- **A D1 fica indisponível uns segundos** enquanto o `--file` remoto importa
-  (API de importação da D1): um pequeno soluço na API por volta das 05:23 UTC.
-- **Código EVSE de cada tomada.** O feed traz em cada ponto o `evse`, o
-  código EVSE do NAP tal como publicado (`PT*EDP*E*LSB*90050*01`). Fica em
-  `evse_id` e, sem os `*`, em `evse_compact` (`PTEDPELSB9005001`), a forma dos
-  links de tomada. A chave de `evses` continua a ser (`station_id`,
-  `point_id`): o NAP não garante que o código seja único (já houve um
-  operador a publicar o mesmo em dois postos, `PT*KLS*E281*1`), por isso o
-  índice em `evse_compact` não é `UNIQUE`.
-  O primeiro import depois de o campo aparecer reescreve todos os pontos
-  (cerca de 20 mil linhas, dentro do limite diário da D1 Free).
+- **Só escreve o que mudou.** Lê o estado da D1, compara e grava só as linhas novas ou alteradas: a D1 Free conta as linhas escritas por dia. Se o `generatedAt` do feed é o mesmo do último import, não faz nada (`--force` para repetir).
+- **Nunca apaga.** Postos e pontos que saem do feed passam a `missing_from_nap` e voltam a `active` se regressarem.
+- **Só mexe nas linhas do NAP.** Um posto `community` com o mesmo id fica como está e aparece em *conflicts*, para um moderador decidir.
+- **Trava se o feed vier partido.** Recusa quando mais de 5 % dos postos ativos passariam a `missing_from_nap` (`--allow-mass-missing` para confirmar).
+- **A D1 fica indisponível uns segundos** enquanto o `--file` remoto importa (API de importação da D1): um pequeno soluço na API por volta das 05:23 UTC.
+- **Código EVSE de cada tomada.** O feed traz em cada ponto o `evse`, o código EVSE do NAP tal como publicado (`PT*EDP*E*LSB*90050*01`). Fica em `evse_id` e, sem os `*`, em `evse_compact` (`PTEDPELSB9005001`), a forma dos links de tomada. A chave de `evses` continua a ser (`station_id`, `point_id`): o NAP não garante que o código seja único (já houve um operador a publicar o mesmo em dois postos, `PT*KLS*E281*1`), por isso o índice em `evse_compact` não é `UNIQUE`. O primeiro import depois de o campo aparecer reescreve todos os pontos (cerca de 20 mil linhas, dentro do limite diário da D1 Free).
 
 **Segredos do repositório** (*Settings → Secrets and variables → Actions*):
 
@@ -694,6 +288,4 @@ com *Run workflow*), não no Worker: no plano Free, um Cron Trigger tem
 
 ## 6. Questões em aberto
 
-- [ ] Regra de ciclo de vida no `pictures-staging` como rede de segurança
-  para fotos rejeitadas ou abandonadas (por exemplo 90 dias). O risco é
-  apagar as versões de uma foto que ainda está na fila.
+- [ ] Regra de ciclo de vida no `pictures-staging` como rede de segurança para fotos rejeitadas ou abandonadas (por exemplo 90 dias). O risco é apagar as versões de uma foto que ainda está na fila.

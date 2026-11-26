@@ -93,7 +93,7 @@ test('account page: create shows the token once, revoke, leave the ranking', asy
   const { db, env } = await setup();
   const post = (fields: [string, string][], origin = SITE) => accountAction(new Request(`${SITE}/conta/acao`, {
     method: 'POST', body: form(fields), headers: { cookie: '__Host-oop_session=sess', origin },
-  }), env, {}, NOW);
+  }), env, {}, undefined, NOW);
 
   assert.equal((await post([['action', 'create_token']], 'https://evil.example')).status, 403);
   const created = await post([['lang', 'pt'], ['action', 'create_token'], ['name', 'script'], ['scope', 'photos:write'], ['days', '90']]);

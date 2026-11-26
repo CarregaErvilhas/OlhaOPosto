@@ -46,7 +46,7 @@ export interface PublishEnv extends PhotoEnv {
 const db = (env: PublishEnv) => env.DB as unknown as { prepare(sql: string): Stmt };
 
 const LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/';
-const CACHE_CONTROL = 'public, max-age=86400';
+export const CACHE_CONTROL = 'public, max-age=86400';
 export const SIZES = [
   { suffix: '', staged: 'main' },
   { suffix: '.thumb', staged: 'thumb' },
@@ -126,7 +126,7 @@ async function claim(env: PublishEnv, p: Approved, userId: string, now: string):
     if (!prior) continue;
     // Compare-and-set on the lost row read above: two approvals cannot both win.
     const u = await db(env).prepare(
-      `UPDATE selections SET photo_id = ?, chosen_by = ?, chosen_at = ?, published_at = NULL, lost_at = NULL
+      `UPDATE selections SET photo_id = ?, chosen_by = ?, chosen_at = ?, published_at = NULL, lost_at = NULL, credit_pending = 0
         WHERE target = ? AND photo_id = ? AND lost_at = ?`,
     ).bind(p.id, userId, now, target, prior.photo_id, prior.lost_at).run();
     if (u.meta.changes === 1) won.push({ target, prior });
@@ -263,7 +263,8 @@ export async function chooseMain(
     await db(env).prepare(
       `INSERT INTO selections (target, station_id, photo_id, chosen_by, chosen_at, published_at)
        VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(target) DO UPDATE SET photo_id=excluded.photo_id, chosen_by=excluded.chosen_by, chosen_at=excluded.chosen_at, published_at=excluded.published_at, lost_at=NULL`,
+       ON CONFLICT(target) DO UPDATE SET photo_id=excluded.photo_id, chosen_by=excluded.chosen_by, chosen_at=excluded.chosen_at, published_at=excluded.published_at,
+         credit_pending=0, lost_at=NULL`,
     ).bind(target, stationId, photoId, userId, nowIso, nowIso).run();
 
     // Purge the cache for the three keys.

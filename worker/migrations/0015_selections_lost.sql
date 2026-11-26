@@ -2,7 +2,8 @@
 -- selection row, marked lost_at, instead of losing it: the row then tells
 -- "this target lost its main photo" apart from "it never had one", and the
 -- admin pages list the lost ones for a moderator to choose the next main
--- photo by hand (src/mains.ts). published_at goes back to NULL with it, so
+-- photo by hand (src/mains.ts). A lost row has no copies, so the credit sync
+-- (src/credit.ts) skips it. published_at goes back to NULL with it, so
 -- nothing reads the row as a live link. The next main photo, chosen or
 -- approved, takes the row over and clears lost_at.
 ALTER TABLE selections ADD COLUMN lost_at TEXT;

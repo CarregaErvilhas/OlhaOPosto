@@ -22,7 +22,7 @@
 
 import { isCleanJpeg, stripMetadata } from '../public/jpeg.js';
 import { PANORAMAX_URL, type PhotoEnv } from './photos.ts';
-import { PICTURES, SITE, stationPath } from './pages.ts';
+import { PICTURES, SITE, photoPath } from './pages.ts';
 import { STATION_ID } from './types.ts';
 import { awardRefresh, type PointsDb } from './points.ts';
 
@@ -56,9 +56,9 @@ export const SIZES = [
 const xml = (s: string) => s.replace(/[<>&"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 // An XMP packet with creator, rights, licence and where the credit lives.
-export function xmpPacket(p: { author: string; stationId: string }): string {
+export function xmpPacket(p: { author: string; photoId: string }): string {
   const author = xml(p.author);
-  const page = xml(SITE + stationPath('pt', p.stationId));
+  const page = xml(SITE + photoPath('pt', p.photoId));
   return `<?xpacket begin="\u{FEFF}" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
 <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" xmlns:cc="http://creativecommons.org/ns#">
@@ -149,7 +149,7 @@ export async function publishMain(
         bytes[size.suffix] = clean;
       }
     }
-    const packet = xmpPacket({ author: p.credit ?? 'olh\'o\'posto', stationId: p.station_id });
+    const packet = xmpPacket({ author: p.credit ?? 'olh\'o\'posto', photoId: p.id });
     for (const target of targets) {
       for (const size of SIZES) {
         const key = `${target}${size.suffix}.jpg`;
@@ -217,7 +217,7 @@ export async function chooseMain(
         bytes[size.suffix] = clean;
       }
     }
-    const packet = xmpPacket({ author: p.credit ?? 'olh\'o\'posto', stationId: p.station_id });
+    const packet = xmpPacket({ author: p.credit ?? 'olh\'o\'posto', photoId: p.id });
     for (const t of targets) {
       for (const size of SIZES) {
         const key = `${t}${size.suffix}.jpg`;

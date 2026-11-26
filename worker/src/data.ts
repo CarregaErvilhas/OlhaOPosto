@@ -25,7 +25,7 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
          FROM evses WHERE station_id = ? ORDER BY point_id`,
     ).bind(id),
     env.DB.prepare(
-      `SELECT sel.target, p.credit, p.panoramax_id
+      `SELECT sel.target, p.credit, p.panoramax_id, p.id AS photo_id
          FROM selections sel JOIN photos p ON p.id = sel.photo_id
         WHERE sel.station_id = ? AND sel.published_at IS NOT NULL AND p.status = 'published'`,
     ).bind(id),
@@ -33,8 +33,8 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
   const s = (station.results as StationRow[])[0];
   if (!s || !isPublic(s)) return null;
   const byTarget: MainPhotos = {};
-  for (const m of mains.results as { target: string; credit: string | null; panoramax_id: string | null }[]) {
-    byTarget[m.target] = { credit: m.credit, panoramax_id: m.panoramax_id };
+  for (const m of mains.results as { target: string; credit: string | null; panoramax_id: string | null; photo_id: string }[]) {
+    byTarget[m.target] = { credit: m.credit, panoramax_id: m.panoramax_id, photo_id: m.photo_id };
   }
   return { station: s, points: points.results as PointRow[], mains: byTarget };
 }

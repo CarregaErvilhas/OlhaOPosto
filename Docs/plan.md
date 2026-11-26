@@ -18,10 +18,9 @@ daqui fica feita, sai deste documento e passa para lá.
 2. **O site para pessoas.** Falta:
    - detetor de matrículas no browser (ver *Desfocagem*);
    - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
-   - página de crédito `/p/{photo_id}` e pseudónimo no perfil (ver *Crédito*);
+   - pseudónimo no perfil (ver *Crédito*);
    - promover a foto aprovada seguinte a principal quando uma principal é ocultada ou retirada;
    - o autor ver os seus envios e o motivo de uma recusa (ver *Moderação*);
-   - link manual "acrescentar ao OSM";
    - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
    - entrada na federação, depois da conversa com a comunidade.
 3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP, o resto da API (OpenAPI, `GET /photos/{id}`, `DELETE /photos/{id}`, filtros), exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
@@ -54,7 +53,6 @@ E uma coluna para o motivo de uma recusa em `photos` (hoje fica só o estado `re
 A primeira foto aprovada de cada alvo já é publicada, e a principal já se troca ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta:
 
 - **Passar a principal à seguinte** quando a foto é ocultada ou retirada (pedido de remoção): hoje as três chaves saem do `pictures` e o link passa a `404`; deve passar a seguinte foto aprovada do mesmo alvo, se houver.
-- **Página de crédito** `olhaoposto.ocarroeletrico.com/p/{photo_id}`, com o autor, a data e a licença. Hoje o XMP aponta para a página do posto.
 - **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
 
 ### Fotos externas e links estáticos
@@ -87,7 +85,7 @@ Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto 
   - só em elementos já ligados por `ref` ou `ref:EU:EVSE`; a foto de uma tomada vai para o ponto `man_made=charge_point`, se existir;
   - só acrescenta; substitui apenas valores que ele próprio escreveu (registados em `osm_edits`). Se o elemento já tem outro `panoramax=`, a nova vai para a chave numerada seguinte (confirmar a convenção que o MapComplete usa);
   - desligado até a comunidade aprovar. A aprovação não é opcional: sem ela, a conta pode ser bloqueada e as edições revertidas. Por isso a conversa começa já na fase 1.
-- **Manual:** depois de aprovada, a página da foto oferece um link "acrescentar ao OSM" para quem mapeia, sem precisar de aprovação nenhuma.
+- **Manual** (feito, `arquitetura.md`, *Links estáticos*): a página de crédito da foto principal oferece o link «Acrescentar ao OSM» e a etiqueta, sem precisar de aprovação nenhuma.
 
 ## Ligação ao NAP dashboard e ao ohmigo
 

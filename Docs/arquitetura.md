@@ -212,9 +212,25 @@ para o bucket `pictures`. Uma foto de uma tomada também passa a principal do
 posto, se o posto não tiver nenhuma. As cópias de 1024 e 400 px vêm do
 `pictures-staging`; a de 2048 px vem do Panoramax, sem o EXIF que o
 Panoramax lhe escreve. Cada cópia leva um XMP com o autor, a licença
-CC BY-SA 4.0 e o link da página do posto (o R2 não manda cabeçalhos
-próprios), sem GPS, e `Cache-Control: public, max-age=86400`. A página do
-posto mostra a foto principal com o crédito, e as miniaturas das tomadas.
+CC BY-SA 4.0 e o link da página de crédito da foto (`/p/{photo_id}`; o R2
+não manda cabeçalhos próprios), sem GPS, e `Cache-Control: public,
+max-age=86400`. As cópias publicadas antes da página de crédito existir
+continuam a apontar para a página do posto até serem publicadas outra vez.
+A página do posto mostra a foto principal com o crédito, e as miniaturas das
+tomadas; ambas ligam à página de crédito.
+
+**Página de crédito** (`/p/{photo_id}`, `/en/p/{photo_id}`; `src/credit.ts`):
+a foto, o autor (`photos.credit`), a data (a da foto, ou a da aprovação), a
+licença CC BY-SA 4.0 com o link do texto, o posto ou a tomada que mostra, o
+texto de atribuição pronto a copiar e os links para a página do posto, para o
+Panoramax e para o pedido de remoção. Só existe para fotos publicadas de
+postos públicos: uma foto pendente, oculta ou retirada dá `404`. A foto
+principal vem de `pictures.*`; outra foto publicada vem do Panoramax. Não vai
+para o `sitemap.xml`: chega-se lá pelas páginas dos postos.
+**Acrescentar ao OSM** (só na foto principal atual de um posto ou tomada, sem
+bot nem edição automática): o link abre o editor iD no elemento ligado ao
+posto (`osm_ref`) ou, se não houver ou se a foto for de uma tomada, no sítio
+do posto, e mostra a etiqueta `panoramax=<id>` para copiar.
 Um moderador ou uma conta `trusted` pode trocar a principal
 (`PUT /api/v1/selections/{target}`): o Worker copia a foto nova por cima das
 três chaves e faz *purge* desses URLs.

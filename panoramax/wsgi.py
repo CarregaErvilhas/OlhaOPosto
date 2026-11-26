@@ -22,6 +22,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from geovisio import create_api
 
+import author_override
 import map_override
 
 app = create_api()
@@ -34,3 +35,10 @@ try:
     map_override.apply(app)
 except Exception:
     logging.exception("map_override not applied: the map shows single photos only from zoom ~16.5")
+
+# The photo's author as its producer, not the OlhaOPosto account
+# (author_override.py). Same fallback: stock Panoramax, and the reason in the log.
+try:
+    author_override.apply()
+except Exception:
+    logging.exception("author_override not applied: Panoramax credits every photo to the OlhaOPosto account")

@@ -15,6 +15,7 @@ import {
   PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, rankingPage, rankingPath, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
+import { groupPage } from './grupo.ts';
 import { photoLink } from './photolinks.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
@@ -380,6 +381,8 @@ export default {
     if (pathname === '/en') return new Response(null, { status: 301, headers: { location: '/en/' } });
     if (pathname === '/privacidade') return html('pt', privacyPage('pt'));
     if (pathname === '/en/privacy') return html('en', privacyPage('en'));
+    if (pathname === '/grupo') return html('pt', groupPage('pt'));
+    if (pathname === '/en/group') return html('en', groupPage('en'));
     if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/admin/fila') return queueHtml('pt', request, env, HTML_HEADERS);

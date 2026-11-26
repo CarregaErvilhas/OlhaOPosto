@@ -33,9 +33,10 @@ O código MOBI.E, quando existe, vem do `ref` do OSM ou do nome, em formatos var
 O feed dos postos que o NAP dashboard publica está a ser redesenhado. A proposta desse redesenho mantém o mesmo endereço (`nap.ocarroeletrico.com/ohmigo/chargers.json`) e põe os postos em construção num array novo, `planned`, ao lado de `sites`. A cadência (várias vezes por dia) ainda está por decidir. O que este design precisa do feed:
 
 - **Os postos em construção separados dos do NAP** (o array `planned`). O ohmigo nunca lhes pode dar preço nem os sugerir para carregar.
-- Para cada um: o id (`OSM-<n|w><número>`), o elemento OSM (`way/1551836005`), o ciclo de vida, os **códigos MOBI.E já expandidos** (`["ALM-00114", "ALM-00155"]`), o nome, o operador, a posição, o número de pontos, a potência e as fichas, quando o OSM os tem.
+- Para cada um: o id (`OSM-<n|w><número>`), o elemento OSM (`way/1551836005`), o ciclo de vida, os **códigos MOBI.E já expandidos** (`codes`: `["ALM-00114", "ALM-00155"]`, lista vazia quando não há), tirados do `ref` **e do nome** (o `ALM-00114/155` está no nome, não no `ref`), o nome, o operador, a posição, o número de pontos, a potência e as fichas, quando o OSM os tem.
 - Para cada posto do NAP: o elemento OSM ligado (`osm.element`), como hoje. É a chave da fusão (abaixo).
-- A mesma cadência dos postos do NAP. Hoje os planeados só saem no refresh semanal.
+- A mesma cadência dos postos do NAP. Hoje os planeados só saem no refresh semanal. O import do olh'o'posto pode correr de hora a hora: não faz nada quando o `generatedAt` não mudou.
+- O travão do import (recusa quando desaparece mais de 5 % dos postos, `MAX_MISSING_SHARE`) conta só os postos do NAP. Os em construção saem do feed sempre que abrem, e isso não é um feed partido.
 
 ## Ids e URLs
 

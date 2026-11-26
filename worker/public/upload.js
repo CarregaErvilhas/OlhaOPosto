@@ -100,7 +100,8 @@ function init(form, M) {
     for (const s of sections) s.hidden = false;
     render();
     renderZones();
-    findNear();
+    if (M.station) preset(M.station);
+    else findNear();
   });
 
   function reset() {
@@ -153,13 +154,20 @@ function init(form, M) {
     await listStations(`/api/v1/stations?lat=${lat}&lon=${lon}&radius=${RADIUS}&limit=10`, M.gps, M.noneNear);
   }
 
+  // ?posto=<id>: the station the link came from goes first; the search and
+  // the photo's GPS stay there to pick another. Unknown id: as if absent.
+  async function preset(id) {
+    const ok = await listStations(`/api/v1/stations/${encodeURIComponent(id)}`, M.preset, '', true);
+    if (!ok) findNear();
+  }
+
   async function search() {
     const q = searchInput.value.trim();
     if (q.length < 2) return say(stationIntro, M.tooShort);
     await listStations(`/api/v1/stations?q=${encodeURIComponent(q)}&limit=10`, '', M.noResults);
   }
 
-  async function listStations(path, intro, empty) {
+  async function listStations(path, intro, empty, one = false) {
     const mine = ++lookup;
     say(stationIntro, M.searching);
     let body;
@@ -167,10 +175,13 @@ function init(form, M) {
       body = await api(path);
     } catch {
       if (mine === lookup) say(stationIntro, M.failed);
-      return;
+      return mine !== lookup;
     }
-    if (mine !== lookup) return;
-    const rows = (body?.results ?? []).map((s) => ({
+    // A newer lookup took over: nothing left to do here.
+    if (mine !== lookup) return true;
+    const found = one ? (body?.id ? [body] : []) : (body?.results ?? []);
+    if (one && found.length === 0) return false;
+    const rows = found.map((s) => ({
       ...s,
       // From the exact GPS, which stays on the device.
       d: meta?.lat != null ? distance(meta.lat, meta.lon, s.lat, s.lon) : null,
@@ -189,6 +200,7 @@ function init(form, M) {
     const first = stationList.querySelector('input');
     first.checked = true;
     pickStation(first.value);
+    return true;
   }
 
   searchButton.addEventListener('click', search);

@@ -478,7 +478,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
       : `<div class="empty-photo">
       ${ICON_CAMERA}
       <strong>${t.emptyTitle}</strong>
-      <a href="${uploadPath(lang)}">${t.emptySend}</a>
+      <a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.emptySend}</a>
     </div>`}
     <p class="hint">${t.hint}</p>
   </section>

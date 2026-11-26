@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { uploadPage } from '../src/upload.ts';
+import { presetStation, uploadPage } from '../src/upload.ts';
 
 const user = { name: '<b>x</b>', role: 'contributor' };
 
@@ -68,4 +68,26 @@ test('uploadPage: the Turnstile widget only while sending is open', () => {
   assert.ok(open.includes('https://challenges.cloudflare.com/turnstile/v0/api.js'));
   const closed = uploadPage('en', { user, enabled: true, sending: false, sitekey: 'k' });
   assert.ok(!closed.includes('cf-turnstile') && !closed.includes('challenges.cloudflare.com'));
+});
+
+test('presetStation: keeps station ids and aliases, drops anything else', () => {
+  assert.equal(presetStation('EZC-AMD-00051'), 'EZC-AMD-00051');
+  assert.equal(presetStation(' ABT-00026 '), 'ABT-00026');
+  assert.equal(presetStation('0001PL0002'), '0001PL0002');
+  assert.equal(presetStation(null), null);
+  assert.equal(presetStation(''), null);
+  assert.equal(presetStation('"><script>'), null);
+  assert.equal(presetStation('/x'), null);
+  assert.equal(presetStation('a'.repeat(65)), null);
+});
+
+test('uploadPage: ?posto= reaches the script, the sign-in link and the language switch', () => {
+  const out = uploadPage('pt', { user: null, enabled: true, station: 'ABT-00026' });
+  assert.ok(out.includes('href="/auth/osm/login?next=%2Fenviar%3Fposto%3DABT-00026"'));
+  assert.ok(out.includes('/en/upload?posto=ABT-00026'));
+  const signed = uploadPage('en', { user, enabled: true, station: 'ABT-00026' });
+  const m = signed.match(/<script type="application\/json" id="upload-msg">(.*?)<\/script>/s);
+  assert.ok(m);
+  assert.equal(JSON.parse(m[1]).station, 'ABT-00026');
+  assert.equal(JSON.parse(uploadPage('en', { user, enabled: true }).match(/id="upload-msg">(.*?)<\/script>/s)![1]).station, null);
 });

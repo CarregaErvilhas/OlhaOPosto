@@ -51,6 +51,7 @@ const T = {
       notJpeg: 'Não foi possível abrir esta foto. Escolhe um JPEG.',
       tooBig: 'A foto tem mais de 40 MB. Escolhe outra.',
       gps: 'GPS lido da foto e arredondado a cerca de 100 m. Postos num raio de 500 m:',
+      preset: 'Posto do link que abriste:',
       noGps: 'A foto não tem GPS. Procura o posto pelo código, localidade ou operador.',
       noneNear: 'Não há postos num raio de 500 m. Procura o posto pelo código, localidade ou operador.',
       searching: 'A procurar…',
@@ -130,6 +131,7 @@ const T = {
       notJpeg: 'Couldn’t open this photo. Choose a JPEG.',
       tooBig: 'The photo is over 40 MB. Choose another.',
       gps: 'GPS read from the photo and rounded to about 100 m. Stations within 500 m:',
+      preset: 'Station from the link you opened:',
       noGps: 'The photo has no GPS. Find the station by code, town or operator.',
       noneNear: 'No stations within 500 m. Find the station by code, town or operator.',
       searching: 'Searching…',
@@ -176,6 +178,15 @@ export interface UploadView {
   sending?: boolean;
   // Turnstile site key, only while sending is open.
   sitekey?: string;
+  // ?posto=<id>: the station to pick first (a station page, the NAP dashboard).
+  station?: string | null;
+}
+
+// A station id or alias as the links carry it: NAP site ids (EZC-AMD-00051),
+// MOBI.E codes, OPC-… ids. Anything else is ignored, not an error.
+export function presetStation(raw: string | null): string | null {
+  const v = (raw ?? '').trim();
+  return /^[A-Za-z0-9][A-Za-z0-9*_.-]{0,63}$/.test(v) ? v : null;
 }
 
 // Must match what the Worker expects back from siteverify (src/photos.ts).
@@ -185,11 +196,11 @@ export const TURNSTILE_ACTION = 'upload';
 // must not close the element.
 const scriptJson = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-function form(lang: Lang, sending: boolean, sitekey?: string): string {
+function form(lang: Lang, sending: boolean, sitekey?: string, station?: string | null): string {
   const t = T[lang];
   return `${sending ? `<p class="hint">${t.moderated}</p>` : `<p class="notice">${t.building}</p>`}
 <noscript><p class="notice">${t.noScript}</p></noscript>
-<script type="application/json" id="upload-msg">${scriptJson({ lang, host: PICTURES_HOST, canSend: sending, ...t.js })}</script>
+<script type="application/json" id="upload-msg">${scriptJson({ lang, host: PICTURES_HOST, canSend: sending, station: station ?? null, ...t.js })}</script>
 <form id="upload" class="upload" hidden>
 <section class="card" aria-labelledby="h-photo">
   <h2 id="h-photo">${t.stepPhoto}</h2>
@@ -255,7 +266,8 @@ function form(lang: Lang, sending: boolean, sitekey?: string): string {
 
 export function uploadPage(lang: Lang, p: UploadView): string {
   const t = T[lang];
-  const here = uploadPath(lang);
+  const q = p.station ? `?posto=${encodeURIComponent(p.station)}` : '';
+  const here = uploadPath(lang) + q;
   const parts: string[] = [`<h1>${t.title}</h1>`, `<p>${t.intro}</p>`];
   let module: string | undefined;
   if (!p.enabled) {
@@ -270,7 +282,7 @@ export function uploadPage(lang: Lang, p: UploadView): string {
     // The OSM name is the person's own text, in whatever language they chose.
     parts.push(
       `<p class="hint">${t.signedIn} <strong lang="">${esc(p.user.name)}</strong> · <a href="${accountPath(lang)}">${t.account}</a></p>`,
-      form(lang, Boolean(p.sending), p.sitekey),
+      form(lang, Boolean(p.sending), p.sitekey, p.station),
     );
     module = '/upload.js';
   }
@@ -279,7 +291,7 @@ export function uploadPage(lang: Lang, p: UploadView): string {
     title: `${t.title} · ${BRAND}`,
     description: t.desc,
     noindex: true,
-    switchTo: { pt: uploadPath('pt'), en: uploadPath('en') },
+    switchTo: { pt: uploadPath('pt') + q, en: uploadPath('en') + q },
     module,
     body: `<div class="upload-page">\n${parts.join('\n')}\n</div>`,
   });

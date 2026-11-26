@@ -33,6 +33,21 @@ import { type StationFilters, compactCode, ftsQuery, MAX_QUERY, NEAR_MAX_M, STAT
 
 export const MCP_NAME = 'OlhaOPosto';
 export const MCP_VERSION = '1.0.0';
+
+// Who we are, with the mascot: without icons, clients guess from the domain
+// and show the apex's (ocarroeletrico.com) icon.
+export const SERVER_INFO = {
+  name: MCP_NAME,
+  title: "olh'o'posto",
+  version: MCP_VERSION,
+  description: 'Community photos of EV charging stations and sockets in Portugal.',
+  websiteUrl: SITE,
+  icons: [
+    { src: `${SITE}/favicon.svg`, mimeType: 'image/svg+xml', sizes: ['any'] },
+    { src: `${SITE}/icon-192.png`, mimeType: 'image/png', sizes: ['192x192'] },
+    { src: `${SITE}/icon-512.png`, mimeType: 'image/png', sizes: ['512x512'] },
+  ],
+};
 export const MCP_PATH = '/mcp';
 // What src/oauth.ts answers: the endpoint, the OAuth endpoints and their metadata.
 export const isMcpPath = (p: string) =>
@@ -179,7 +194,7 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
   const fetcher = deps.fetcher ?? fetch;
   const now = deps.now ?? (() => new Date());
   const ctx: Waiter = deps.ctx ?? { waitUntil: () => {} };
-  const server = new McpServer({ name: MCP_NAME, version: MCP_VERSION }, { instructions: INSTRUCTIONS });
+  const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS });
   const read = { readOnlyHint: true, openWorldHint: false } as const;
 
   server.registerTool('search_stations', {

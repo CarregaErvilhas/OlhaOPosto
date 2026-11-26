@@ -22,8 +22,8 @@ ignora o `wrangler.json`.
 | R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`; ligado ao Worker (`PICTURES`), que escreve as fotos principais ao aprovar |
 | R2 `pictures-staging` | Criado (WEUR), privado, vazio; ligado ao Worker (`STAGING`) |
 | Cache Rule do `pictures.*` | Aplicada e testada |
-| D1 `pictures` | Criada, jurisdição EU, com o import diário. Migrações `0001` a `0007` aplicadas (o deploy aplica as novas) |
-| Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API só de leitura, `sitemap.xml`, política de privacidade, seletor de tema, o login OSM e a página de envio. O envio (`POST /api/v1/photos`) está aberto, com moderação; aprovar publica a foto principal em `pictures.*` |
+| D1 `pictures` | Criada, jurisdição EU, com o import diário. O deploy aplica as migrações novas antes do Worker |
+| Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API (leitura aberta; escrita com sessão ou *token*), `sitemap.xml`, privacidade e termos, seletor de tema, o login OSM, a conta (pontos, *tokens*), o ranking e a página de envio. O envio (`POST /api/v1/photos`) está aberto, com moderação; aprovar publica a foto principal em `pictures.*` |
 | Início de sessão com o OSM | Ligado: aplicação registada no OSM (só `read_prefs`) e segredos postos (secção 4) |
 | Deploy do Worker | `npm run deploy` (migrações e depois o Worker). Workers Builds ligado: corre isso a cada push para `main` (secção 4, *Deploy automático*) |
 | Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos. Correu à mão; o agendamento diário ainda não correu nenhuma vez |
@@ -106,19 +106,25 @@ desligados). Por agora tem:
 | `GET /sitemap.xml` | Página inicial e todos os postos públicos, nas duas línguas, com `lastmod` (a última alteração do posto ou de uma tomada). Fica um dia na Cache API: cada geração lê os postos e as tomadas (cerca de 28 mil linhas), uma vez por dia e por centro de dados |
 | `GET /robots.txt`, `/llms.txt` | Ficheiros estáticos em `worker/public/`. O `robots.txt` deixa entrar todos os robôs, incluindo os de IA, e aponta para o *sitemap*. O `llms.txt` descreve as páginas, a API, os links estáticos e as licenças |
 | `GET /privacidade`, `/en/privacy` | Política de privacidade (`src/privacy.ts`), com ligação no rodapé de todas as páginas e no *sitemap*. Muda no mesmo PR que mudar o que o Worker guarda |
-| `GET /conta`, `/en/account` | A conta de quem tem sessão (nome, papel, ligação para o envio, botão para terminar) ou o botão para iniciar sessão. Lê a sessão: `no-store` e `noindex` |
-| `GET /enviar`, `/en/upload` | Página de envio (`src/upload.ts` e `public/upload.js`), só com sessão; sem ela, o botão para iniciar sessão. Prepara a foto no browser e ainda não envia nada. Lê a sessão: `no-store`, `noindex`, fora do *sitemap*. A CSP desta página acrescenta `connect-src 'self'` (pede postos à API) e `blob:` em `img-src` (mostra a foto preparada) |
+| `GET /termos`, `/en/terms` | Termos de utilização (`src/terms.ts`): o que aceita quem envia fotos, propõe postos ou usa um *token*. Ligação no rodapé, no consentimento da página de envio e no *sitemap* |
+| `GET /conta`, `/en/account` | A conta de quem tem sessão (`src/account.ts`): nome, papel, ligação para o envio, pontos e medalha, sair ou voltar ao ranking, *tokens* de API (criar, listar, revogar) e o botão para terminar; ou o botão para iniciar sessão. Lê a sessão: `no-store` e `noindex` |
+| `POST /conta/acao` | As ações da conta (`action`: `create_token`, `revoke_token`, `ranking_out`, `ranking_in`), só do próprio site. Criar um *token* responde com a própria página, que o mostra uma vez; nunca vai num URL nem num redirect |
+| `GET /ranking`, `/en/ranking`, `/api/v1/ranking?period=month\|all` | Tabela dos 50 primeiros (nome, medalha, fotos, pontos) e as regras dos pontos (`src/points.ts`). Só contam fotos publicadas; quem saiu do ranking não aparece |
+| `GET /enviar`, `/en/upload` | Página de envio (`src/upload.ts` e `public/upload.js`), só com sessão; sem ela, o botão para iniciar sessão. Lê a sessão: `no-store`, `noindex`, fora do *sitemap*. A CSP desta página acrescenta `connect-src 'self'` (pede postos à API, e os ficheiros do HEIC e da deteção de caras), `blob:` e `https://tile.openstreetmap.org` em `img-src` (a foto preparada e o mapa), `'wasm-unsafe-eval'` em `script-src` (compilar o WebAssembly do libheif e do MediaPipe; não permite `eval` de JavaScript) e o Turnstile. O formulário de remoção tem a sua CSP, só com o Turnstile |
 | `GET /auth/osm/login?next=` | `302` para o OpenStreetMap, com `state` e PKCE num *cookie* de 10 minutos. `503` enquanto não houver os segredos do OSM |
 | `GET /auth/osm/callback` | Volta do OpenStreetMap: troca o código, lê o utilizador, cria a sessão e faz `302` para o `next`. Qualquer falha volta à conta com `?erro=` |
 | `POST /auth/logout?next=` | Apaga a sessão e faz `303` para o `next`. `403` se o pedido vier de outro site |
-| `POST /api/v1/photos` | Envio de uma foto, só com sessão e do próprio site (ver *Envio*). `503` `uploads_closed` até o envio abrir. Com este, são os dois `POST`; tudo o resto responde `405` |
+| `POST /api/v1/photos` | Envio de uma foto, com sessão do próprio site ou com um *token* `photos:write` (ver *Envio* e *Tokens de API*). `503` `uploads_closed` se faltar um segredo |
+| `POST /api/v1/stations` | Propor um posto que não está no NAP (`src/proposals.ts`, ver *Postos propostos*), com sessão do próprio site ou *token* `photos:write` |
+| `PUT /api/v1/selections/{target}` | Escolher a foto principal de um posto ou tomada (`{"photo": "<id>"}`), para `trusted`, moderadores e administradores, com sessão do próprio site ou *token* `selections:write`. Copia os três tamanhos por cima e faz *purge* |
 
 As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os
 ficheiros de `worker/public/` (CSS, *scripts*, fontes, ícones) são *static
 assets* do Worker: a Cloudflare serve-os antes de o código correr e não contam
 para o limite de pedidos. O `public/_headers` dá às fontes um ano de cache
 (`immutable`): uma fonte nova leva um nome de ficheiro novo. O CSS e os
-*scripts* (`site.js`, `theme.js`, `upload.js`, `jpeg.js`) mantêm o nome, por
+*scripts* (`site.js`, `theme.js`, `upload.js`, `jpeg.js`, `heif.js`, `heic.js`,
+`detect.js`) e as bibliotecas de `public/vendor/` mantêm o nome, por
 isso vão com `no-cache`: o browser confirma-os (ETag) em cada página e um
 deploy nunca junta HTML novo com CSS antigo.
 
@@ -153,7 +159,20 @@ Mono) estão alojadas em `public/fonts/`, não no Google Fonts. A CSP só deixa
 carregar ficheiros do próprio site e imagens de `pictures.*`, e não permite
 *scripts* nem estilos *inline*: tudo vai em `site.css` e nos *scripts* de
 `public/`. A página de envio é a única com uma CSP mais larga (ver a tabela
-acima). As
+acima): o Turnstile e, só se a pessoa abrir o mapa, os mosaicos do
+OpenStreetMap.
+
+**Bibliotecas do browser** (`scripts/vendor.ts`). A página de envio usa três
+bibliotecas, todas `devDependencies` com versão exata (o Dependabot do npm
+atualiza-as): `libheif-js` (LGPL-3.0, fotos HEIC), `@mediapipe/tasks-vision`
+(Apache-2.0, deteção de caras) e `leaflet` (BSD-2-Clause, o mapa). Nenhum
+ficheiro delas vai para o repositório: o `npm run vendor` copia-os de
+`node_modules` para `public/vendor/` (ignorada pelo git), e corre antes do
+`npm run dev` e no início do `npm run deploy`. O WebAssembly do MediaPipe tem
+cerca de 15 MB (o limite por ficheiro dos *static assets* é 25 MiB) e só se
+descarrega quando a página procura caras. O modelo de caras (BlazeFace,
+Apache-2.0, 230 kB) está em `public/models/`, com a origem e o SHA-256 no
+`README.txt` ao lado. As
 páginas levam também HSTS, `nosniff`, `referrer-policy` e COOP; a API leva
 `x-robots-tag: noindex`, porque é para apps e agentes, não para resultados de
 pesquisa.
@@ -378,25 +397,50 @@ localizações. O limite exato continua a ser o diário da D1 (50 envios por dia
 para contribuidores). Se o *binding* faltar ou falhar, o pedido passa. As
 páginas dos postos não têm limite, para não travar os motores de busca.
 
-**Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js` e
-`public/jpeg.js`). Tudo o que mexe na foto corre no browser. Com o envio
-fechado, a página para no passo 5 e oferece o download para testar; aberto,
+**Página de envio** (`/enviar`, `src/upload.ts`, `public/upload.js`,
+`public/jpeg.js`, `public/heif.js`, `public/heic.js` e `public/detect.js`).
+Tudo o que mexe na foto corre no browser. Com o envio fechado (falta um
+segredo), a página para no passo 5 e oferece o download para testar; aberto,
 o botão passa a "Enviar a foto" e manda os três tamanhos ao Worker:
 
-1. Abre um JPEG (até 40 MB) com `createImageBitmap`, que aplica a rotação
-   do EXIF, e reduz o lado maior a 2048 px.
+1. Abre um JPEG ou um HEIC (até 40 MB). Podem escolher-se várias fotos:
+   tratam-se uma de cada vez («Foto seguinte», «Saltar esta foto»), e o posto
+   da foto anterior enviada fica sugerido para a seguinte quando esta não tem
+   GPS ou foi tirada a menos de 500 m dele. O JPEG abre com
+   `createImageBitmap`, que aplica a rotação do EXIF. O HEIC tenta o mesmo
+   (o Safari descodifica-o) e, se o browser não souber, usa o libheif em
+   WebAssembly (`heic.js`), carregado só nessa altura. O lado maior fica em
+   2048 px.
 2. Lê o GPS, a `DateTimeOriginal` e a `Orientation` com o leitor próprio de
-   `jpeg.js` (só esses campos; nunca lança erro com um ficheiro mau).
+   `jpeg.js`; num HEIC, o `heif.js` encontra o item Exif nas caixas
+   `meta`/`iinf`/`iloc` e passa o bloco TIFF ao mesmo leitor. Nunca lança
+   erro com um ficheiro mau.
 3. Com GPS, arredonda a 3 casas decimais (cerca de 100 m) e pede os postos
    a 500 m; mostra a distância calculada com o GPS exato, que não sai do
-   dispositivo. Sem GPS, pesquisa por texto. Com `?posto=<id>` (a página do
+   dispositivo. Sem GPS, pesquisa por texto ou mapa. Com `?posto=<id>` (a página do
    posto sem foto e o NAP dashboard ligam assim), esse posto vem primeiro,
    com a distância ao GPS da foto, e o login e a troca de língua mantêm-no;
    um id desconhecido conta como ausente. Depois pede o posto para listar
    as tomadas com código EVSE.
-4. A pessoa desenha zonas por cima de caras e matrículas (rato, toque ou
-   teclado). Cada zona leva um mosaico de cerca de 8 blocos no lado maior.
-   A pré-visualização é a própria imagem que vai ser enviada.
+   - **Mapa** (Leaflet, mosaicos do OpenStreetMap), só se a pessoa tocar em
+     «Escolher no mapa». A partir do zoom 13 mostra os postos à volta do
+     centro (a API de proximidade, com o centro arredondado a ~100 m e o
+     raio até 5 km); tocar num escolhe-o. «Ir para a minha localização» usa
+     a geolocalização do browser só para centrar o mapa.
+   - **Posto novo**: «O posto não está na lista?» abre um formulário (nome,
+     operador, código, nota) com a posição do GPS da foto ou do centro do
+     mapa. Ver *Postos propostos*.
+4. A página procura caras (`detect.js`, MediaPipe Face Detector com o modelo
+   BlazeFace de curto alcance, no CPU): na foto inteira e numa grelha de 3 × 3
+   recortes sobrepostos, porque o modelo olha para um quadrado de 128 px e
+   uma cara a uns metros fica pequena demais na foto inteira. As caixas
+   juntam-se, crescem 25 % para cada lado e entram como zonas ligadas, que a
+   pessoa confirma. Com «poupar dados» ligado no browser, só procura quando
+   se toca em «Procurar caras». Não há detetor de matrículas (*Questões em
+   aberto* do `plan.md`). A pessoa desenha mais zonas por cima de caras e
+   matrículas (rato, toque ou teclado). Cada zona leva um mosaico de cerca de
+   8 blocos no lado maior. A pré-visualização é a própria imagem que vai ser
+   enviada.
 5. Gera 2048, 1024 e 400 px em JPEG 0,85 a partir dessa imagem, tira com o
    `stripMetadata` todos os segmentos de metadados (fica o JFIF, o perfil de
    cor e o Adobe) e tudo o que vem depois do fim da imagem, e confirma com o
@@ -414,13 +458,16 @@ com o posto, o alvo, a data e o GPS da foto e as duas confirmações). O GPS
 vai no corpo, nunca no URL, que fica nos registos. O Worker não confia no
 browser:
 
-1. Sessão, origem do próprio site e o limite diário (50 fotos por dia para
+1. Sessão e origem do próprio site, ou um *token* com `photos:write` (sem
+   Turnstile; ver *Tokens de API*), e o limite diário (50 fotos por dia para
    `contributor`, 500 para os outros papéis, por dia UTC).
 2. Cada ficheiro: tamanho máximo (6 MB, 2 MB e 500 kB), JPEG limpo
    (`isCleanJpeg`), lado maior até 2048, 1024 e 400 px, e os três com a
    mesma forma.
-3. O posto tem de ser público e a tomada tem de ser desse posto. A
-   distância ao posto calcula-se no Worker.
+3. O posto tem de ser público, ou uma proposta ainda por decidir de quem
+   envia, e a tomada tem de ser desse posto. A distância ao posto calcula-se
+   no Worker. Contas `trusted` publicam logo quando o posto está `active` e a
+   foto foi tirada a 300 m ou menos dele; o resto fica `pending`.
 4. Escreve a linha em `photos` como `uploading` antes de tudo o resto, guarda
    as versões de 1024 e 400 px em `pictures-staging` (`{id}/main.jpg`,
    `{id}/thumb.jpg`) e manda a de 2048 ao Panoramax: um *upload set*
@@ -437,22 +484,46 @@ as três fotos cerca de 4,5 ms. O plano Free dá 10 ms de CPU por pedido. Falta
 confirmar o tempo real no primeiro envio em produção; se passar, a saída é o
 Workers Paid (5 $/mês, já no orçamento do `plan.md`).
 
-**Abrir o envio** (só o Fernando). Fica fechado enquanto faltar o login, o
-segredo `PANORAMAX_TOKEN`, os segredos do Turnstile ou a ligação `STAGING`. Antes de pôr o token:
+**Abrir o envio.** Feito: login, Turnstile, `STAGING` e `PANORAMAX_TOKEN`
+estão postos. Sem qualquer um destes segredos, o envio volta a fechar
+(`503` `uploads_closed`) e a página só prepara as fotos. Em local,
+`--var PANORAMAX_TOKEN:x --var PANORAMAX_URL:http://127.0.0.1:...` aponta para
+um Panoramax falso; o R2 local guarda as versões.
 
-1. ~~Haver moderação~~: feita (*Fila de moderação*).
-2. ~~Turnstile~~: feito (*Turnstile*, abaixo). Faltam os dois segredos:
-   `npm run remote -- secret put TURNSTILE_SITEKEY` (a *site key* do widget
-   "olh'o'posto upload") e `npm run remote -- secret put TURNSTILE_SECRET`
-   (a *secret key*, no painel: Turnstile → o widget → Settings).
-3. Confirmar a secção *Envio de fotos* da política de privacidade.
-4. Emitir o token da conta `OlhaOPosto` ([`infra.md`](infra.md), secção 4) e
-   `npm run remote -- secret put PANORAMAX_TOKEN`.
-5. Enviar uma foto real e confirmar no Panoramax, no `pictures-staging` e na
-   D1, e o tempo de CPU nos registos do Worker.
+**Tokens de API** (`src/tokens.ts`, `src/account.ts`, migração `0012`). Quem
+tem sessão cria *tokens* na conta: um nome, os âmbitos (`photos:write`, e
+`selections:write` só para `trusted`, moderadores e administradores) e a
+validade (30, 90 ou 365 dias), até 5 ativos. O *token* (`oop_` + 32 bytes
+aleatórios) aparece uma vez; a tabela `api_tokens` guarda só o SHA-256, o
+início (para o reconhecer na lista), as datas e o último uso (no máximo uma
+escrita por hora). Revogar marca `revoked_at`; os revogados e expirados
+apagam-se quando a pessoa cria outro. Os pedidos levam
+`Authorization: Bearer oop_…`; o Worker lê o papel da conta em cada pedido,
+por isso uma despromoção tira logo o `selections:write` a todos os *tokens*.
+Um pedido com *token* não precisa de origem nem de Turnstile; um pedido só
+com o *cookie* de sessão continua a ter de vir do próprio site.
 
-Em local, `--var PANORAMAX_TOKEN:x --var PANORAMAX_URL:http://127.0.0.1:...`
-aponta para um Panoramax falso; o R2 local guarda as versões.
+**Postos propostos** (`src/proposals.ts`, migração `0013`).
+`POST /api/v1/stations` recebe `{name, operator, code?, lat, lon, note?}`,
+com a posição dentro de Portugal (continente e ilhas). Se houver um posto a
+menos de 60 m responde `409` `station_nearby` com a lista, e `?force=1`
+avança. Escreve um posto `source = 'community'`, `status = 'pending_review'`
+(id `OOP-` + 10 hexadecimais, nunca público) e uma linha em `review_queue`.
+Limite: 5 propostas por dia para `contributor`, 50 para os outros, e o
+`UPLOAD_LIMIT` por minuto. Quem propôs pode enviar fotos do posto logo; ficam
+`pending`. Na fila de moderação os postos propostos aparecem primeiro:
+aprovar passa o posto a `active` (o import diário só mexe em postos
+`source = 'nap'`); recusar passa-o a `rejected` e recusa as fotos dele que
+estavam à espera. Uma foto de um posto proposto só se aprova depois do posto.
+
+**Pontos** (`src/points.ts`). Na aprovação, pelo moderador ou direta para
+`trusted`, o autor da foto (nunca o moderador) recebe +1 e, se for a
+primeira foto publicada do alvo, +3. Uma segunda foto da mesma pessoa no
+mesmo alvo em 30 dias não dá pontos. Trocar a principal por uma foto quando
+a anterior tinha mais de 12 meses dá +2 ao autor da foto nova. Cada motivo
+só se dá uma vez por foto. O ranking e a conta só somam pontos de fotos
+`published`: uma foto ocultada ou retirada deixa de contar sem apagar linhas.
+Medalhas pelo total de sempre: bronze 10, prata 50, ouro 200.
 
 **A D1 `pictures` está na jurisdição EU**: vai guardar dados de
 utilizadores (RGPD), e a jurisdição só se escolhe ao criar a base.

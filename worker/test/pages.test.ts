@@ -180,3 +180,20 @@ test('stationPage: see also links to the NAP dashboard, and to Panoramax once th
   assert.ok(!gone.includes('nap.ocarroeletrico.com/?posto='));
   assert.ok(!gone.includes('Ver também'));
 });
+
+test('station page: add-to-OSM tag and iD link only with a main photo on Panoramax', () => {
+  const mains = { 'EZC-AMD-00051': { credit: 'Ana', panoramax_id: 'abc-"1"' } };
+  const linked = stationPage('pt', station({ osm_ref: 'way/7' }), [point()], mains);
+  assert.match(linked, /<code id="osm-tag">panoramax=abc-&quot;1&quot;<\/code>/);
+  assert.match(linked, /data-target="osm-tag"/);
+  assert.match(linked, /href="https:\/\/www\.openstreetmap\.org\/edit\?editor=id&amp;way=7">Abrir o elemento no editor iD/);
+  assert.doesNotMatch(linked, /ainda não está ligado a um elemento: procura/);
+
+  const unlinked = stationPage('en', station({ osm_ref: null }), [point()], mains);
+  assert.match(unlinked, /edit\?editor=id#map=19\//);
+  assert.match(unlinked, /Open the place in the iD editor/);
+  assert.match(unlinked, /not linked to an element yet/);
+
+  assert.doesNotMatch(stationPage('pt', station(), [point()]), /osm-tag/);
+  assert.doesNotMatch(stationPage('pt', station(), [point()], { 'EZC-AMD-00051': { credit: 'Ana', panoramax_id: null } }), /osm-tag/);
+});

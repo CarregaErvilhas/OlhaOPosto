@@ -197,6 +197,7 @@ main { flex: 1 0 auto; padding: 24px 0 64px; }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
 .card h2 { margin: 0 0 4px; font-size: 1.125rem; }
+.card h3 { margin: 16px 0 4px; font-size: 1rem; }
 .card > p { margin: 0 0 14px; font-size: 0.875rem; color: var(--muted); }
 
 /* Static links */

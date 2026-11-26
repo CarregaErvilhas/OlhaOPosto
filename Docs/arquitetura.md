@@ -151,7 +151,7 @@ Quando a principal é ocultada ou removida (pedido de remoção), as três chave
 
 **Página de crédito** (`/p/{photo_id}`, `/en/p/{photo_id}`; `src/photopage.ts`): a foto, o autor (`photos.credit`), a data (a da foto, ou a da aprovação), a licença CC BY-SA 4.0 com o link do texto, o posto ou a tomada que mostra, o texto de atribuição pronto a copiar e os links para a página do posto, para o Panoramax e para o pedido de remoção. Só existe para fotos publicadas de postos públicos: uma foto pendente, oculta ou retirada dá `404`. A foto principal vem de `pictures.*`; outra foto publicada vem do Panoramax. Não vai para o `sitemap.xml`: chega-se lá pelas páginas dos postos.
 
-**Acrescentar ao OSM** (só na foto principal atual de um posto ou tomada, sem bot nem edição automática): o link abre o editor iD no elemento ligado ao posto (`osm_ref`) ou, se não houver ou se a foto for de uma tomada, no sítio do posto, e mostra a etiqueta `panoramax=<id>` para copiar.
+**Acrescentar ao OSM** (só na foto principal atual de um posto ou tomada, sem bot nem edição automática): o link abre o editor iD no elemento ligado ao posto (`osm_ref`) ou, se não houver ou se a foto for de uma tomada, no sítio do posto, e mostra a etiqueta `panoramax=<id>` para copiar. A página do posto mostra o mesmo no cartão «No OpenStreetMap» quando o posto tem foto principal: a etiqueta da principal do posto, com botão de copiar, e um botão para o iD (no elemento, ou no sítio com o aviso de que o posto ainda não está ligado). As fotos das tomadas ficam só na página de crédito.
 
 ## Fotos externas
 

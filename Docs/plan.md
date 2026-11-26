@@ -61,7 +61,7 @@ Outras alternativas a procurar: convidar o autor a reenviar a foto pelo olh'o'po
 - só em elementos já ligados por `ref` ou `ref:EU:EVSE`; a foto de uma tomada vai para o ponto `man_made=charge_point`, se existir;
 - só acrescenta; substitui apenas valores que ele próprio escreveu (registados em `osm_edits`). Se o elemento já tem outro `panoramax=`, a nova vai para a chave numerada seguinte (confirmar a convenção que o MapComplete usa);
 - desligado até a comunidade aprovar. A aprovação não é opcional: sem ela, a conta pode ser bloqueada e as edições revertidas. Por isso a conversa começa já na fase 1.
-- **Manual** (feito, `arquitetura.md`, *Links estáticos*): a página de crédito da foto principal oferece o link «Acrescentar ao OSM» e a etiqueta, sem precisar de aprovação nenhuma.
+- **Manual** (feito, `arquitetura.md`, *Links estáticos*): a página do posto e a página de crédito da foto principal oferecem o link para o iD e a etiqueta, sem precisar de aprovação nenhuma.
 
 ## Ligação ao NAP dashboard e ao ohmigo
 

@@ -20,4 +20,4 @@ execFileSync(process.execPath, [new URL('./vendor.ts', import.meta.url).pathname
 withRemoteConfig((config) => {
   wrangler(['d1', 'migrations', 'apply', 'DB', '--remote', '-c', config]);
   wrangler(['deploy', '-c', config]);
-}, true);
+}, 'create');

@@ -56,18 +56,32 @@ function createKv(title: string): string | null {
   return remoteKvId(title);
 }
 
+// What a remote config does with the OAuth KV: 'create' (the deploy) creates
+// it if missing, 'lookup' only fills in its id, 'skip' leaves it out. D1-only
+// work uses 'skip': the import's API token has no KV permission, and listing
+// the namespaces with it fails the whole run.
+export type KvMode = 'create' | 'lookup' | 'skip';
+
+const dropOauthKv = (config: { kv_namespaces: { binding: string }[] }) => {
+  config.kv_namespaces = config.kv_namespaces.filter((ns) => ns.binding !== 'OAUTH_KV');
+};
+
 // Calls fn with the path of a config that points at the real D1 and KV, then
-// removes it. With create (the deploy), a missing OAuth KV is created first.
-export function withRemoteConfig<T>(fn: (config: string) => T, create = false): T {
+// removes it.
+export function withRemoteConfig<T>(fn: (config: string) => T, kvMode: KvMode = 'lookup'): T {
   const config = JSON.parse(readFileSync(CONFIG, 'utf8'));
   const id = remoteDatabaseId();
   for (const db of config.d1_databases) if (db.database_name === DB_NAME) db.database_id = id;
-  const kv = remoteKvId(OAUTH_KV_TITLE) ?? (create ? createKv(OAUTH_KV_TITLE) : null);
-  if (kv) {
-    for (const ns of config.kv_namespaces) if (ns.binding === 'OAUTH_KV') ns.id = kv;
+  if (kvMode === 'skip') {
+    dropOauthKv(config);
   } else {
-    console.warn(`KV namespace "${OAUTH_KV_TITLE}" not found: deploying without OAUTH_KV (Docs/cloudflare.md)`);
-    config.kv_namespaces = config.kv_namespaces.filter((ns: { binding: string }) => ns.binding !== 'OAUTH_KV');
+    const kv = remoteKvId(OAUTH_KV_TITLE) ?? (kvMode === 'create' ? createKv(OAUTH_KV_TITLE) : null);
+    if (kv) {
+      for (const ns of config.kv_namespaces) if (ns.binding === 'OAUTH_KV') ns.id = kv;
+    } else {
+      console.warn(`KV namespace "${OAUTH_KV_TITLE}" not found: deploying without OAUTH_KV (Docs/cloudflare.md)`);
+      dropOauthKv(config);
+    }
   }
   writeFileSync(REMOTE_CONFIG, JSON.stringify(config, null, 2));
   try {
@@ -111,5 +125,5 @@ export function d1<T>(target: Target, fn: (db: {
       },
     });
   };
-  return target === 'remote' ? withRemoteConfig(run) : run(null);
+  return target === 'remote' ? withRemoteConfig(run, 'skip') : run(null);
 }

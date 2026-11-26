@@ -1,6 +1,6 @@
 // Why a photo was refused (Docs/arquitetura.md, *Moderação*): a fixed list of
 // codes, shown to the author on their uploads page and chosen by the
-// moderator in the queue. The codes are the CHECK in migration 0014.
+// moderator in the queue. The codes are the CHECK in migration 0016.
 import type { Lang } from './pages.ts';
 
 export const REASONS = ['wrong_station', 'privacy', 'quality', 'duplicate', 'advertising', 'other'] as const;

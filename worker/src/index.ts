@@ -12,6 +12,7 @@ import { callback, login, logout } from './auth.ts';
 import { apiCaller, canChooseMain } from './tokens.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { chooseMain } from './publish.ts';
+import { syncCredits } from './credit.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
 import { findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
 import { ranking } from './points.ts';
@@ -23,6 +24,8 @@ import { termsPage } from './terms.ts';
 import { proposeStation } from './proposals.ts';
 import { groupPage } from './grupo.ts';
 import { photoLink } from './photolinks.ts';
+import { creditPage, getCredit } from './photopage.ts';
+import { PROMOTE_ACTION, lostHtml, promoteMain } from './mains.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
 import {
@@ -71,6 +74,14 @@ const TURNSTILE_HEADERS = {
   'content-security-policy': HTML_HEADERS['content-security-policy']
     .replace("default-src 'none';", "default-src 'none'; connect-src 'self'; frame-src https://challenges.cloudflare.com;")
     .replace("script-src 'self'", "script-src 'self' https://challenges.cloudflare.com"),
+};
+
+// The credit page may show a published photo that is not the main one, which
+// only Panoramax serves (the sizes in pictures.* are the main photos').
+const CREDIT_HEADERS = {
+  ...HTML_HEADERS,
+  'content-security-policy': HTML_HEADERS['content-security-policy']
+    .replace("img-src 'self'", "img-src 'self' https://panoramax.ocarroeletrico.com"),
 };
 
 // 429 from the request limits (src/ratelimit.ts): JSON for the API, a short
@@ -207,6 +218,17 @@ function stationHtml(lang: Lang) {
   };
 }
 
+function creditHtml(lang: Lang) {
+  return async (env: Env, id: string): Promise<Response> => {
+    const row = await getCredit(env, id);
+    if (!row) return pageNotFound(lang, messages(lang).noPublishedPhoto(id));
+    return new Response(creditPage(lang, row), {
+      status: 200,
+      headers: { ...CREDIT_HEADERS, 'content-language': lang === 'pt' ? 'pt-PT' : 'en', 'cache-control': 'public, max-age=300' },
+    });
+  };
+}
+
 function evseHtml(lang: Lang) {
   return async (env: Env, raw: string): Promise<Response> => {
     const results = await findEvse(env, raw);
@@ -325,6 +347,8 @@ const ROUTES: [RegExp, Handler, () => Response][] = [
   [/^\/api\/v1\/evses\/([^/]+)$/, evseJson, notFound],
   [/^\/postos\/([^/]+)$/, stationHtml('pt'), () => pageNotFound('pt', messages('pt').badStation)],
   [/^\/tomadas\/([^/]+)$/, evseHtml('pt'), () => pageNotFound('pt', messages('pt').badSocket)],
+  [/^\/p\/([^/]+)$/, creditHtml('pt'), () => pageNotFound('pt', messages('pt').noPublishedPhoto('?'))],
+  [/^\/en\/p\/([^/]+)$/, creditHtml('en'), () => pageNotFound('en', messages('en').noPublishedPhoto('?'))],
   [/^\/en\/stations\/([^/]+)$/, stationHtml('en'), () => pageNotFound('en', messages('en').badStation)],
   [/^\/en\/sockets\/([^/]+)$/, evseHtml('en'), () => pageNotFound('en', messages('en').badSocket)],
 ];
@@ -351,7 +375,7 @@ export default {
     const { pathname } = url;
     // The POSTs: everything else on this site only reads.
     if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
-    if (request.method === 'POST' && pathname === ACCOUNT_ACTION) return accountAction(request, env, HTML_HEADERS);
+    if (request.method === 'POST' && pathname === ACCOUNT_ACTION) return accountAction(request, env, HTML_HEADERS, ctx);
     if (request.method === 'POST' && pathname === ROLE_ACTION) return setRole(request, env);
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
@@ -359,6 +383,7 @@ export default {
     if (request.method === 'POST' && pathname === '/api/v1/stations') return proposeStation(request, env);
     if (request.method === 'POST' && pathname === '/report') return submitTakedown(request, env);
     if (request.method === 'POST' && pathname === TAKEDOWN_DECIDE) return decideTakedown(request, env);
+    if (request.method === 'POST' && pathname === PROMOTE_ACTION) return promoteMain(request, env);
     if (request.method === 'PUT') {
       const m = pathname.match(/^\/api\/v1\/selections\/([^/]+)$/);
       if (m) {
@@ -411,6 +436,8 @@ export default {
     if (pathname === '/en/report') return takedownHtml('en', request, env, TURNSTILE_HEADERS);
     if (pathname === '/admin/remocoes') return takedownsHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/takedowns') return takedownsHtml('en', request, env, HTML_HEADERS);
+    if (pathname === '/admin/sem-principal') return lostHtml('pt', request, env, HTML_HEADERS);
+    if (pathname === '/en/admin/no-main') return lostHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
     if (pathname === '/en/upload') return uploadHtml('en', request, env, UPLOAD_HEADERS);
     if (pathname === '/auth/osm/login' || pathname === '/auth/osm/callback') {
@@ -432,8 +459,9 @@ export default {
   },
   // Every 6 hours (wrangler.json): retries the hides that half-failed, and
   // follows any auto-hide report that did not come from our form
-  // (src/takedown.ts).
+  // (src/takedown.ts); then a batch of what is left of credit changes
+  // (src/credit.ts). One after the other: they share the subrequest limit.
   async scheduled(_event: ScheduledController, env: Env & TakedownEnv, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(reconcile(env, fetch));
+    ctx.waitUntil(reconcile(env, fetch).catch(() => {}).then(() => syncCredits(env, fetch)));
   },
 } satisfies ExportedHandler<Env & TakedownEnv>;

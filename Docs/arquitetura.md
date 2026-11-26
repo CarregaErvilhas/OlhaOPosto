@@ -1,18 +1,10 @@
 # Arquitetura — o que está a funcionar
 
-Este documento descreve o olh'o'posto tal como existe hoje. O que ainda falta
-construir, e o design dessas partes, está em [`plan.md`](plan.md). Os
-detalhes de operação estão em [`infra.md`](infra.md) (servidor Panoramax no
-Zerops) e em [`cloudflare.md`](cloudflare.md) (R2, Worker, D1 e o import dos
-postos). As licenças estão em [`licenca.md`](licenca.md).
+Este documento descreve o olh'o'posto tal como existe hoje. O que ainda falta construir, e o design dessas partes, está em [`plan.md`](plan.md). Os detalhes de operação estão em [`infra.md`](infra.md) (servidor Panoramax no Zerops) e em [`cloudflare.md`](cloudflare.md) (R2, Worker, D1 e o import dos postos). As licenças estão em [`licenca.md`](licenca.md).
 
 ## Objetivo
 
-Um servidor **Panoramax** próprio, só para postos de carregamento, guarda as
-fotos. Um **Worker da Cloudflare** (`olhaoposto`) faz o resto: a lista de postos
-do NAP, os links estáticos pelo ID oficial, a escolha da foto principal, o
-envio, a moderação, o ranking, a API e o MCP. Exemplo de link:
-`https://pictures.ocarroeletrico.com/TRK-VNT-00005.jpg`.
+Um servidor **Panoramax** próprio, só para postos de carregamento, guarda as fotos. Um **Worker da Cloudflare** (`olhaoposto`) faz o resto: a lista de postos do NAP, os links estáticos pelo ID oficial, a escolha da foto principal, o envio, a moderação, o ranking, a API e o MCP. Exemplo de link: `https://pictures.ocarroeletrico.com/TRK-VNT-00005.jpg`.
 
 Requisitos (proposta de Alexandre Moleiro):
 
@@ -45,10 +37,7 @@ Responsável (RGPD): O Carro Elétrico. Passar para uma associação fica como s
 | `pictures.ocarroeletrico.com` | Links estáticos (`/<id>.jpg` e tamanhos): a foto principal de cada posto e tomada, ou `404` | Custom domain do bucket R2 `pictures`, servido pela CDN **sem Worker** ([`cloudflare.md`](cloudflare.md), secção 3) |
 | `panoramax.ocarroeletrico.com` | Servidor Panoramax (API, visualizador, imagens), fora da federação | Zerops, com o bucket R2 `panoramax` como armazenamento ([`infra.md`](infra.md)) |
 
-O `pictures.*` não tem Worker à frente de propósito: um Worker corre antes da
-cache, por isso cada pedido contaria para o limite dos Workers mesmo com a
-foto em cache. Uma Cache Rule no `pictures.*` dá um Edge TTL longo; um *cache
-miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
+O `pictures.*` não tem Worker à frente de propósito: um Worker corre antes da cache, por isso cada pedido contaria para o limite dos Workers mesmo com a foto em cache. Uma Cache Rule no `pictures.*` dá um Edge TTL longo; um *cache miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
 
 ## Componentes
 
@@ -73,58 +62,25 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
      conta de serviço "OlhaOPosto", sem OAuth
 ```
 
-O Worker fala com o Panoramax com a conta de serviço `OlhaOPosto`: cria um
-*upload set* escondido por foto no envio, torna-o público ao aprovar,
-apaga-o ao recusar, e trata as denúncias dos pedidos de remoção
-([`cloudflare.md`](cloudflare.md), secção 4).
+O Worker fala com o Panoramax com a conta de serviço `OlhaOPosto`: cria um *upload set* escondido por foto no envio, torna-o público ao aprovar, apaga-o ao recusar, e trata as denúncias dos pedidos de remoção ([`cloudflare.md`](cloudflare.md), secção 4).
 
 ## Porque o Panoramax
 
-**Porque o Panoramax.** Dá de graça o armazenamento e os tamanhos das
-imagens, a licença por servidor, as etiquetas por foto, uma API de envio, os
-pedidos de remoção e a federação: as fotos aparecem no mapa geral do
-Panoramax e o OSM aponta para elas com `panoramax=<uuid>`, a etiqueta que a
-comunidade já usa. Não há servidor Panoramax em Portugal; o da OSM França só
-aceita envios de fora de França para testes, e o do MapComplete só aceita
-envios pelo MapComplete.
+**Porque o Panoramax.** Dá de graça o armazenamento e os tamanhos das imagens, a licença por servidor, as etiquetas por foto, uma API de envio, os pedidos de remoção e a federação: as fotos aparecem no mapa geral do Panoramax e o OSM aponta para elas com `panoramax=<uuid>`, a etiqueta que a comunidade já usa. Não há servidor Panoramax em Portugal; o da OSM França só aceita envios de fora de França para testes, e o do MapComplete só aceita envios pelo MapComplete.
 
-**Porque um servidor só para postos.** Um "Panoramax PT" geral, aberto a
-fotos de rua de qualquer pessoa, faria de nós o responsável RGPD por tudo,
-com terabytes de armazenamento e moderação muito maior. Este servidor só
-recebe fotos de postos, enviadas pelo olh'o'posto. Só se chama "Panoramax PT"
-se a OSM Portugal e a equipa do Panoramax concordarem, e pode crescer para
-isso mais tarde.
+**Porque um servidor só para postos.** Um "Panoramax PT" geral, aberto a fotos de rua de qualquer pessoa, faria de nós o responsável RGPD por tudo, com terabytes de armazenamento e moderação muito maior. Este servidor só recebe fotos de postos, enviadas pelo olh'o'posto. Só se chama "Panoramax PT" se a OSM Portugal e a equipa do Panoramax concordarem, e pode crescer para isso mais tarde.
 
-**Sem logins no Panoramax.** O olh'o'posto envia tudo com uma única conta de
-serviço (`OlhaOPosto`, que não é admin); o registo no Panoramax está fechado,
-como no servidor do MapComplete. Os contribuidores só entram no olh'o'posto,
-com OSM. Isto garante que só entram fotos de postos e que a moderação é a do
-olh'o'posto. O visualizador, as páginas das fotos e a API de leitura do
-Panoramax continuam públicos. O que se perde (o envio pelo Panoramax e as
-apps dele, a página "as minhas fotos" do Panoramax) não faz falta ou é
-refeito no olh'o'posto.
+**Sem logins no Panoramax.** O olh'o'posto envia tudo com uma única conta de serviço (`OlhaOPosto`, que não é admin); o registo no Panoramax está fechado, como no servidor do MapComplete. Os contribuidores só entram no olh'o'posto, com OSM. Isto garante que só entram fotos de postos e que a moderação é a do olh'o'posto. O visualizador, as páginas das fotos e a API de leitura do Panoramax continuam públicos. O que se perde (o envio pelo Panoramax e as apps dele, a página "as minhas fotos" do Panoramax) não faz falta ou é refeito no olh'o'posto.
 
-O servidor está configurado para isto: licença CC BY-SA 4.0, envio só com
-token, fotos `owner-only` até o olh'o'posto as aprovar, sem desfocagem no
-servidor. Configuração e resultados do ensaio em [`infra.md`](infra.md),
-secções 4 e 9.
+O servidor está configurado para isto: licença CC BY-SA 4.0, envio só com token, fotos `owner-only` até o olh'o'posto as aprovar, sem desfocagem no servidor. Configuração e resultados do ensaio em [`infra.md`](infra.md), secções 4 e 9.
 
 ## Postos e tomadas
 
 A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19 700 pontos.
 
-**Sincronização.** O olh'o'posto lê o `ohmigo_chargers.json` que o NAP
-dashboard já publica (o mesmo que o site e o ohmigo usam), todos os dias,
-pelo GitHub Actions, e faz *upsert* na D1: postos novos entram como
-`active`, postos que desaparecem passam a `missing_from_nap` (nunca são
-apagados, para os links e as fotos continuarem a funcionar). Funcionamento e
-travões em [`cloudflare.md`](cloudflare.md), secção 5.
+**Sincronização.** O olh'o'posto lê o `ohmigo_chargers.json` que o NAP dashboard já publica (o mesmo que o site e o ohmigo usam), todos os dias, pelo GitHub Actions, e faz *upsert* na D1: postos novos entram como `active`, postos que desaparecem passam a `missing_from_nap` (nunca são apagados, para os links e as fotos continuarem a funcionar). Funcionamento e travões em [`cloudflare.md`](cloudflare.md), secção 5.
 
-**Chave dos links.** O posto usa o `id` do local (`EZC-AMD-00051`: prefixo do
-operador + código), que é único e é o formato `OPC-XXXXXXXXXX` do Alexandre.
-A tomada usa o código EVSE do NAP sem os `*` (`PTEZCEAMD000511`), vindo do
-campo `evse` de cada ponto do feed. Pontos sem código EVSE no NAP não têm
-link de tomada.
+**Chave dos links.** O posto usa o `id` do local (`EZC-AMD-00051`: prefixo do operador + código), que é único e é o formato `OPC-XXXXXXXXXX` do Alexandre. A tomada usa o código EVSE do NAP sem os `*` (`PTEZCEAMD000511`), vindo do campo `evse` de cada ponto do feed. Pontos sem código EVSE no NAP não têm link de tomada.
 
 **Armadilhas de IDs** (do [gotchas.md](https://github.com/CarregaErvilhas/nap-dashboard/blob/main/references/gotchas.md) do NAP dashboard):
 
@@ -141,10 +97,10 @@ link de tomada.
 | `evses` | `station_id` (FK) + `point_id` (PK), `evse_id` (forma original com `*`), `evse_compact` (sem `*`, índice simples), `connector`, `max_kw`, `dc`, `status` | Uma linha por ponto/tomada. O `point_id` do MOBI.Data repete-se entre postos |
 | `stations_fts` | Índice FTS5 de `id`, `code`, `name`, `address`, `municipality`, `operator`, `opc` | Para a pesquisa. Só o índice: o texto fica em `stations`, e três *triggers* mantêm-no a par, por isso o import não muda |
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
-| `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `pseudonym`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. O `pseudonym` ainda não se edita |
+| `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `osm_key`, `pseudonym`, `pseudonym_key` (único), `pseudonym_changed_at`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. Os `*_key` são os nomes sem acentos, maiúsculas nem pontuação, para a unicidade do pseudónimo (*Crédito*, abaixo) |
 | `sessions` | `token_hash` (PK, SHA-256 do *cookie*), `user_id` (FK), `created_at`, `expires_at` | Uma cópia da tabela não abre sessões. As expiradas saem no login seguinte |
-| `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `refusal_reason`, `refusal_note`, `refused_by`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados |
-| `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica |
+| `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `author_tag_old`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `refusal_reason`, `refusal_note`, `refused_by`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados. `author_tag_old`: a etiqueta de autor que falta trocar no Panoramax depois de uma mudança de crédito |
+| `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at`, `credit_pending` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica. `credit_pending`: as três cópias ainda têm o crédito antigo no XMP. `lost_at` marca um alvo que perdeu a principal (migração `0015`), para o distinguir de um que nunca teve |
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP: o link antigo responde `301` para o novo |
 | `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação (*Pontos e ranking*, abaixo). Uma linha por atribuição; só contam as de fotos `published` |
 | `api_tokens` | `id`, `user_id` (FK), `token_hash` (único, SHA-256), `prefix`, `name`, `scopes`, `created_at`, `expires_at`, `last_used_at`, `revoked_at` | *Tokens* de API: uma cópia da tabela não abre nada |
@@ -152,72 +108,29 @@ link de tomada.
 
 ## Site e API
 
-O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês
-(`/en/stations/{id}`), a procura de uma tomada pelo código EVSE
-(`/tomadas/{evse}`, `/en/sockets/{evse}`), a pesquisa de postos (`/pesquisa`,
-`/en/search`, também no formulário da página inicial), a API de leitura
-(`/api/v1/stations?q=`, `/api/v1/stations?lat=&lon=`, `/api/v1/stations/{id}`,
-`/api/v1/evses/{evse}`, `/api/v1/main-photos`, `/api/v1/ranking`), a
-política de privacidade (`/privacidade`), as condições de utilização
-(`/condicoes`), o ranking (`/ranking`), o `sitemap.xml`, o `robots.txt` e o
-`llms.txt`.
+O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês (`/en/stations/{id}`), a procura de uma tomada pelo código EVSE (`/tomadas/{evse}`, `/en/sockets/{evse}`), a pesquisa de postos (`/pesquisa`, `/en/search`, também no formulário da página inicial), a API de leitura (`/api/v1/stations?q=`, `/api/v1/stations?lat=&lon=`, `/api/v1/stations/{id}`, `/api/v1/evses/{evse}`, `/api/v1/main-photos`, `/api/v1/ranking`), a política de privacidade (`/privacidade`), as condições de utilização (`/condicoes`), o ranking (`/ranking`), o `sitemap.xml`, o `robots.txt` e o `llms.txt`.
 
-Com o login OSM há a conta (`/conta`: pontos, medalha, sair do ranking,
-*tokens* de API), a página de envio (`/enviar`), a fila de moderação e os
-painéis de administração (`/admin/…`). A escrita na API
-(`POST /api/v1/photos`, `POST /api/v1/stations`,
-`PUT /api/v1/selections/{target}`) aceita a sessão, só a partir do próprio
-site, ou um *token* (`Authorization: Bearer oop_…`) com o âmbito certo. Rotas,
-cabeçalhos, acessibilidade e cache em [`cloudflare.md`](cloudflare.md),
-secção 4.
+Com o login OSM há a conta (`/conta`: nome a mostrar, pontos, medalha, sair do ranking, *tokens* de API), a página de envio (`/enviar`), a fila de moderação e os painéis de administração (`/admin/…`). A escrita na API (`POST /api/v1/photos`, `POST /api/v1/stations`, `PUT /api/v1/selections/{target}`) aceita a sessão, só a partir do próprio site, ou um *token* (`Authorization: Bearer oop_…`) com o âmbito certo. Rotas, cabeçalhos, acessibilidade e cache em [`cloudflare.md`](cloudflare.md), secção 4.
 
 ## Fluxo de envio
 
-Tudo o que mexe na foto original acontece no browser: o servidor nunca
-recebe o original nem os metadados. A página `/enviar`:
+Tudo o que mexe na foto original acontece no browser: o servidor nunca recebe o original nem os metadados. A página `/enviar`:
 
-1. Abre uma ou várias fotos, JPEG ou HEIC (o HEIC pelo browser ou pelo
-   libheif em WebAssembly), e trata-as uma de cada vez.
-2. Lê o GPS e a data do EXIF e sugere os postos a 500 m. Sem GPS: pesquisa
-   por texto ou mapa (OpenStreetMap, só se a pessoa o abrir). O posto da
-   foto anterior fica sugerido para a seguinte.
-3. Se o posto não existir, propõe-se um posto novo (nome, operador, código,
-   posição), que espera por um moderador com as fotos dele.
-4. Procura caras no dispositivo (MediaPipe, BlazeFace) e pré-desenha as
-   zonas; a pessoa confirma, desliga ou acrescenta zonas, também para as
-   matrículas, e cada zona leva um mosaico.
-5. Gera 2048, 1024 e 400 px sem metadados e envia-os, com a data e o GPS à
-   parte. O Worker volta a verificar tudo, guarda a de 2048 px escondida no
-   Panoramax (com as coordenadas do posto, nunca as do GPS) e as outras em
-   `pictures-staging`.
+1. Abre uma ou várias fotos, JPEG ou HEIC (o HEIC pelo browser ou pelo libheif em WebAssembly), e trata-as uma de cada vez.
+2. Lê o GPS e a data do EXIF e sugere os postos a 500 m. Sem GPS: pesquisa por texto ou mapa (OpenStreetMap, só se a pessoa o abrir). O posto da foto anterior fica sugerido para a seguinte.
+3. Se o posto não existir, propõe-se um posto novo (nome, operador, código, posição), que espera por um moderador com as fotos dele.
+4. Procura caras no dispositivo (MediaPipe, BlazeFace) e pré-desenha as zonas; a pessoa confirma, desliga ou acrescenta zonas, também para as matrículas, e cada zona leva um mosaico.
+5. Gera 2048, 1024 e 400 px sem metadados e envia-os, com a data e o GPS à parte. O Worker volta a verificar tudo, guarda a de 2048 px escondida no Panoramax (com as coordenadas do posto, nunca as do GPS) e as outras em `pictures-staging`.
 
-Contas `trusted` publicam logo quando a foto foi tirada a 300 m ou menos de
-um posto `active`; o resto fica `pending` para a fila (`/admin/fila`), que
-mostra primeiro os postos propostos e avisa das fotos sem GPS ou longe do
-posto. Quem envia aceita as condições de utilização e a licença no primeiro
-envio (`license_accepted_at`).
+Contas `trusted` publicam logo quando a foto foi tirada a 300 m ou menos de um posto `active`; o resto fica `pending` para a fila (`/admin/fila`), que mostra primeiro os postos propostos e avisa das fotos sem GPS ou longe do posto. Quem envia aceita as condições de utilização e a licença no primeiro envio (`license_accepted_at`).
 
-**O que se faz com o GPS do EXIF.** Sugere o posto e sinaliza fotos longe
-dele (`distance_m`, e o aviso na fila). Fica só na D1, para a moderação; a
-API pública mostra a data, nunca as coordenadas de quem tirou a foto. O
-Panoramax recebe as coordenadas do posto.
+**O que se faz com o GPS do EXIF.** Sugere o posto e sinaliza fotos longe dele (`distance_m`, e o aviso na fila). Fica só na D1, para a moderação; a API pública mostra a data, nunca as coordenadas de quem tirou a foto. O Panoramax recebe as coordenadas do posto.
 
 ## Links estáticos
 
-O URL é o ID e nunca muda. A resolução código → foto acontece **na escrita,
-não no pedido**: quando um moderador aprova uma foto e o alvo (a tomada, ou
-o posto para uma foto do posto em geral) ainda não tem principal, o Worker
-(`src/publish.ts`) regista-a na tabela `selections` e copia três tamanhos
-para o bucket `pictures`. Uma foto de uma tomada também passa a principal do
-posto, se o posto não tiver nenhuma. As cópias de 1024 e 400 px vêm do
-`pictures-staging`; a de 2048 px vem do Panoramax, sem o EXIF que o
-Panoramax lhe escreve. Cada cópia leva um XMP com o autor, a licença
-CC BY-SA 4.0 e o link da página do posto (o R2 não manda cabeçalhos
-próprios), sem GPS, e `Cache-Control: public, max-age=86400`. A página do
-posto mostra a foto principal com o crédito, e as miniaturas das tomadas.
-Um moderador ou uma conta `trusted` pode trocar a principal
-(`PUT /api/v1/selections/{target}`): o Worker copia a foto nova por cima das
-três chaves e faz *purge* desses URLs.
+O URL é o ID e nunca muda. A resolução código → foto acontece **na escrita, não no pedido**: quando um moderador aprova uma foto e o alvo (a tomada, ou o posto para uma foto do posto em geral) ainda não tem principal, o Worker (`src/publish.ts`) regista-a na tabela `selections` e copia três tamanhos para o bucket `pictures`. Uma foto de uma tomada também passa a principal do posto, se o posto não tiver nenhuma. As cópias de 1024 e 400 px vêm do `pictures-staging`; a de 2048 px vem do Panoramax, sem o EXIF que o Panoramax lhe escreve. Cada cópia leva um XMP com o autor, a licença CC BY-SA 4.0 e o link da página de crédito da foto (`/p/{photo_id}`; o R2 não manda cabeçalhos próprios), sem GPS, e `Cache-Control: public, max-age=86400`. As cópias publicadas antes da página de crédito existir continuam a apontar para a página do posto até serem publicadas outra vez. A página do posto mostra a foto principal com o crédito, e as miniaturas das tomadas; ambas ligam à página de crédito. Um moderador ou uma conta `trusted` pode trocar a principal (`PUT /api/v1/selections/{target}`): o Worker copia a foto nova por cima das três chaves e faz *purge* desses URLs.
+
+Quando a principal é ocultada ou removida (pedido de remoção), as três chaves saem logo do `pictures` e o link passa a `404`: a privacidade vem primeiro. A seguinte **nunca passa a principal sozinha**, porque pode estar mal desfocada, ser de outra tomada ou simplesmente pior. A linha de `selections` fica, com `lost_at` preenchido e `published_at` a `NULL`, e o alvo aparece na lista «Sem foto principal» (`/admin/sem-principal`, e no fim da fila de moderação e do painel de remoções; `src/mains.ts`), com as outras fotos publicadas do mesmo alvo: do posto em geral para um posto, dessa tomada para uma tomada. Um moderador ou administrador escolhe uma e carrega em «Tornar principal» (`POST /admin/principal`, que usa o mesmo caminho do `PUT /api/v1/selections/{target}`). Sem escolha, o link fica `404`. Uma foto nova desse alvo, quando aprovada, preenche-o como a qualquer alvo sem principal; o mesmo faz a própria foto, se o moderador a mantiver.
 
 | URL (`pictures.ocarroeletrico.com`) | Devolve |
 | --- | --- |
@@ -232,6 +145,10 @@ três chaves e faz *purge* desses URLs.
 - **Ligações entre os sites:** a página de cada posto aponta para o NAP dashboard (`nap.ocarroeletrico.com/?posto={código}`, só para postos que o NAP ainda publica) e, quando há foto principal, para ela no mapa do Panoramax (`/viewer?focus=map&map=19/{lat}/{lon}&pic={id}`).
 - **Sem foto:** o R2 responde `404`, para cada app decidir o que mostrar.
 - **Cache:** Edge TTL de 30 dias e `404` nunca em cache na Cache Rule, sem query strings na chave ([`cloudflare.md`](cloudflare.md), secção 3).
+
+**Página de crédito** (`/p/{photo_id}`, `/en/p/{photo_id}`; `src/photopage.ts`): a foto, o autor (`photos.credit`), a data (a da foto, ou a da aprovação), a licença CC BY-SA 4.0 com o link do texto, o posto ou a tomada que mostra, o texto de atribuição pronto a copiar e os links para a página do posto, para o Panoramax e para o pedido de remoção. Só existe para fotos publicadas de postos públicos: uma foto pendente, oculta ou retirada dá `404`. A foto principal vem de `pictures.*`; outra foto publicada vem do Panoramax. Não vai para o `sitemap.xml`: chega-se lá pelas páginas dos postos.
+
+**Acrescentar ao OSM** (só na foto principal atual de um posto ou tomada, sem bot nem edição automática): o link abre o editor iD no elemento ligado ao posto (`osm_ref`) ou, se não houver ou se a foto for de uma tomada, no sítio do posto, e mostra a etiqueta `panoramax=<id>` para copiar.
 
 ## Publicação e gestão de fotos
 
@@ -250,12 +167,15 @@ três chaves e faz *purge* desses URLs.
 - **Medalhas**, pelo total de sempre: bronze com 10 pontos, prata com 50, ouro com 200. Sem prémios.
 - **Ranking:** `/ranking` (do mês e de sempre), em tabela, com o nome de crédito, a medalha, as fotos e os pontos; `/api/v1/ranking?period=month|all`. Quem sai do ranking na conta deixa de aparecer, e os pontos continuam a contar para si.
 
+## Crédito
+
+O crédito de uma foto é o nome de quem a enviou: por defeito o nome no OSM; se a pessoa escolher um **pseudónimo** («nome a mostrar», na conta), esse. Vai em todo o lado: nas páginas dos postos, no ranking, na API (`photos.credit`), na etiqueta `OlhaOPosto|author` do Panoramax e no XMP das três cópias em `pictures`. O `uploader_id` fica sempre, para a moderação.
+
+- **Regras** (`src/credit.ts`): de 2 a 40 caracteres depois de normalizar (NFC, espaços colapsados, sem caracteres de controlo nem invisíveis); letras, números, espaços e pontuação simples (`. , ' ’ ( ) ! ? & + _ -`); nada que pareça um link (`://`, `www.`, `palavra.palavra`); alguns nomes reservados (o do site, `admin`, `moderador`…).
+- **Unicidade:** não pode ser igual ao nome OSM nem ao pseudónimo de outra conta, comparando sem acentos, maiúsculas, espaços nem pontuação (`João Silva` = `joao_silva`). O próprio nome OSM, noutra grafia, é da pessoa. Um índice único em `pseudonym_key` apanha dois pedidos ao mesmo tempo.
+- **Uma mudança por dia** (24 horas desde a última, `pseudonym_changed_at`), contando também voltar ao nome OSM.
+- **Mudar o crédito** escreve numa transação o nome novo em `users`, o `photos.credit` de todas as fotos da pessoa e as marcas do que falta refazer: `selections.credit_pending` (as cópias de cada foto principal) e `photos.author_tag_old` (a etiqueta no Panoramax). Um primeiro lote corre logo a seguir (`waitUntil`) e o *cron* de 6 em 6 horas continua até não haver marcas. As cópias reescrevem-se no próprio `pictures` (só o XMP muda, com escrita condicional pelo *etag*, para não pisar uma principal nova) e são purgadas; a etiqueta troca-se com um `PATCH /api/pictures/{id}` que apaga o valor antigo e o novo e acrescenta o novo, por isso repetir é inofensivo. As cópias que outras pessoas já fizeram ficam com o nome antigo, e o histórico de etiquetas do Panoramax guarda-o.
+
 ## Tokens de API
 
-Na conta, cada pessoa cria *tokens* (até 5 ativos) com um nome, os âmbitos
-(`photos:write`; `selections:write` só para `trusted`, moderadores e
-administradores) e a validade (30, 90 ou 365 dias). O *token* aparece uma vez;
-a D1 guarda só o hash. Age como a conta, com o papel e os limites dela, lidos
-em cada pedido. O envio pela API é só `mode=clean`: o cliente manda as três
-fotos já desfocadas e sem EXIF, com as coordenadas e a data no JSON, e o
-Worker recusa ficheiros com metadados. Não passa pelo Turnstile.
+Na conta, cada pessoa cria *tokens* (até 5 ativos) com um nome, os âmbitos (`photos:write`; `selections:write` só para `trusted`, moderadores e administradores) e a validade (30, 90 ou 365 dias). O *token* aparece uma vez; a D1 guarda só o hash. Age como a conta, com o papel e os limites dela, lidos em cada pedido. O envio pela API é só `mode=clean`: o cliente manda as três fotos já desfocadas e sem EXIF, com as coordenadas e a data no JSON, e o Worker recusa ficheiros com metadados. Não passa pelo Turnstile.

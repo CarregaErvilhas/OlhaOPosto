@@ -148,7 +148,7 @@ export function boundingBox(q: NearQuery): { minLat: number; maxLat: number; min
 
 // Published main photos of a station and its sockets, by target (station id
 // or compact EVSE code).
-export type MainPhotos = Record<string, { credit: string | null; panoramax_id?: string | null }>;
+export type MainPhotos = Record<string, { credit: string | null; panoramax_id?: string | null; photo_id?: string }>;
 
 // One published main photo, for apps that copy them (nap.ocarroeletrico.com).
 export type MainPhotoRow = {
@@ -159,3 +159,10 @@ export type MainPhotoRow = {
   panoramax_id: string | null;
   published_at: string;
 };
+
+// A name folded for comparison: without accents, case, spaces or
+// punctuation, so «João_Silva» and «joao silva» are the same name. Used to
+// stop a pseudonym from reading like someone else's name (src/credit.ts).
+export function nameKey(name: string): string {
+  return name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+}

@@ -19,16 +19,16 @@ const EXIF = [0xff, 0xe1, 0, 8, 69, 120, 105, 102, 0, 0];
 const text = (b: Uint8Array) => new TextDecoder().decode(b);
 
 test('xmpPacket: author escaped, licence and credit page', () => {
-  const x = xmpPacket({ author: 'Ana <&> "x"', stationId: 'EZC-AMD-00051' });
+  const x = xmpPacket({ author: 'Ana <&> "x"', photoId: 'abc-123' });
   assert.ok(x.includes('<rdf:li>Ana &#60;&#38;&#62; &#34;x&#34;</rdf:li>'));
   assert.ok(x.includes('https://creativecommons.org/licenses/by-sa/4.0/'));
-  assert.ok(x.includes('https://olhaoposto.ocarroeletrico.com/postos/EZC-AMD-00051'));
+  assert.match(x, /<xmpRights:WebStatement>https:\/\/olhaoposto\.ocarroeletrico\.com\/p\/abc-123<\/xmpRights:WebStatement>/);
   assert.ok(!/gps|lat|lon/i.test(x.replace(/xmlns|creativecommons|olhaoposto|xpacket|attribution/gi, '')));
 });
 
 test('withXmp: one APP1 XMP after JFIF, the image untouched', () => {
   const src = jpeg(1024, 768);
-  const out = withXmp(src, xmpPacket({ author: 'Ana', stationId: 'X-1' }));
+  const out = withXmp(src, xmpPacket({ author: 'Ana', photoId: 'X-1' }));
   assert.deepEqual(jpegSize(out), { width: 1024, height: 768 });
   assert.deepEqual([...out.subarray(0, 4)], [0xff, 0xd8, 0xff, 0xe0]);   // JFIF still first
   assert.deepEqual([...out.subarray(20, 22)], [0xff, 0xe1]);
@@ -49,6 +49,7 @@ function world(opts: { evse?: string | null; taken?: string[]; hd?: Uint8Array |
     const s = {
       bind(...x: unknown[]) { a = x; return s; },
       async first() {
+        if (sql.includes('FROM selections')) return null;   // no lost rows here (test/mains.test.ts has them)
         return { id: 'p1', station_id: 'EZC-AMD-00051', evse_compact: opts.evse === undefined ? 'PTEZCEAMD000511' : opts.evse, credit: 'Ana', panoramax_id: 'pic-1' };
       },
       async run() {

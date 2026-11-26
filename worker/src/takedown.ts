@@ -32,6 +32,7 @@ import { BRAND, PANORAMAX_URL, accountPath, esc, layout, privacyPath, stationPat
 import { turnstileOk, type PhotoEnv } from './photos.ts';
 import { pictureUrls, publishMain, purgeUrls, type PublishEnv } from './publish.ts';
 import { canModerate, STAGING_PREFIX } from './moderation.ts';
+import { lostSectionFor } from './mains.ts';
 import { allowed, clientIp, type RateLimiter } from './ratelimit.ts';
 import { compactCode, STATION_ID } from './types.ts';
 
@@ -116,7 +117,7 @@ const T = {
     } as Record<string, string>,
     // Admin panel
     adminTitle: 'Pedidos de remoção',
-    adminIntro: `Denúncias abertas sobre as nossas fotos, do formulário de remoção ou do botão do visualizador do Panoramax, da mais antiga para a mais recente. As de privacidade, desfocagem, conteúdo impróprio e direitos de autor já ocultaram a foto; decide em ${DEADLINE_H} horas. Remover apaga-a do Panoramax e do armazenamento privado. Manter fecha a denúncia, volta a publicar a foto e preenche os links estáticos que ainda estiverem vazios.`,
+    adminIntro: `Denúncias abertas sobre as nossas fotos, do formulário de remoção ou do botão do visualizador do Panoramax, da mais antiga para a mais recente. As de privacidade, desfocagem, conteúdo impróprio e direitos de autor já ocultaram a foto; decide em ${DEADLINE_H} horas. Remover apaga-a do Panoramax e do armazenamento privado. Se era a foto principal, o posto ou a tomada fica sem principal até escolheres outra, mais abaixo. Manter fecha a denúncia, volta a publicar a foto e preenche os links estáticos que ainda estiverem vazios.`,
     empty: 'Não há denúncias abertas.',
     station: 'Posto',
     issueLabel: 'Motivo',
@@ -177,7 +178,7 @@ const T = {
       panoramax: 'We could not record the request just now. Try again shortly, or write to info@ocarroeletrico.com.',
     } as Record<string, string>,
     adminTitle: 'Removal requests',
-    adminIntro: `Open reports on our photos, from the removal form or the Panoramax viewer's button, oldest first. Privacy, blurring, inappropriate content and copyright reports have hidden the photo already; decide within ${DEADLINE_H} hours. Remove deletes it from Panoramax and from the private storage. Keep closes the report, publishes the photo again and refills the static links that are still empty.`,
+    adminIntro: `Open reports on our photos, from the removal form or the Panoramax viewer's button, oldest first. Privacy, blurring, inappropriate content and copyright reports have hidden the photo already; decide within ${DEADLINE_H} hours. Remove deletes it from Panoramax and from the private storage. If it was the main photo, the station or socket stays without one until you choose another, further down. Keep closes the report, publishes the photo again and refills the static links that are still empty.`,
     empty: 'No open reports.',
     station: 'Station',
     issueLabel: 'Reason',
@@ -249,7 +250,7 @@ export function parseAsked(raw: string): { target?: string; picture?: string } {
 interface Found { id: string; panoramax_id: string | null; status: string }
 
 // The published photo behind what was typed, or one already hidden by an
-// earlier request (hiding removes its selection, so look at the photo itself).
+// earlier request (hiding marks its selection lost, so look at the photo itself).
 async function resolvePhoto(env: PhotoEnv, asked: { target?: string; picture?: string }): Promise<Found | null> {
   if (asked.picture) {
     return db(env).prepare(
@@ -262,7 +263,7 @@ async function resolvePhoto(env: PhotoEnv, asked: { target?: string; picture?: s
   for (const target of targets) {
     const row = await db(env).prepare(
       `SELECT p.id, p.panoramax_id, p.status FROM selections sel JOIN photos p ON p.id = sel.photo_id
-        WHERE sel.target = ? AND p.status = 'published' LIMIT 1`,
+        WHERE sel.target = ? AND sel.lost_at IS NULL AND p.status = 'published' LIMIT 1`,
     ).bind(target).first<Found>();
     if (row) return row;
   }
@@ -294,10 +295,12 @@ export async function openReports(env: PublishEnv, fetcher: Fetch): Promise<Repo
   return Array.isArray(body?.reports) ? body.reports : null;
 }
 
-// Hides our copies of a photo. Safe to repeat. The selection rows are the
-// "still to clear" marker: they go only once the R2 deletes and the purge
-// worked, and reconcile() retries while any are left.
-export async function hideCopies(env: TakedownEnv, photoId: string, fetcher: Fetch): Promise<string[]> {
+// Hides our copies of a photo. Safe to repeat. The selection rows without
+// lost_at are the "still to clear" marker: they turn lost only once the R2
+// deletes and the purge worked, and reconcile() retries while any are left.
+// A lost row stays, so the admin pages can list the target as without a
+// main photo until a moderator chooses the next one (src/mains.ts).
+export async function hideCopies(env: TakedownEnv, photoId: string, fetcher: Fetch, now = new Date()): Promise<string[]> {
   const failed: string[] = [];
   const photo = await db(env).prepare(`SELECT panoramax_id FROM photos WHERE id = ?`)
     .bind(photoId).first<{ panoramax_id: string | null }>();
@@ -315,7 +318,7 @@ export async function hideCopies(env: TakedownEnv, photoId: string, fetcher: Fet
     if (!r?.ok) failed.push('panoramax');
   }
 
-  const { results } = await db(env).prepare(`SELECT target FROM selections WHERE photo_id = ?`)
+  const { results } = await db(env).prepare(`SELECT target FROM selections WHERE photo_id = ? AND lost_at IS NULL`)
     .bind(photoId).all<{ target: string }>();
   const purge: string[] = [];
   try {
@@ -334,7 +337,8 @@ export async function hideCopies(env: TakedownEnv, photoId: string, fetcher: Fet
   }
   if (!(await purgeUrls(env, purge, fetcher))) failed.push('purge');
   else if (!failed.includes('pictures') && results.length) {
-    await db(env).prepare(`DELETE FROM selections WHERE photo_id = ?`).bind(photoId).run();
+    await db(env).prepare(`UPDATE selections SET lost_at = ?, published_at = NULL WHERE photo_id = ? AND lost_at IS NULL`)
+      .bind(now.toISOString(), photoId).run();
   }
   return failed;
 }
@@ -355,7 +359,8 @@ export async function reconcile(env: TakedownEnv, fetcher: Fetch, reports?: Repo
     if (row) ids.add(row.id);
   }
   const { results } = await db(env).prepare(
-    `SELECT DISTINCT p.id FROM photos p JOIN selections s ON s.photo_id = p.id WHERE p.status IN ('hidden', 'removed')`,
+    `SELECT DISTINCT p.id FROM photos p JOIN selections s ON s.photo_id = p.id
+      WHERE p.status IN ('hidden', 'removed') AND s.lost_at IS NULL`,
   ).all<{ id: string }>();
   for (const r of results) ids.add(r.id);
   for (const id of ids) await hideCopies(env, id, fetcher).catch(() => {});
@@ -510,7 +515,7 @@ ${actions ? `<div class="queue-actions">${actions}</div>` : ''}
 </article>`;
 }
 
-export function takedownsPage(lang: Lang, items: PanelItem[] | null, p: { ok?: string; error?: string }, now = new Date()): string {
+export function takedownsPage(lang: Lang, items: PanelItem[] | null, p: { ok?: string; error?: string; lost?: string }, now = new Date()): string {
   const t = T[lang];
   const parts = [`<h1>${t.adminTitle}</h1>`, `<p>${t.adminIntro}</p>`];
   const ok = p.ok ? t.done[p.ok] : undefined;
@@ -519,6 +524,8 @@ export function takedownsPage(lang: Lang, items: PanelItem[] | null, p: { ok?: s
   if (err) parts.push(`<p class="notice" role="alert">${esc(err)}</p>`);
   if (items === null) parts.push(`<p class="notice" role="alert">${t.adminErrors.list}</p>`);
   else parts.push(items.length ? items.map((i) => item(lang, i, now)).join('\n') : `<p>${t.empty}</p>`);
+  // Targets left without a main photo, to choose the next one (src/mains.ts).
+  if (p.lost) parts.push(p.lost);
   parts.push(`<p><a href="${accountPath(lang)}">${t.back}</a></p>`);
   return layout({
     lang,
@@ -544,7 +551,7 @@ function forbiddenPage(lang: Lang): string {
 async function photoFor(env: PhotoEnv, pictureId: string): Promise<PanelItem['photo']> {
   return db(env).prepare(
     `SELECT p.id, p.station_id, s.name AS station_name, p.evse_compact, p.status,
-            (SELECT COUNT(*) FROM selections sel WHERE sel.photo_id = p.id) AS uncleared
+            (SELECT COUNT(*) FROM selections sel WHERE sel.photo_id = p.id AND sel.lost_at IS NULL) AS uncleared
        FROM photos p LEFT JOIN stations s ON s.id = p.station_id
       WHERE p.panoramax_id = ? AND p.status IN ('published', 'hidden')`,
   ).bind(pictureId.toLowerCase()).first<NonNullable<PanelItem['photo']>>();
@@ -566,7 +573,9 @@ export async function takedownsHtml(lang: Lang, request: Request, env: TakedownE
     }
   }
   const url = new URL(request.url);
+  const lost = await lostSectionFor(lang, env, request, 'takedowns');
   return page(lang, takedownsPage(lang, items, {
+    lost,
     ok: url.searchParams.get('ok') ?? undefined,
     error: url.searchParams.get('erro') ?? undefined,
   }, now), 200, headers);
@@ -602,7 +611,7 @@ export async function decideTakedown(request: Request, env: TakedownEnv, fetcher
 
   if (action === 'remove') {
     // Our copies first, while the photo can still be found; then the source.
-    await hideCopies(env, photo.id, fetcher).catch(() => {});
+    await hideCopies(env, photo.id, fetcher, now).catch(() => {});
     if (photo.panoramax_set) {
       // 404: already gone, which is what we want.
       const r = await fetcher(`${base}/api/upload_sets/${encodeURIComponent(photo.panoramax_set)}`, { method: 'DELETE', headers: authed(env) }).catch(() => null);
@@ -631,11 +640,12 @@ export async function decideTakedown(request: Request, env: TakedownEnv, fetcher
   if (!vis?.ok) return back('erro=panoramax');
   const res = await db(env).prepare(`UPDATE photos SET status = 'published' WHERE id = ? AND status = 'hidden'`).bind(photo.id).run();
   if (res.meta.changes === 1) {
-    // A hide that half-failed leaves selection rows whose files may be gone;
-    // drop them so publishMain writes the links again.
-    await db(env).prepare(`DELETE FROM selections WHERE photo_id = ?`).bind(photo.id).run();
+    // A hide that half-failed leaves selection rows whose files may be gone:
+    // mark them lost too, so publishMain writes every link of this photo again.
+    await db(env).prepare(`UPDATE selections SET lost_at = COALESCE(lost_at, ?), published_at = NULL WHERE photo_id = ?`)
+      .bind(now.toISOString(), photo.id).run();
     try {
-      // Only targets still without a main photo are filled (INSERT OR IGNORE).
+      // Only targets still without a main photo are filled: new or lost rows.
       await publishMain(env, photo.id, user.id, fetcher, now);
     } catch {
       return back('ok=keep&erro=publish');

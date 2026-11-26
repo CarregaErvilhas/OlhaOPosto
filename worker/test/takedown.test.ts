@@ -130,8 +130,11 @@ const decide = (w: World, id: string, action: string, lang = 'pt') =>
   decideTakedown(form('/admin/remocao', { denuncia: id, action, lang }), w.env, w.fetcher, NOW);
 const status = (w: World) =>
   (w.db.sql.prepare('SELECT status FROM photos WHERE id = ?').get(PHOTO) as { status: string }).status;
+// Live selections (or still to clear), and the ones marked lost.
 const selections = (w: World) =>
-  w.db.sql.prepare('SELECT target FROM selections ORDER BY target').all().map((r) => r.target);
+  w.db.sql.prepare('SELECT target FROM selections WHERE lost_at IS NULL ORDER BY target').all().map((r) => r.target);
+const lost = (w: World) =>
+  w.db.sql.prepare('SELECT target FROM selections WHERE lost_at IS NOT NULL AND published_at IS NULL ORDER BY target').all().map((r) => r.target);
 // A report filed straight on Panoramax, as the viewer's button does.
 const viewerReport = (w: World, issue: string) =>
   w.fetcher('https://pano.test/api/reports', { method: 'POST', body: JSON.stringify({ issue, picture_id: PIC }) });
@@ -201,6 +204,7 @@ test('takedown: report filed anonymously, our copies hidden at once, with purges
   assert.deepEqual([patch.url, patch.body], [`https://pano.test/api/pictures/${PIC}`, '{"visibility":"owner-only"}']);
   assert.equal(w.r2.size, 0);
   assert.deepEqual(selections(w), []);
+  assert.deepEqual(lost(w), ['EZC-AMD-00051', 'PTEZCEAMD000511']);   // lost, not "never had one"
   const purge = JSON.parse(w.calls.find((c) => c.url.includes('purge_cache'))!.body!).files as string[];
   assert.equal(purge.length, 9);
   assert.ok(purge.includes('https://pictures.ocarroeletrico.com/EZC-AMD-00051.full.jpg'));
@@ -236,9 +240,15 @@ test('takedown: a failed purge keeps the selections, and reconcile finishes the 
   assert.equal(status(w), 'hidden');
   assert.equal(w.r2.size, 0);
   assert.deepEqual(selections(w), ['EZC-AMD-00051', 'PTEZCEAMD000511']);   // still to clear
+  assert.deepEqual(lost(w), []);
   w.pano.purgeFails = false;
   await reconcile(w.env, w.fetcher);
   assert.deepEqual(selections(w), []);
+  assert.deepEqual(lost(w), ['EZC-AMD-00051', 'PTEZCEAMD000511']);
+  // A lost row is not "still to clear": the next run purges nothing more.
+  const purges = w.calls.filter((c) => c.url.includes('purge_cache')).length;
+  await reconcile(w.env, w.fetcher);
+  assert.equal(w.calls.filter((c) => c.url.includes('purge_cache')).length, purges);
 });
 
 test('takedown: a second request for a hidden photo files nothing new', async () => {
@@ -350,6 +360,7 @@ test('keep: reports closed first, picture public, photo published, empty links r
   assert.equal(status(w), 'published');
   assert.equal(w.r2.size, 6);
   assert.deepEqual(selections(w), ['EZC-AMD-00051', 'PTEZCEAMD000511']);
+  assert.deepEqual(lost(w), []);
   // The next cron run leaves it alone.
   await reconcile(w.env, w.fetcher);
   assert.equal(status(w), 'published');

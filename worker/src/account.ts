@@ -1,9 +1,14 @@
-// The account page (/conta, /en/account): who is signed in, their points and
-// medal, leaving the ranking, and their API tokens. The page itself is in
+// The account page (/conta, /en/account): who is signed in, the name their
+// photos are credited with, their points and medal, leaving the ranking, and
+// their API tokens. The page itself is in
 // pages.ts (accountPage); this file reads D1 for the signed-in parts and
 // handles the one POST they share (ACCOUNT_ACTION).
 import { currentUser, loginEnabled, page, sameOrigin, type AuthEnv } from './auth.ts';
 import { accountPage, accountPath, esc, medalBadge, rankingPath, termsPath, type Lang } from './pages.ts';
+import {
+  MAX_LEN, MIN_LEN, changeCredit, creditState, nextChangeAt, syncCredits, type CreditDb,
+} from './credit.ts';
+import type { PublishEnv } from './publish.ts';
 import { MEDALS, myPoints, setRankingOptOut, type MyPoints, type PointsDb } from './points.ts';
 import {
   MAX_ACTIVE, TTL_DAYS, createToken, listTokens, parseNewToken, revokeToken, scopesFor, type TokenDb, type TokenRow,
@@ -13,6 +18,13 @@ export const ACCOUNT_ACTION = '/conta/acao';
 
 const T = {
   pt: {
+    creditH: 'Nome a mostrar',
+    creditIntro: 'É o crédito das tuas fotos: vai com elas nas páginas dos postos, no ranking, no Panoramax e nos metadados dos links estáticos. Por defeito é o teu nome no OpenStreetMap.',
+    creditLabel: 'Nome a mostrar',
+    creditHint: `De ${MIN_LEN} a ${MAX_LEN} caracteres: letras, números, espaços e pontuação simples, sem links. Não pode ser igual ao nome de outra pessoa (ignorando maiúsculas e acentos). Podes mudar uma vez por dia; as fotos já publicadas atualizam-se nas horas seguintes.`,
+    creditSave: 'Guardar o nome',
+    creditReset: (osm: string) => `Voltar ao nome OSM (<span lang="">${esc(osm)}</span>)`,
+    creditNext: (at: string) => `Podes voltar a mudar a partir de ${at} (UTC).`,
     pointsH: 'Pontos',
     points: (p: MyPoints) => `${p.total} ${p.total === 1 ? 'ponto' : 'pontos'} no total, ${p.month} este mês, com ${p.photos} ${p.photos === 1 ? 'foto aprovada' : 'fotos aprovadas'}.`,
     nextMedal: (n: number) => `Faltam ${n} pontos para a próxima medalha.`,
@@ -38,8 +50,18 @@ const T = {
     never: 'nunca usado',
     shownOnce: 'O teu token novo. Copia-o agora: não volta a aparecer.',
     max: `Podes ter até ${MAX_ACTIVE} tokens ativos.`,
-    ok: { revoked: 'Token revogado.', ranking_out: 'Saíste do ranking.', ranking_in: 'Voltaste ao ranking.' } as Record<string, string>,
+    ok: {
+      revoked: 'Token revogado.', ranking_out: 'Saíste do ranking.', ranking_in: 'Voltaste ao ranking.',
+      credit: 'Nome guardado. As fotos já publicadas atualizam-se nas horas seguintes.',
+    } as Record<string, string>,
     errors: {
+      credit_length: `O nome tem de ter de ${MIN_LEN} a ${MAX_LEN} caracteres.`,
+      credit_chars: 'O nome só pode ter letras, números, espaços e pontuação simples (. , \' ( ) ! ? & + _ -).',
+      credit_url: 'O nome não pode ser um link nem um endereço.',
+      credit_reserved: 'Esse nome está reservado. Escolhe outro.',
+      credit_taken: 'Esse nome já é de outra pessoa. Escolhe outro.',
+      credit_daily: 'Já mudaste o nome nas últimas 24 horas. Tenta mais tarde.',
+      credit_same: 'Esse já é o teu nome.',
       name: 'Dá um nome ao token, até 60 caracteres.',
       scope: 'Escolhe o que o token pode fazer.',
       days: 'Escolhe a validade.',
@@ -48,6 +70,13 @@ const T = {
     } as Record<string, string>,
   },
   en: {
+    creditH: 'Display name',
+    creditIntro: 'It is the credit on your photos: it goes with them on the station pages, the ranking, Panoramax and in the metadata of the static links. By default it is your OpenStreetMap name.',
+    creditLabel: 'Display name',
+    creditHint: `${MIN_LEN} to ${MAX_LEN} characters: letters, digits, spaces and simple punctuation, no links. It cannot be the same as someone else’s name (ignoring case and accents). You can change it once a day; photos already published are updated over the next few hours.`,
+    creditSave: 'Save name',
+    creditReset: (osm: string) => `Go back to the OSM name (<span lang="">${esc(osm)}</span>)`,
+    creditNext: (at: string) => `You can change it again from ${at} (UTC).`,
     pointsH: 'Points',
     points: (p: MyPoints) => `${p.total} ${p.total === 1 ? 'point' : 'points'} in total, ${p.month} this month, from ${p.photos} approved ${p.photos === 1 ? 'photo' : 'photos'}.`,
     nextMedal: (n: number) => `${n} points to the next medal.`,
@@ -73,8 +102,18 @@ const T = {
     never: 'never used',
     shownOnce: 'Your new token. Copy it now: it will not be shown again.',
     max: `You can have up to ${MAX_ACTIVE} active tokens.`,
-    ok: { revoked: 'Token revoked.', ranking_out: 'You left the ranking.', ranking_in: 'You are back in the ranking.' } as Record<string, string>,
+    ok: {
+      revoked: 'Token revoked.', ranking_out: 'You left the ranking.', ranking_in: 'You are back in the ranking.',
+      credit: 'Name saved. Photos already published are updated over the next few hours.',
+    } as Record<string, string>,
     errors: {
+      credit_length: `The name must be ${MIN_LEN} to ${MAX_LEN} characters long.`,
+      credit_chars: 'The name can only have letters, digits, spaces and simple punctuation (. , \' ( ) ! ? & + _ -).',
+      credit_url: 'The name cannot be a link or an address.',
+      credit_reserved: 'That name is reserved. Choose another.',
+      credit_taken: 'That name already belongs to someone else. Choose another.',
+      credit_daily: 'You changed your name in the last 24 hours. Try again later.',
+      credit_same: 'That is already your name.',
       name: 'Give the token a name, up to 60 characters.',
       scope: 'Choose what the token can do.',
       days: 'Choose how long it lasts.',
@@ -86,6 +125,32 @@ const T = {
 
 const day = (iso: string) => esc(iso.slice(0, 10));
 const hidden = (name: string, value: string) => `<input type="hidden" name="${name}" value="${esc(value)}">`;
+
+interface CreditView {
+  osm_name: string;
+  pseudonym: string | null;
+  pseudonym_changed_at: string | null;
+}
+
+function creditSection(lang: Lang, me: CreditView, now: Date): string {
+  const t = T[lang];
+  const next = nextChangeAt(me, now);
+  const wait = next ? `<p class="hint">${t.creditNext(esc(next.toISOString().slice(0, 16).replace('T', ' ')))}</p>` : '';
+  const off = next ? ' disabled' : '';
+  return `<section class="card account-section" aria-labelledby="h-credit">
+<h2 id="h-credit">${t.creditH}</h2>
+<p>${t.creditIntro}</p>
+<form method="post" action="${ACCOUNT_ACTION}">${hidden('lang', lang)}${hidden('action', 'set_credit')}
+<label for="credit-name">${t.creditLabel}</label>
+<input id="credit-name" name="credit" required minlength="${MIN_LEN}" maxlength="${MAX_LEN}" autocomplete="nickname" spellcheck="false" lang=""
+  value="${esc(me.pseudonym ?? me.osm_name)}" aria-describedby="credit-hint"${off}>
+<p id="credit-hint" class="hint">${t.creditHint}</p>
+${wait}<p><button type="submit" class="button"${off}>${t.creditSave}</button></p>
+</form>
+${me.pseudonym !== null ? `<form method="post" action="${ACCOUNT_ACTION}">${hidden('lang', lang)}${hidden('action', 'reset_credit')}
+<button type="submit" class="button secondary"${off}>${t.creditReset(me.osm_name)}</button></form>` : ''}
+</section>`;
+}
 
 function pointsSection(lang: Lang, p: MyPoints): string {
   const t = T[lang];
@@ -147,15 +212,18 @@ interface Notes {
   fresh?: string;
 }
 
-async function render(lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>, notes: Notes, status = 200) {
+async function render(
+  lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>, notes: Notes, status = 200, now = new Date(),
+) {
   const enabled = loginEnabled(env);
   // A D1 hiccup (or a missing migration) reads as signed out, never as a 500.
   const user = enabled ? await currentUser(request, env).catch(() => null) : null;
   let sections: string | undefined;
   if (user) {
     const t = T[lang];
-    const db = env.DB as unknown as PointsDb & TokenDb;
-    const [points, tokens] = await Promise.all([
+    const db = env.DB as unknown as PointsDb & TokenDb & CreditDb;
+    const [credit, points, tokens] = await Promise.all([
+      creditState(db, user.id).catch(() => null),
       myPoints(db, user.id).catch(() => null),
       listTokens(db, user.id).catch(() => null),
     ]);
@@ -163,22 +231,26 @@ async function render(lang: Lang, request: Request, env: AuthEnv, headers: Recor
       notes.ok && t.ok[notes.ok] ? `<p class="notice" role="status">${t.ok[notes.ok]}</p>` : '',
       notes.error && t.errors[notes.error] ? `<p class="notice" role="alert">${t.errors[notes.error]}</p>` : '',
     ].join('');
-    sections = msgs + (points ? pointsSection(lang, points) : '') + (tokens ? tokensSection(lang, user.role, tokens, notes.fresh) : '');
+    sections = msgs + (credit ? creditSection(lang, credit, now) : '') + (points ? pointsSection(lang, points) : '') + (tokens ? tokensSection(lang, user.role, tokens, notes.fresh) : '');
   }
   const loginError = notes.error && !user ? notes.error : undefined;
   return page(lang, accountPage(lang, { user, enabled, error: loginError, sections }), status, headers);
 }
 
-export async function accountHtml(lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>) {
+export async function accountHtml(lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>, now = new Date()) {
   const q = new URL(request.url).searchParams;
-  return render(lang, request, env, headers, { ok: q.get('ok') ?? undefined, error: q.get('erro') ?? undefined });
+  return render(lang, request, env, headers, { ok: q.get('ok') ?? undefined, error: q.get('erro') ?? undefined }, 200, now);
 }
 
 const back = (lang: Lang, q: string, anchor = 'h-tokens') =>
   new Response(null, { status: 303, headers: { location: `${accountPath(lang)}?${q}#${anchor}`, 'cache-control': 'no-store' } });
 
-// POST /conta/acao: create or revoke a token, leave or rejoin the ranking.
-export async function accountAction(request: Request, env: AuthEnv, headers: Record<string, string>, now = new Date()) {
+// POST /conta/acao: change the credit, create or revoke a token, leave or
+// rejoin the ranking. Only from our own pages (sameOrigin).
+export async function accountAction(
+  request: Request, env: PublishEnv, headers: Record<string, string>,
+  ctx?: { waitUntil(p: Promise<unknown>): void }, now = new Date(), fetcher: typeof fetch = fetch,
+) {
   if (!sameOrigin(request)) return new Response('forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
   let form: FormData;
   try {
@@ -191,6 +263,13 @@ export async function accountAction(request: Request, env: AuthEnv, headers: Rec
   if (!user) return new Response(null, { status: 303, headers: { location: `/auth/osm/login?next=${encodeURIComponent(accountPath(lang))}` } });
   const db = env.DB as unknown as PointsDb & TokenDb;
   const action = form.get('action');
+  if (action === 'set_credit' || action === 'reset_credit') {
+    const r = await changeCredit(env.DB as unknown as CreditDb, user.id, action === 'set_credit' ? form.get('credit') ?? '' : null, now);
+    if (typeof r === 'string') return back(lang, `erro=${r}`, 'h-credit');
+    // The copies and the Panoramax tags: a first batch now, the rest by the cron.
+    ctx?.waitUntil(syncCredits(env, fetcher));
+    return back(lang, 'ok=credit', 'h-credit');
+  }
   if (action === 'ranking_out' || action === 'ranking_in') {
     await setRankingOptOut(db, user.id, action === 'ranking_out');
     return back(lang, `ok=${action}`, 'h-points');

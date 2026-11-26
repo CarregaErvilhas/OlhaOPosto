@@ -36,9 +36,26 @@ Posto e suas tomadas.
 curl 'https://olhaoposto.ocarroeletrico.com/api/v1/stations/EZC-AMD-00051'
 ```
 
-Resposta: `{ "id", "code", "name", "operator": { "id", "name" }, "address", "municipality", "region", "lat", "lon", "status", "osm", "photo", "points": [ { "id", "evse", "compact", "connector", "kw", "dc", "status", "photo" } ], "updatedAt" }`.
+Resposta: `{ "id", "code", "name", "operator": { "id", "name" }, "address", "municipality", "region", "lat", "lon", "status", "osm", "photo", "externalPhotos": [ ... ], "points": [ { "id", "evse", "compact", "connector", "kw", "dc", "status", "photo" } ], "updatedAt" }`.
 
 `photo` é a foto principal do posto ou da tomada, ou `null` quando não há (ver *Objeto `photo`*, abaixo).
+
+`externalPhotos` são as fotos que outras pessoas puseram no OSM e estão noutro sítio (Panoramax, Wikimedia Commons), no máximo 12, só como referência. Nunca são a foto principal, não têm link estático e não entram em `/main-photos`:
+
+```json
+{
+  "id": "ext_7b817c1c57b3392533da706f",
+  "external": true,
+  "origin": "osm_panoramax",
+  "thumb": "https://nap.ocarroeletrico.com/photos/5354aeece5480a4d.jpg",
+  "credit": "5R-MFT",
+  "license": "CC-BY-SA-4.0",
+  "source": "https://api.panoramax.xyz/#focus=pic&pic=b0a380da-9b5f-43c8-8037-72d109137120",
+  "takenAt": "2025-10-28"
+}
+```
+
+`origin` é `osm_panoramax` ou `commons`. Quem as mostra deve dar o `credit` e a `license` e ligar a `source`. `credit` pode ser `null` e `takenAt` também.
 
 ### `GET /evses/{evse}`
 

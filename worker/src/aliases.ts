@@ -28,12 +28,12 @@ export interface MissingStation {
 export async function missingStationsWithPhotos(env: Env): Promise<MissingStation[]> {
   const { results } = await env.DB.prepare(
     `SELECT s.id, s.name, s.operator,
-            (SELECT COUNT(*) FROM photos p WHERE p.station_id = s.id AND p.status IN ('pending', 'published', 'hidden')) AS photo_count,
+            (SELECT COUNT(*) FROM photos p WHERE p.station_id = s.id AND p.origin = 'olhaoposto' AND p.status IN ('pending', 'published', 'hidden')) AS photo_count,
             a.new_id AS alias
        FROM stations s
        LEFT JOIN station_aliases a ON a.old_id = s.id
       WHERE s.status = 'missing_from_nap'
-        AND EXISTS (SELECT 1 FROM photos p WHERE p.station_id = s.id AND p.status IN ('pending', 'published', 'hidden'))
+        AND EXISTS (SELECT 1 FROM photos p WHERE p.station_id = s.id AND p.origin = 'olhaoposto' AND p.status IN ('pending', 'published', 'hidden'))
       ORDER BY s.id`,
   ).all() as any;
   return results as MissingStation[];

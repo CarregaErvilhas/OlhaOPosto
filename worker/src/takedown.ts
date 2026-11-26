@@ -254,7 +254,7 @@ interface Found { id: string; panoramax_id: string | null; status: string }
 async function resolvePhoto(env: PhotoEnv, asked: { target?: string; picture?: string }): Promise<Found | null> {
   if (asked.picture) {
     return db(env).prepare(
-      `SELECT id, panoramax_id, status FROM photos WHERE (panoramax_id = ?1 OR id = ?1) AND status IN ('published', 'hidden') LIMIT 1`,
+      `SELECT id, panoramax_id, status FROM photos WHERE (panoramax_id = ?1 OR id = ?1) AND status IN ('published', 'hidden') AND origin = 'olhaoposto' LIMIT 1`,
     ).bind(asked.picture).first<Found>();
   }
   if (!asked.target) return null;
@@ -273,7 +273,7 @@ async function resolvePhoto(env: PhotoEnv, asked: { target?: string; picture?: s
   for (const target of targets) {
     const row = await db(env).prepare(
       `SELECT id, panoramax_id, status FROM photos
-        WHERE status = 'hidden' AND (evse_compact = ?1 OR station_id = ?1) LIMIT 1`,
+        WHERE status = 'hidden' AND origin = 'olhaoposto' AND (evse_compact = ?1 OR station_id = ?1) LIMIT 1`,
     ).bind(target).first<Found>();
     if (row) return row;
   }

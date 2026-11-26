@@ -150,6 +150,18 @@ export function boundingBox(q: NearQuery): { minLat: number; maxLat: number; min
 // or compact EVSE code).
 export type MainPhotos = Record<string, { credit: string | null; panoramax_id?: string | null; photo_id?: string }>;
 
+// A photo that lives at its origin (Panoramax, Commons), shown in the gallery
+// as a reference with its author, licence and link. Never a main photo.
+export type ExternalPhoto = {
+  id: string;
+  origin: 'osm_panoramax' | 'commons';
+  thumb: string;
+  credit: string | null;
+  license: string;
+  source: string;
+  taken_at: string | null;
+};
+
 // One published main photo, for apps that copy them (nap.ocarroeletrico.com).
 export type MainPhotoRow = {
   target: string;

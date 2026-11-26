@@ -42,7 +42,7 @@ export async function getCredit(env: { DB: D1Database }, id: string): Promise<Cr
                        AND sel.photo_id = p.id AND sel.published_at IS NOT NULL) AS is_main,
             s.name AS station_name, s.lat, s.lon, s.osm_ref, s.status AS station_status
        FROM photos p JOIN stations s ON s.id = p.station_id
-      WHERE p.id = ? AND p.status = 'published'`,
+      WHERE p.id = ? AND p.status = 'published' AND p.origin = 'olhaoposto'`,
   ).bind(id).first<CreditRow>();
   return row && isPublic({ status: row.station_status }) ? row : null;
 }

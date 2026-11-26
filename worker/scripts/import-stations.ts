@@ -16,8 +16,9 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import {
-  checkMissing, diff, toRows, toSql, validateFeed,
-  type CurrentEvse, type CurrentStation, EVSE_COLUMNS, STATION_COLUMNS,
+  checkExternalRemovals, checkMissing, diff, diffExternalPhotos, EXTERNAL_COLUMNS, externalSql, toExternalPhotos,
+  toRows, toSql, validateFeed,
+  type CurrentEvse, type CurrentStation, type ExternalPhotoRow, EVSE_COLUMNS, STATION_COLUMNS,
 } from './lib/stations.ts';
 import { d1, type Target } from './lib/wrangler.ts';
 
@@ -69,7 +70,23 @@ d1(target, (db) => {
   const refusal = checkMissing(d, current.stations);
   if (refusal && !values['allow-mass-missing']) throw new Error(refusal);
 
-  const statements = toSql(d, feed.generatedAt);
+  // External photos (references to Panoramax and Commons, never copies). Ours
+  // are left out: their Panoramax UUID is in photos.panoramax_id.
+  const own = new Set(db.query<{ panoramax_id: string }>(
+    `SELECT panoramax_id FROM photos WHERE origin = 'olhaoposto' AND panoramax_id IS NOT NULL`,
+  ).map((r) => r.panoramax_id.toLowerCase()));
+  const externalCurrent = db.query<ExternalPhotoRow>(
+    `SELECT ${EXTERNAL_COLUMNS.join(', ')} FROM photos WHERE origin <> 'olhaoposto'`,
+  );
+  const ext = diffExternalPhotos(toExternalPhotos(feed, own), externalCurrent);
+  console.log(`external photos: +/~${ext.upsert.length} removed ${ext.removed.length} (of ${externalCurrent.length})`);
+  const extRefusal = checkExternalRemovals(ext, externalCurrent.length);
+  if (extRefusal && !values['allow-mass-missing']) throw new Error(extRefusal);
+
+  // The stations come first: photos.station_id references them. The
+  // generated_at marker goes last, so a failed run is rerun.
+  const marker = toSql(d, feed.generatedAt);
+  const statements = [...marker.slice(0, -1), ...externalSql(ext, feed.generatedAt), marker[marker.length - 1]];
   if (values['dry-run']) {
     console.log(`dry run: ${statements.length} statements, nothing written`);
     return;

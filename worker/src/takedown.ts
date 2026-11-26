@@ -123,7 +123,7 @@ const T = {
     visible: 'Ainda visível',
     pending: 'Os links estáticos ainda não foram limpos; o sistema tenta outra vez a cada 10 minutos.',
     notOurs: 'Não corresponde a nenhuma foto do olh\'o\'posto. Vê-a no Panoramax.',
-    sequence: 'Denúncia de uma sequência inteira: trata-a diretamente no Panoramax.',
+    sequence: 'Denúncia de uma sequência inteira, não de uma foto: o painel não a trata. Vê-a no visualizador e trata-a pela API do Panoramax com o token da conta de serviço.',
     issues: {
       blur_missing: 'Falta desfocar pessoas ou veículos', blur_excess: 'Desfocagem a mais', inappropriate: 'Conteúdo impróprio',
       privacy: 'Privacidade', picture_low_quality: 'Má qualidade', mislocated: 'Localização errada',
@@ -184,7 +184,7 @@ const T = {
     visible: 'Still visible',
     pending: 'The static links are not cleared yet; the system tries again every 10 minutes.',
     notOurs: 'It matches no olh\'o\'posto photo. See it on Panoramax.',
-    sequence: 'A report on a whole sequence: handle it on Panoramax directly.',
+    sequence: 'A report on a whole sequence, not a photo: this panel cannot handle it. See it in the viewer and handle it through the Panoramax API with the service account token.',
     issues: {
       blur_missing: 'People or vehicles not blurred', blur_excess: 'Too much blurring', inappropriate: 'Inappropriate content',
       privacy: 'Privacy', picture_low_quality: 'Low quality', mislocated: 'Wrong location',
@@ -262,10 +262,13 @@ async function resolvePhoto(env: PhotoEnv, asked: { target?: string; picture?: s
     ).bind(target).first<Found>();
     if (row) return row;
   }
+  // A station code also matches its sockets' photos: a socket photo is often
+  // the station's main photo too (src/publish.ts). Only reached when the
+  // target has no published main photo left.
   for (const target of targets) {
     const row = await db(env).prepare(
       `SELECT id, panoramax_id, status FROM photos
-        WHERE status = 'hidden' AND (evse_compact = ?1 OR (evse_compact IS NULL AND station_id = ?1)) LIMIT 1`,
+        WHERE status = 'hidden' AND (evse_compact = ?1 OR station_id = ?1) LIMIT 1`,
     ).bind(target).first<Found>();
     if (row) return row;
   }

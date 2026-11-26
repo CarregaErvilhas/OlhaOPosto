@@ -260,7 +260,9 @@ denúncia vai com ele) e as cópias do `pictures-staging` (foto `removed`).
 **Manter** fecha primeiro todas as denúncias abertas da foto
 (`closed_ignored`; senão o cron voltava a ocultá-la), torna a foto pública e
 volta a preencher os links estáticos que ainda estão vazios. As denúncias de
-uma sequência inteira tratam-se no Panoramax. O prazo é de 72 horas; o painel
+uma sequência inteira (só pelo visualizador, e só até haver a regra WAF
+abaixo) não têm botões: o cron não as segue e tratam-se pela API do
+Panoramax com o token da conta de serviço. O prazo é de 72 horas; o painel
 mostra o tempo que falta. Ainda não se promove outra foto aprovada a
 principal quando uma é ocultada.
 

@@ -245,6 +245,10 @@ test('takedown: a second request for a hidden photo files nothing new', async ()
   await submitTakedown(ask('PTEZCEAMD000511'), w.env, w.fetcher);
   const res = await submitTakedown(ask('ptezceamd000511'), w.env, w.fetcher);
   assert.equal(res.headers.get('location'), '/takedown?ok=2');
+  // The station link (the API's and the figcaption's) finds it too, though
+  // hiding cleared the station's selection.
+  const byStation = await submitTakedown(ask(`${SITE}/postos/EZC-AMD-00051`), w.env, w.fetcher);
+  assert.equal(byStation.headers.get('location'), '/takedown?ok=2');
   const viaPano = await submitTakedown(ask(`https://panoramax.ocarroeletrico.com/viewer?pic=${PIC}`), w.env, w.fetcher);
   assert.equal(viaPano.headers.get('location'), '/takedown?ok=2');
   assert.equal(w.reports.size, 1);

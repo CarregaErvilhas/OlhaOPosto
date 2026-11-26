@@ -53,15 +53,23 @@ async function connect(db: ReturnType<typeof d1>, caller: McpCaller | null = nul
     waiting.set(id, resolve);
     void client.send({ jsonrpc: '2.0', id, method, params } as never);
   });
-  await request('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } });
+  const init = await request('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'test', version: '1' } });
   await client.send({ jsonrpc: '2.0', method: 'notifications/initialized' } as never);
   const call = async (name: string, args: Record<string, unknown>) => {
     const r = await request('tools/call', { name, arguments: args });
     assert.ok(r.result, JSON.stringify(r.error));
     return { data: JSON.parse(r.result.content[0].text) as Record<string, any>, isError: r.result.isError === true };
   };
-  return { request, call };
+  return { request, call, init: init.result as unknown as { serverInfo: Record<string, any> } };
 }
+
+test('the server names itself with the mascot, not the apex icon', async () => {
+  const { init } = await connect(world());
+  assert.equal(init.serverInfo.name, 'OlhaOPosto');
+  assert.equal(init.serverInfo.websiteUrl, 'https://olhaoposto.ocarroeletrico.com');
+  const srcs = (init.serverInfo.icons as { src: string }[]).map((i) => i.src);
+  assert.ok(srcs.length && srcs.every((s) => s.startsWith('https://olhaoposto.ocarroeletrico.com/')));
+});
 
 test('lists every tool, read and write, with English descriptions', async () => {
   const { request } = await connect(world());

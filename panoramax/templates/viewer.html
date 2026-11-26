@@ -79,5 +79,35 @@
 			})(0);
 		})();
 	</script>
+	<script>
+		// olh'o'posto: the viewer's "Report" button opens the olh'o'posto
+		// removal form for this picture instead of the viewer's own form.
+		// The zone's WAF rule only lets the Worker's reports through to
+		// /api/reports, and the form adds Turnstile and clears our static
+		// links at once (worker/src/takedown.ts). The button calls
+		// this._parent._showReportForm(), so replacing it on the element is
+		// enough; test_viewer.py fails if a new viewer version renames it.
+		(function () {
+			var FORM = "https://olhaoposto.ocarroeletrico.com";
+			var state = { hooked: false };
+			window.oopReport = state;
+			var viewer = document.getElementById("viewer");
+			customElements.whenDefined("pnx-viewer").then(function () {
+				if (typeof viewer._showReportForm !== "function") {
+					state.error = "_showReportForm not found";
+					return;
+				}
+				viewer._showReportForm = function () {
+					var meta = this.psv && this.psv.getPictureMetadata();
+					var pt = /^pt\b/i.test(navigator.language || "");
+					var url = FORM + (pt ? "/takedown" : "/en/takedown") +
+						(meta && meta.id ? "?alvo=" + encodeURIComponent(meta.id) : "");
+					state.last = url;
+					window.open(url, "_blank", "noopener");
+				};
+				state.hooked = true;
+			});
+		})();
+	</script>
 </body>
 </html>

@@ -187,8 +187,10 @@ mapa não mostrava nada entre o zoom 7 e o ~16,5.
   o `build/index.js` da v4 é agora a página de demonstração e o
   `build/index.css` já não existe). O metacatalogo vem desligado, para o mapa
   mostrar só a nossa API. Um *script* põe a opacidade e o raio da camada das
-  fotos visíveis a partir do zoom 7. O `/viewer` vai com `max-age=0`, para um
-  deploy chegar logo aos browsers.
+  fotos visíveis a partir do zoom 7. Outro faz o botão «Report» abrir o
+  formulário de remoção do olh'o'posto, porque a regra WAF bloqueia o
+  `POST /api/reports` do visualizador (`Docs/cloudflare.md`, *Pedidos de
+  remoção*). O `/viewer` vai com `max-age=0`, para um deploy chegar logo aos browsers.
 
 O `apply()` confirma primeiro tudo aquilo de que depende e só depois muda o
 que for preciso, tudo de uma vez. Se alguma coisa não bater em produção, o

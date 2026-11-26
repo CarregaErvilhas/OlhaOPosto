@@ -247,7 +247,8 @@ esconder). Se corresponde:
    purga correr bem: enquanto ficarem, há algo por limpar.
 
 **Cron a cada 10 minutos** (`triggers.crons` no `wrangler.json`, `scheduled`
-no `src/index.ts`). Lê as denúncias abertas das fotos da conta de serviço
+no `src/index.ts`). É um *cron* e não um *webhook* porque o Panoramax não
+avisa ninguém quando chega uma denúncia. Lê as denúncias abertas das fotos da conta de serviço
 (`/api/users/me/reports`; é dona de todas, chega para as ler e fechar sem ser
 admin) e oculta as nossas cópias das que o Panoramax ocultou, venham do
 formulário ou do botão de denúncia do visualizador. Repete também as
@@ -278,23 +279,29 @@ continuaria na cache do `pictures.*` até 30 dias. Os segredos da purga
 3. Depois do primeiro pedido real, os três URLs do `pictures.*` têm de dar
    `404` (`curl -sI`), não um `HIT` da cache.
 
-**Regra WAF para as denúncias (por aplicar, só o Fernando, depois do
-deploy).** O `POST /api/reports` do Panoramax não pede conta nem tem
-Turnstile, e oculta logo: sem filtro, um *script* pode ocultar todas as
-fotos. A regra só deixa passar as denúncias que trazem o cabeçalho que o
-Worker envia. O botão de denúncia do visualizador deixa de funcionar; quem
-quiser denunciar usa o formulário.
+**Regra WAF para as denúncias (aplicada).** O `POST /api/reports` do
+Panoramax não pede conta nem tem Turnstile, e oculta logo: sem filtro, um
+*script* pode ocultar todas as fotos. A regra só deixa passar as denúncias
+que trazem o cabeçalho que o Worker envia. O botão «Report» do nosso
+`/viewer` abre o formulário do olh'o'posto para essa foto
+(`/takedown?alvo=<id da foto>`, ou `/en/takedown` num browser que não esteja
+em português), em vez do formulário do próprio visualizador
+(`panoramax/templates/viewer.html`; o `tests/test_viewer.py` falha se uma
+versão nova do visualizador mudar o que o botão chama).
 
 1. `npm run remote -- secret put PANORAMAX_REPORT_KEY` (um valor aleatório
    longo, por exemplo `openssl rand -hex 32`; nunca num ficheiro do
    repositório). Antes da regra existir, o cabeçalho não muda nada.
 2. Na zona `ocarroeletrico.com`, *Security → WAF → Custom rules*, uma regra
    *Block*: `http.host eq "panoramax.ocarroeletrico.com" and
-   http.request.method eq "POST" and http.request.uri.path eq "/api/reports"
+   http.request.method eq "POST" and starts_with(lower(http.request.uri.path), "/api/reports")
    and not any(http.request.headers["x-olhaoposto-report"][*] eq "<o valor>")`.
-3. Testar: um `curl -X POST` sem o cabeçalho dá `403`, e um pedido no
-   formulário continua a criar a denúncia (confirma que o pedido do Worker
-   chega com o cabeçalho, seja qual for o caminho dele dentro da zona).
+   **Não usar `eq "/api/reports"`:** o Panoramax aceita também
+   `/api/reports/` (com barra no fim), que um `eq` deixa passar.
+3. Testar, sem o valor: um `curl -X POST` sem o cabeçalho ou com um errado
+   dá `403` em `/api/reports`, `/api/reports/` e `/api/reports?x=1`; o
+   `GET /api/` continua a dar `200`. Um pedido no formulário continua a
+   criar a denúncia (o pedido do Worker chega com o cabeçalho).
 
 **Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`).
 Só para moderadores e administradores. Mostra as fotos `pending` da mais

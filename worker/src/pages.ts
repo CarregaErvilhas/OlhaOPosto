@@ -150,6 +150,7 @@ const T = {
     uploadLink: 'Enviar fotos',
     manageUsers: 'Gerir utilizadores e papéis',
     takedowns: 'Pedidos de remoção',
+    withoutMain: 'Sem foto principal',
     missingStations: 'Postos fora do NAP',
     moderationQueue: 'Fila de moderação',
     loginErrors: {
@@ -260,6 +261,7 @@ const T = {
     uploadLink: 'Upload photos',
     manageUsers: 'Manage users and roles',
     takedowns: 'Removal requests',
+    withoutMain: 'Without a main photo',
     missingStations: 'Stations missing from the NAP',
     moderationQueue: 'Moderation queue',
     loginErrors: {
@@ -610,6 +612,7 @@ export function accountPage(
           `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/fila' : '/en/admin/queue'}">${t.moderationQueue}</a></p>`,
           `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/utilizadores' : '/en/admin/users'}">${t.manageUsers}</a></p>`,
           `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/remocoes' : '/en/admin/takedowns'}">${t.takedowns}</a></p>`,
+          `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/sem-principal' : '/en/admin/no-main'}">${t.withoutMain}</a></p>`,
           `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/postos-fora-do-nap' : '/en/admin/stations-missing'}">${t.missingStations}</a></p>`,
         ]
         : []),

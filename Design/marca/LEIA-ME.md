@@ -32,6 +32,7 @@ Em tema escuro, o `favicon.svg`, o `svg/pic.svg` e o `svg/pic-icon.svg` mudam o 
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="olh'o'posto">
 <meta name="theme-color" content="#F2B33D">
 ```
 

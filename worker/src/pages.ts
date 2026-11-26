@@ -49,6 +49,10 @@ export function esc(v: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+// "Instalar app" (public/install.js): the steps for one kind of browser. `after`
+// is a closing note; on the in-app block it introduces the link to copy.
+interface InstallSteps { before: string[]; steps: string[]; after: string | null }
+
 const T = {
   pt: {
     other: 'English',
@@ -61,6 +65,25 @@ const T = {
     footerPrivacy: 'Privacidade',
     footerTerms: 'Condições',
     footerGroup: 'O grupo',
+    installOpen: 'Instalar app',
+    installBarTitle: 'olh\'o\'posto como app',
+    installBarText: 'No ecrã principal, sem lojas nem downloads.',
+    installBarAdd: 'Instalar',
+    installLater: 'Agora não',
+    installTitle: 'Instalar o olh\'o\'posto',
+    installLede: 'Não há nada para descarregar: fica um ícone no ecrã principal e o site abre em ecrã inteiro, como as outras apps. Dá jeito para fotografar um posto quando estás lá.',
+    installCopy: 'Copiar link',
+    installCopied: 'Copiado',
+    installClose: 'Fechar',
+    installSteps: {
+      'ios-safari': { before: [], steps: ['Toca em Partilhar <svg class="install-glyph" aria-hidden="true"><use href="#i-share"/></svg> na barra do Safari. Se não o vires, toca primeiro em ⋯.', 'Escolhe «Adicionar ao ecrã principal» (se não aparecer, desliza a lista para cima).', 'Toca em «Adicionar».'], after: 'Abriste o link dentro de outra app (WhatsApp, Gmail…)? Toca no ícone do Safari, em baixo, para abrir lá, e repete.' },
+      'ios-other': { before: [], steps: ['Toca em Partilhar <svg class="install-glyph" aria-hidden="true"><use href="#i-share"/></svg>: está na barra de endereço ou no menu do browser (⋯ ou ☰).', 'Escolhe «Adicionar ao ecrã principal» e depois «Adicionar».'], after: 'Não encontras a opção? Abre esta página no Safari e repete.' },
+      'in-app': { before: ['Estás no browser de outra app (Facebook, Instagram, Messenger…), que não instala sites.'], steps: ['Toca em ⋯ ou ⋮, em cima, e escolhe abrir no browser (Safari ou Chrome).', 'Lá, toca outra vez em «Instalar app», no fim da página.'], after: 'Ou copia o link e cola-o no browser:' },
+      'android-firefox': { before: [], steps: ['Toca no menu ⋮ do Firefox.', 'Escolhe «Instalar» ou «Adicionar ao ecrã principal».', 'Confirma.'], after: null },
+      'samsung': { before: [], steps: ['Se a barra de endereço mostrar o ícone de instalar, toca nele.', 'Senão, abre o menu ≡ (em baixo) e adiciona a página ao ecrã principal.'], after: null },
+      'android': { before: [], steps: ['Toca no menu do browser (⋮, em cima à direita).', 'Escolhe «Instalar app» ou «Adicionar ao ecrã principal».', 'Confirma.'], after: 'Abriste o link dentro de outra app e o menu só deixa abrir no browser? Abre-o lá e repete.' },
+      'desktop': { before: [], steps: ['Chrome e Edge: clica no ícone de instalar, à direita na barra de endereço.', 'Safari no Mac: menu Ficheiro → «Adicionar à Dock».', 'Firefox: se a tua versão não tiver a opção, usa um dos outros.'], after: 'No telemóvel é igual: abre o site lá e toca em «Instalar app».' },
+    } as Record<string, InstallSteps>,
     ogImageAlt: `Pic, a mascote do ${BRAND}`,
     inNap: 'No NAP',
     outNap: 'Fora do NAP',
@@ -188,6 +211,25 @@ const T = {
     footerPrivacy: 'Privacy',
     footerTerms: 'Terms',
     footerGroup: 'The group',
+    installOpen: 'Install app',
+    installBarTitle: 'olh\'o\'posto as an app',
+    installBarText: 'On your home screen, no app store, no download.',
+    installBarAdd: 'Install',
+    installLater: 'Not now',
+    installTitle: 'Install olh\'o\'posto',
+    installLede: 'Nothing to download: you get an icon on your home screen and the site opens full screen, like your other apps. Handy for photographing a charger while you are there.',
+    installCopy: 'Copy link',
+    installCopied: 'Copied',
+    installClose: 'Close',
+    installSteps: {
+      'ios-safari': { before: [], steps: ['Tap Share <svg class="install-glyph" aria-hidden="true"><use href="#i-share"/></svg> in Safari’s toolbar. If you can’t see it, tap ⋯ first.', 'Choose “Add to Home Screen” (scroll the list up if it isn’t there).', 'Tap “Add”.'], after: 'Opened the link inside another app (WhatsApp, Gmail…)? Tap the Safari icon at the bottom to open it there, then try again.' },
+      'ios-other': { before: [], steps: ['Tap Share <svg class="install-glyph" aria-hidden="true"><use href="#i-share"/></svg>: it’s in the address bar or in the browser’s menu (⋯ or ☰).', 'Choose “Add to Home Screen”, then “Add”.'], after: 'Can’t find it? Open this page in Safari and try again.' },
+      'in-app': { before: ['You’re in another app’s browser (Facebook, Instagram, Messenger…), which can’t install sites.'], steps: ['Tap ⋯ or ⋮ at the top and open the page in your browser (Safari or Chrome).', 'There, tap “Install app” again, at the bottom of the page.'], after: 'Or copy the link and paste it into your browser:' },
+      'android-firefox': { before: [], steps: ['Tap Firefox’s ⋮ menu.', 'Choose “Install” or “Add to Home screen”.', 'Confirm.'], after: null },
+      'samsung': { before: [], steps: ['If the address bar shows an install icon, tap it.', 'Otherwise open the ≡ menu (at the bottom) and add the page to the Home screen.'], after: null },
+      'android': { before: [], steps: ['Tap the browser menu (⋮, top right).', 'Choose “Install app” or “Add to Home screen”.', 'Confirm.'], after: 'Opened the link inside another app and the menu only offers to open it in the browser? Do that, then try again.' },
+      'desktop': { before: [], steps: ['Chrome and Edge: click the install icon at the right of the address bar.', 'Safari on a Mac: File menu → “Add to Dock”.', 'Firefox: if your version lacks the option, use one of the others.'], after: 'On your phone it’s the same: open the site there and tap “Install app”.' },
+    } as Record<string, InstallSteps>,
     ogImageAlt: `Pic, the ${BRAND} mascot`,
     inNap: 'In the NAP',
     outNap: 'Not in the NAP',
@@ -377,6 +419,35 @@ interface Layout {
   jsonld?: string;
 }
 
+// "Instalar app" (public/install.js shows what fits): a footer button, a banner
+// for phones and the dialog with the steps for each kind of browser.
+function installMarkup(t: typeof T.pt): string {
+  const blocks = Object.entries(t.installSteps).map(([hint, b]) => {
+    const tag = hint === 'desktop' ? 'ul' : 'ol';
+    const list = `<${tag} class="${hint === 'desktop' ? 'install-list' : 'install-steps'}">${b.steps.map((x) => `<li>${x}</li>`).join('')}</${tag}>`;
+    const before = b.before.map((x) => `<p class="install-note">${x}</p>`).join('');
+    const after = b.after ? `<p class="install-note">${b.after}</p>` : '';
+    const copy = hint === 'in-app'
+      ? `<p class="install-copy"><code data-install-url></code> <button class="install-btn" type="button" data-install-copy data-copied="${esc(t.installCopied)}">${t.installCopy}</button></p>`
+      : '';
+    return `  <div data-install-hint="${hint}" hidden>${before}${list}${after}${copy}</div>`;
+  });
+  return `<div class="install-bar" id="install-bar" data-install-key="oop-install" hidden>
+  <img src="/icon-192.png" alt="" width="44" height="44">
+  <p><strong>${t.installBarTitle}</strong> <span>${t.installBarText}</span></p>
+  <button class="install-btn primary" type="button" data-install-open>${t.installBarAdd}</button>
+  <button class="install-x" type="button" data-install-dismiss aria-label="${esc(t.installLater)}">×</button>
+</div>
+<dialog class="install-dlg" id="install-dialog" closedby="any" aria-labelledby="install-title">
+  <svg hidden><symbol id="i-share" viewBox="0 0 24 24"><path d="M12 14V3M8 7l4-4 4 4M7 10H5v11h14V10h-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol></svg>
+  <div class="install-tile" aria-hidden="true"><img src="/icon-192.png" alt="" width="64" height="64"><span>${BRAND}</span></div>
+  <h2 id="install-title">${t.installTitle}</h2>
+  <p class="install-lede">${t.installLede}</p>
+${blocks.join('\n')}
+  <p class="install-actions"><button class="install-btn" type="button" data-install-close>${t.installClose}</button></p>
+</dialog>`;
+}
+
 export function layout(p: Layout): string {
   const t = T[p.lang];
   const other: Lang = p.lang === 'pt' ? 'en' : 'pt';
@@ -416,8 +487,10 @@ ${head.join('\n')}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="${BRAND}">
 <meta name="theme-color" content="#F2B33D">
 <script src="/theme.js"></script>
+<script src="/install.js" defer></script>
 ${p.script ? '<script src="/site.js" defer></script>\n' : ''}${p.module ? `<script type="module" src="${esc(p.module)}"></script>\n` : ''}</head>
 <body>
 <header class="site-header">
@@ -451,8 +524,10 @@ ${p.body}
     <a href="${termsPath(p.lang)}">${t.footerTerms}</a>
     <a href="${groupPath(p.lang)}">${t.footerGroup}</a>
     <a target="_blank" rel="noopener" href="https://github.com/CarregaErvilhas/OlhaOPosto">${t.footerCode}</a>
+    <button class="linkbtn" type="button" data-install-open>${t.installOpen}</button>
   </div>
 </footer>
+${installMarkup(t)}
 </body>
 </html>
 `;

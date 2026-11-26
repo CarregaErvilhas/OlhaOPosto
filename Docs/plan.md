@@ -110,6 +110,7 @@ Orçamento: **10 €/mês** no total.
 
 ## Questões em aberto
 
+- [ ] Postos em construção (fotos de postos que o OSM diz estarem em obra, antes de entrarem no NAP): proposta em [`postos-em-construcao.md`](postos-em-construcao.md), à espera de feedback.
 - [ ] Lista de moderadores da comunidade.
 - [ ] Como correr a desfocagem no servidor com GPU de forma barata, em escala.
 - [ ] Modelo de deteção de matrículas para o browser, com pesos de licença permissiva.

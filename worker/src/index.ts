@@ -3,6 +3,8 @@
 // served before this code runs. Static photo links are served by the R2
 // bucket on pictures.ocarroeletrico.com, never by this Worker (Docs/arquitetura.md).
 import { ROLE_ACTION, setRole, usersHtml } from './admin.ts';
+import { decisionsHtml } from './decisions.ts';
+import { OWN_THUMB_PREFIX, ownThumbnail, uploadsHtml } from './uploads.ts';
 import { DECIDE_ACTION, STAGING_PREFIX, decide, queueHtml, stagingImage } from './moderation.ts';
 import { ALIAS_ACTION, aliasPath, aliasesHtml, getStationAlias, rekey } from './aliases.ts';
 import { ACCOUNT_ACTION, accountAction, accountHtml } from './account.ts';
@@ -417,6 +419,11 @@ export default {
     if (pathname === '/en/group') return html('en', groupPage('en'));
     if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS);
+    if (pathname === '/conta/envios') return uploadsHtml('pt', request, env, HTML_HEADERS);
+    if (pathname === '/en/account/uploads') return uploadsHtml('en', request, env, HTML_HEADERS);
+    if (pathname.startsWith(OWN_THUMB_PREFIX)) return ownThumbnail(request, env, pathname.slice(OWN_THUMB_PREFIX.length));
+    if (pathname === '/admin/decisoes') return decisionsHtml('pt', request, env, HTML_HEADERS);
+    if (pathname === '/en/admin/decisions') return decisionsHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/admin/fila') return queueHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/queue') return queueHtml('en', request, env, HTML_HEADERS);
     if (pathname.startsWith(STAGING_PREFIX)) return stagingImage(request, env, pathname.slice(STAGING_PREFIX.length));

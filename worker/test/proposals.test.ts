@@ -85,7 +85,7 @@ test('decideProposal: approve makes it public; reject takes its waiting photos a
   }), env, fetcher, NOW);
   assert.match(res.headers.get('location')!, /ok=station_rejected/);
   assert.equal((db.sql.prepare('SELECT status FROM stations WHERE id = ?').get(b) as { status: string }).status, 'rejected');
-  assert.equal((db.sql.prepare(`SELECT status FROM photos WHERE id = 'ph'`).get() as { status: string }).status, 'removed');
+  assert.deepEqual({ ...db.sql.prepare(`SELECT status, refusal_reason, refused_by FROM photos WHERE id = 'ph'`).get() }, { status: 'removed', refusal_reason: 'wrong_station', refused_by: 'mod' });
   assert.deepEqual(calls, ['DELETE https://pano.test/api/upload_sets/set-9']);
 });
 

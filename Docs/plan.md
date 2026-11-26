@@ -11,7 +11,6 @@ Este documento só tem o que ainda não existe. O que já está a funcionar (ser
 2. **O site para pessoas.** Falta:
 - detetor de matrículas no browser (ver *Desfocagem*);
 - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
-- o autor ver os seus envios e o motivo de uma recusa (ver *Moderação*);
 - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
 - entrada na federação, depois da conversa com a comunidade.
 3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP, o resto da API (OpenAPI, `GET /photos/{id}`, `DELETE /photos/{id}`, filtros), exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
@@ -134,8 +133,6 @@ O pseudónimo já se escolhe na conta ([`arquitetura.md`](arquitetura.md), *Cré
 
 ## Moderação
 
-- Critérios de recusa: posto errado, privacidade, qualidade (desfocada, escura), duplicado, publicidade. Falta escolher o motivo ao recusar e guardá-lo.
-- Falta uma página "os meus envios" para o autor ver o estado de cada foto e o motivo de uma recusa, e um histórico de decisões para os moderadores.
 - Moderadores: só o Fernando no lançamento; a lista de moderadores da comunidade vem depois. Com um só moderador, o prazo de 72 h depende de ele estar disponível; como a foto fica oculta logo, o risco é atraso, não exposição.
 - Apagar a conta a partir da própria conta (hoje é por email, como diz a política de privacidade).
 

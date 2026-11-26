@@ -617,7 +617,7 @@ export function accountPage(
     parts.push(
       `<p>${t.signedIn} <strong lang="">${esc(p.user.name)}</strong>.</p>`,
       `<p>${t.roleLabel} ${esc(t.roles[p.user.role] ?? p.user.role)}</p>`,
-      `<p><a class="button" href="${uploadPath(lang)}">${t.uploadLink}</a></p>`,
+      `<p><a class="button" href="${uploadPath(lang)}">${t.uploadLink}</a> <a class="button secondary" href="${lang === 'pt' ? '/conta/envios' : '/en/account/uploads'}">${lang === 'pt' ? 'Os meus envios' : 'My uploads'}</a></p>`,
       ...(p.user.role === 'moderator' || p.user.role === 'admin'
         ? [
           `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/fila' : '/en/admin/queue'}">${t.moderationQueue}</a></p>`,

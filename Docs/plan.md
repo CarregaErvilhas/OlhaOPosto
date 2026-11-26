@@ -2,27 +2,19 @@
 
 Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`.
 
-Este documento só tem o que ainda não existe. O que já está a funcionar
-(servidor Panoramax, import dos postos, páginas, pesquisa, API de leitura e de
-escrita com *tokens*, login OSM, condições de utilização e privacidade, o envio com HEIC, mapa,
-postos propostos e deteção de caras, a moderação, os pedidos de remoção, a
-troca da foto principal, os aliases, os pontos e o ranking) está em
-[`arquitetura.md`](arquitetura.md), com a operação em
-[`cloudflare.md`](cloudflare.md) e [`infra.md`](infra.md). Quando uma parte
-daqui fica feita, sai deste documento e passa para lá.
+Este documento só tem o que ainda não existe. O que já está a funcionar (servidor Panoramax, import dos postos, páginas, pesquisa, API de leitura e de escrita com *tokens*, login OSM, condições de utilização e privacidade, o envio com HEIC, mapa, postos propostos e deteção de caras, a moderação, os pedidos de remoção, a troca da foto principal, os aliases, os pontos, o ranking e o pseudónimo) está em [`arquitetura.md`](arquitetura.md), com a operação em [`cloudflare.md`](cloudflare.md) e [`infra.md`](infra.md). Quando uma parte daqui fica feita, sai deste documento e passa para lá.
 
 ## Fases
 
 1. **Panoramax.** Falta:
-   - começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
+- começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Falta:
-   - detetor de matrículas no browser (ver *Desfocagem*);
-   - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
-   - pseudónimo no perfil (ver *Crédito*);
-   - promover a foto aprovada seguinte a principal quando uma principal é ocultada ou retirada;
-   - o autor ver os seus envios e o motivo de uma recusa (ver *Moderação*);
-   - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
-   - entrada na federação, depois da conversa com a comunidade.
+- detetor de matrículas no browser (ver *Desfocagem*);
+- confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
+- promover a foto aprovada seguinte a principal quando uma principal é ocultada ou retirada;
+- o autor ver os seus envios e o motivo de uma recusa (ver *Moderação*);
+- o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
+- entrada na federação, depois da conversa com a comunidade.
 3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP, o resto da API (OpenAPI, `GET /photos/{id}`, `DELETE /photos/{id}`, filtros), exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
 4. **Desfocagem no servidor**, quando houver uma GPU a um custo razoável.
 
@@ -81,10 +73,10 @@ Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto 
 - **Etiqueta:** só `panoramax=<uuid>`, que aponta para a foto no nosso servidor Panoramax (as imagens vêm do bucket R2 `panoramax`). O `osm_tags.photo_refs()` do NAP dashboard já a lê. Os links de `pictures.*` são para apps e mapas fora do OSM.
 - **Que fotos:** só a principal de cada elemento. Promover outra foto torna-a a principal.
 - **Bot** (`OlhaOPosto_bot`, fase 3), segundo o [código de conduta das edições automáticas](https://wiki.openstreetmap.org/wiki/Automated_Edits_code_of_conduct):
-  - conta dedicada, um *changeset* por dia, com etiquetas que o descrevem;
-  - só em elementos já ligados por `ref` ou `ref:EU:EVSE`; a foto de uma tomada vai para o ponto `man_made=charge_point`, se existir;
-  - só acrescenta; substitui apenas valores que ele próprio escreveu (registados em `osm_edits`). Se o elemento já tem outro `panoramax=`, a nova vai para a chave numerada seguinte (confirmar a convenção que o MapComplete usa);
-  - desligado até a comunidade aprovar. A aprovação não é opcional: sem ela, a conta pode ser bloqueada e as edições revertidas. Por isso a conversa começa já na fase 1.
+- conta dedicada, um *changeset* por dia, com etiquetas que o descrevem;
+- só em elementos já ligados por `ref` ou `ref:EU:EVSE`; a foto de uma tomada vai para o ponto `man_made=charge_point`, se existir;
+- só acrescenta; substitui apenas valores que ele próprio escreveu (registados em `osm_edits`). Se o elemento já tem outro `panoramax=`, a nova vai para a chave numerada seguinte (confirmar a convenção que o MapComplete usa);
+- desligado até a comunidade aprovar. A aprovação não é opcional: sem ela, a conta pode ser bloqueada e as edições revertidas. Por isso a conversa começa já na fase 1.
 - **Manual** (feito, `arquitetura.md`, *Links estáticos*): a página de crédito da foto principal oferece o link «Acrescentar ao OSM» e a etiqueta, sem precisar de aprovação nenhuma.
 
 ## Ligação ao NAP dashboard e ao ohmigo
@@ -128,7 +120,11 @@ O `/llms.txt` já descreve as páginas, a API de leitura e de escrita, os links 
 
 ## Crédito
 
-Por defeito, o crédito é o nome OSM. Falta a página de perfil onde a pessoa escreve um pseudónimo, que passa a ser o crédito em todo o lado (olh'o'posto, etiqueta no Panoramax, XMP). Mudar o crédito volta a publicar as cópias em `pictures`. O `uploader_id` fica sempre, para a moderação. GitHub como segunda forma de entrar fica para quando alguém o pedir.
+O pseudónimo já se escolhe na conta ([`arquitetura.md`](arquitetura.md), *Crédito*). Falta:
+
+- **Seguir as mudanças de nome no OSM.** O `osm_name` atualiza-se em cada login, mas o `photos.credit` de quem não tem pseudónimo fica com o nome do envio. Ao detetar no login um nome OSM novo (e sem pseudónimo), fazer o mesmo que uma mudança de crédito (`changeCredit` em `src/credit.ts`).
+- **Um nome OSM novo igual a um pseudónimo.** A unicidade só se verifica ao escolher o pseudónimo; quem cria depois uma conta OSM com esse nome fica com ele. Decidir se o login avisa a moderação.
+- GitHub como segunda forma de entrar, para quando alguém o pedir.
 
 ## Desfocagem de caras e matrículas
 

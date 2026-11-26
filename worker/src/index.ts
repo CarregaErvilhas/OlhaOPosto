@@ -10,6 +10,7 @@ import { callback, login, logout } from './auth.ts';
 import { apiCaller, canChooseMain } from './tokens.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { chooseMain } from './publish.ts';
+import { syncCredits } from './credit.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
 import { findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
 import { ranking } from './points.ts';
@@ -21,7 +22,7 @@ import { termsPage } from './terms.ts';
 import { proposeStation } from './proposals.ts';
 import { groupPage } from './grupo.ts';
 import { photoLink } from './photolinks.ts';
-import { creditPage, getCredit } from './credit.ts';
+import { creditPage, getCredit } from './photopage.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
 import {
@@ -371,7 +372,7 @@ export default {
     const { pathname } = url;
     // The POSTs: everything else on this site only reads.
     if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
-    if (request.method === 'POST' && pathname === ACCOUNT_ACTION) return accountAction(request, env, HTML_HEADERS);
+    if (request.method === 'POST' && pathname === ACCOUNT_ACTION) return accountAction(request, env, HTML_HEADERS, ctx);
     if (request.method === 'POST' && pathname === ROLE_ACTION) return setRole(request, env);
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
@@ -447,8 +448,9 @@ export default {
   },
   // Every 6 hours (wrangler.json): retries the hides that half-failed, and
   // follows any auto-hide report that did not come from our form
-  // (src/takedown.ts).
+  // (src/takedown.ts); then a batch of what is left of credit changes
+  // (src/credit.ts). One after the other: they share the subrequest limit.
   async scheduled(_event: ScheduledController, env: Env & TakedownEnv, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(reconcile(env, fetch));
+    ctx.waitUntil(reconcile(env, fetch).catch(() => {}).then(() => syncCredits(env, fetch)));
   },
 } satisfies ExportedHandler<Env & TakedownEnv>;

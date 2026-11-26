@@ -1,8 +1,6 @@
 # olh'o'posto
 
-Fotos comunitárias dos postos e tomadas de carregamento de veículos elétricos
-em Portugal, com **links estáticos pelo ID oficial**, para qualquer app ou
-mapa (OpenStreetMap, NAP dashboard, ohmigo…).
+Fotos comunitárias dos postos e tomadas de carregamento de veículos elétricos em Portugal, com **links estáticos pelo ID oficial**, para qualquer app ou mapa (OpenStreetMap, NAP dashboard, ohmigo…).
 
 ```
 https://pictures.ocarroeletrico.com/<id-do-posto>.jpg
@@ -10,30 +8,16 @@ https://pictures.ocarroeletrico.com/<id-do-posto>.jpg
 
 O link nunca muda. Muda só a foto para onde aponta.
 
-> **Estado:** o servidor Panoramax está em produção em
-> `panoramax.ocarroeletrico.com`, ainda fora da federação. O Worker do
-> olh'o'posto (`worker/`) já publica as páginas dos postos, a pesquisa, a API
-> de postos só de leitura e a política de privacidade, com o import diário
-> dos postos. O login com o OpenStreetMap e a página de envio estão feitos
-> mas fechados; o envio já guarda a foto escondida no Panoramax, mas a
-> moderação e a publicação ainda não existem.
+> **Estado:** o servidor Panoramax está em produção em `panoramax.ocarroeletrico.com`, ainda fora da federação. O Worker do olh'o'posto (`worker/`) já publica as páginas dos postos, a pesquisa, a API de postos só de leitura e a política de privacidade, com o import diário dos postos. O login com o OpenStreetMap e a página de envio estão feitos mas fechados; o envio já guarda a foto escondida no Panoramax, mas a moderação e a publicação ainda não existem.
 
 ## Como funciona
 
-- **Postos oficiais como base.** A lista de postos e tomadas vem todos os
-  dias dos dados abertos do NAP/MOBI.E. O OSM é um complemento.
-- **Envio com login OSM.** Quem contribui escolhe o posto ou a tomada e
-  envia a foto. No browser, a foto é redimensionada, as caras e matrículas
-  são desfocadas e o EXIF é removido.
-- **Moderação.** As fotos passam por uma fila de revisão antes de serem
-  públicas.
-- **Foto principal.** Quando há várias fotos de um posto ou tomada, escolhe-se
-  a que alimenta o link estático.
-- **Panoramax.** As fotos ficam num servidor [Panoramax](https://panoramax.fr)
-  próprio, só para postos, que pode juntar-se à federação. O OSM liga-se a
-  elas com a etiqueta `panoramax=<uuid>`.
-- **Licença aberta.** CC BY-SA 4.0, com autorização para criar dados ODbL,
-  para poderem ser usadas no OSM.
+- **Postos oficiais como base.** A lista de postos e tomadas vem todos os dias dos dados abertos do NAP/MOBI.E. O OSM é um complemento.
+- **Envio com login OSM.** Quem contribui escolhe o posto ou a tomada e envia a foto. No browser, a foto é redimensionada, as caras e matrículas são desfocadas e o EXIF é removido.
+- **Moderação.** As fotos passam por uma fila de revisão antes de serem públicas.
+- **Foto principal.** Quando há várias fotos de um posto ou tomada, escolhe-se a que alimenta o link estático.
+- **Panoramax.** As fotos ficam num servidor [Panoramax](https://panoramax.fr) próprio, só para postos, que pode juntar-se à federação. O OSM liga-se a elas com a etiqueta `panoramax=<uuid>`.
+- **Licença aberta.** CC BY-SA 4.0, com autorização para criar dados ODbL, para poderem ser usadas no OSM.
 
 ## Arquitetura
 
@@ -61,8 +45,6 @@ O que já existe está em [`Docs/arquitetura.md`](Docs/arquitetura.md); o que fa
 
 ## Contribuir
 
-- Documentação e interface em português de Portugal; código e commits em
-  inglês.
+- Documentação e interface em português de Portugal; código e commits em inglês.
 - Commits assinados com `git commit -s` (DCO).
-- Os princípios do projeto estão em [`CLAUDE.md`](CLAUDE.md). Mudanças a
-  esses princípios discutem-se primeiro numa issue.
+- Os princípios do projeto estão em [`CLAUDE.md`](CLAUDE.md). Mudanças a esses princípios discutem-se primeiro numa issue.

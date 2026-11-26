@@ -159,3 +159,10 @@ export type MainPhotoRow = {
   panoramax_id: string | null;
   published_at: string;
 };
+
+// A name folded for comparison: without accents, case, spaces or
+// punctuation, so «João_Silva» and «joao silva» are the same name. Used to
+// stop a pseudonym from reading like someone else's name (src/credit.ts).
+export function nameKey(name: string): string {
+  return name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+}

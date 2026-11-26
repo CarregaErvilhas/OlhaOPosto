@@ -30,6 +30,7 @@ export const socketPath = (lang: Lang, evse: string) =>
   `${lang === 'pt' ? '/tomadas/' : '/en/sockets/'}${encodeURIComponent(evse)}`;
 export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/search');
 export const privacyPath = (lang: Lang) => (lang === 'pt' ? '/privacidade' : '/en/privacy');
+export const groupPath = (lang: Lang) => (lang === 'pt' ? '/grupo' : '/en/group');
 export const accountPath = (lang: Lang) => (lang === 'pt' ? '/conta' : '/en/account');
 export const uploadPath = (lang: Lang) => (lang === 'pt' ? '/enviar' : '/en/upload');
 export const rankingPath = (lang: Lang) => (lang === 'pt' ? '/ranking' : '/en/ranking');
@@ -54,6 +55,7 @@ const T = {
     footerData: 'Fotos CC BY-SA 4.0 · Dados dos postos: NAP Portugal (MOBI.E) e © contribuidores do OpenStreetMap (ODbL)',
     footerCode: 'Código (MIT)',
     footerPrivacy: 'Privacidade',
+    footerGroup: 'O grupo',
     ogImageAlt: `Pic, a mascote do ${BRAND}`,
     inNap: 'No NAP',
     outNap: 'Fora do NAP',
@@ -162,6 +164,7 @@ const T = {
     footerData: 'Photos CC BY-SA 4.0 · Station data: NAP Portugal (MOBI.E) and © OpenStreetMap contributors (ODbL)',
     footerCode: 'Source code (MIT)',
     footerPrivacy: 'Privacy',
+    footerGroup: 'The group',
     ogImageAlt: `Pic, the ${BRAND} mascot`,
     inNap: 'In the NAP',
     outNap: 'Not in the NAP',
@@ -321,6 +324,8 @@ interface Layout {
   script?: boolean;
   // A page-specific ES module from public/.
   module?: string;
+  // schema.org JSON-LD, already serialised with < escaped.
+  jsonld?: string;
 }
 
 export function layout(p: Layout): string {
@@ -346,6 +351,7 @@ export function layout(p: Layout): string {
     '<meta name="twitter:card" content="summary">',
   );
   if (p.path) head.push(`<meta property="og:url" content="${esc(SITE + p.path)}">`);
+  if (p.jsonld) head.push(`<script type="application/ld+json">${p.jsonld}</script>`);
   return `<!doctype html>
 <html lang="${HTML_LANG[p.lang]}">
 <head>
@@ -393,6 +399,7 @@ ${p.body}
   <div class="wrap">
     <span>${t.footerData}</span>
     <a href="${privacyPath(p.lang)}">${t.footerPrivacy}</a>
+    <a href="${groupPath(p.lang)}">${t.footerGroup}</a>
     <a target="_blank" rel="noopener" href="https://github.com/CarregaErvilhas/OlhaOPosto">${t.footerCode}</a>
   </div>
 </footer>

@@ -394,3 +394,53 @@ table.users th { font-weight: 600; color: var(--muted); font-size: 0.875rem; }
 .main-photo img { display: block; width: 100%; height: auto; border-radius: 12px; background: var(--empty); }
 .main-photo figcaption { margin-top: 8px; font-size: 0.875rem; color: var(--muted); }
 img.thumb { object-fit: cover; height: 48px; border-style: solid; }
+
+/* The group (/grupo): each site's mascot beside a speech bubble, alternating sides,
+   as on the other sites of the group. --c is that site's colour, only for the circle
+   behind the mascot and the dot before its address: text keeps the page's colours. */
+.group-hero { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 24px 48px; align-items: center; margin: 8px 0 48px; }
+.group-hero h1 { font-size: clamp(1.875rem, 4vw, 2.75rem); line-height: 1.15; margin: 0 0 12px; }
+.eyebrow { display: inline-block; margin: 0 0 12px; padding: 4px 10px; border-radius: 999px; font-size: 0.8125rem; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--accent-strong); background: var(--accent-soft); }
+.lead { font-size: 1.125rem; line-height: 1.6; color: var(--text-2); max-width: 40rem; margin: 0; }
+.group-stage { position: relative; display: grid; place-items: center; aspect-ratio: 1; }
+.group-stage::before { content: ""; position: absolute; inset: 6%; border-radius: 50%; background: color-mix(in srgb, var(--brand) 26%, var(--bg)); }
+.group-stage img { position: relative; width: 64%; height: auto; }
+.group-bubble { position: absolute; top: 2%; right: 0; max-width: 11rem; margin: 0; padding: 10px 14px; font-weight: 600; font-size: 0.9375rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; }
+.m-carro { --c: #ff6b4a; } .m-ohmigo { --c: #22c55e; } .m-voltaria { --c: #2f5bd0; } .m-ceme { --c: #db2777; }
+.m-nap { --c: #0284c7; } .m-oop { --c: #f2b33d; } .m-pano { --c: #8f2a85; } .m-ampere { --c: #8b5cf6; }
+.mates { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 32px; }
+.mate { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 24px; align-items: center; max-width: 860px; }
+.mate:nth-child(even) { grid-template-columns: minmax(0, 1fr) 160px; margin-left: auto; }
+.mate:nth-child(even) .mate-pic { order: 2; }
+.mate-pic { position: relative; display: grid; place-items: center; aspect-ratio: 1; }
+.mate-pic::before { content: ""; position: absolute; inset: 4%; border-radius: 50%; background: color-mix(in srgb, var(--c) 22%, var(--bg)); }
+.mate-pic img { position: relative; width: 74%; height: auto; max-height: 84%; object-fit: contain; }
+.mate-bubble { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+/* The tail points at the mascot. */
+.mate-bubble::before { content: ""; position: absolute; top: 50%; left: -9px; width: 16px; height: 16px; margin-top: -8px; background: var(--surface);
+  border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: rotate(45deg); }
+.mate:nth-child(even) .mate-bubble::before { left: auto; right: -9px; transform: rotate(-135deg); }
+.mate-bubble h2 { font-size: 1.5rem; margin: 2px 0 6px; }
+.mate-bubble p { margin: 0 0 10px; line-height: 1.6; }
+.mate-host { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 600; color: var(--muted); overflow-wrap: anywhere; }
+.mate-host::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.mate-bubble .mate-note { font-size: 0.9375rem; color: var(--muted); }
+.mate-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 0 !important; }
+.mate-links svg { width: 18px; height: 18px; margin-right: 8px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mate-links .here { display: inline-flex; align-items: center; min-height: 48px; padding: 0 16px; border-radius: 10px; font-weight: 600;
+  color: var(--warn); background: var(--warn-soft); }
+.group-back { margin-top: 40px; }
+@media (max-width: 45em) {
+  .group-hero { grid-template-columns: minmax(0, 1fr); }
+  .group-stage { width: 200px; margin: 0 auto; }
+  .group-bubble { right: -25%; }
+  .mate, .mate:nth-child(even) { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-left: 0; }
+  .mate .mate-pic, .mate:nth-child(even) .mate-pic { order: 0; width: 130px; margin: 0 auto; }
+  .mate-bubble::before, .mate:nth-child(even) .mate-bubble::before { top: -9px; left: 50%; right: auto; margin: 0 0 0 -8px; transform: rotate(135deg); }
+}
+@media (forced-colors: active) {
+  .mate-pic::before, .group-stage::before, .mate-bubble::before { display: none; }
+  .mate-host::before { background: CanvasText; }
+}

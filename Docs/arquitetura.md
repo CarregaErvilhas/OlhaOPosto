@@ -41,7 +41,7 @@ Responsável (RGPD): O Carro Elétrico. Passar para uma associação fica como s
 
 | Host | O que serve hoje | Como |
 | --- | --- | --- |
-| `olhaoposto.ocarroeletrico.com` | Páginas dos postos e pesquisa (pt-PT e inglês), API `/api/v1` (leitura aberta, escrita com sessão ou *token*), privacidade e termos, login OSM, conta, envio, moderação, ranking, `sitemap.xml`, `robots.txt`, `llms.txt` | Worker `olhaoposto` + D1 ([`cloudflare.md`](cloudflare.md), secção 4) |
+| `olhaoposto.ocarroeletrico.com` | Páginas dos postos e pesquisa (pt-PT e inglês), API `/api/v1` (leitura aberta, escrita com sessão ou *token*), privacidade e condições de utilização, login OSM, conta, envio, moderação, ranking, `sitemap.xml`, `robots.txt`, `llms.txt` | Worker `olhaoposto` + D1 ([`cloudflare.md`](cloudflare.md), secção 4) |
 | `pictures.ocarroeletrico.com` | Links estáticos (`/<id>.jpg` e tamanhos): a foto principal de cada posto e tomada, ou `404` | Custom domain do bucket R2 `pictures`, servido pela CDN **sem Worker** ([`cloudflare.md`](cloudflare.md), secção 3) |
 | `panoramax.ocarroeletrico.com` | Servidor Panoramax (API, visualizador, imagens), fora da federação | Zerops, com o bucket R2 `panoramax` como armazenamento ([`infra.md`](infra.md)) |
 
@@ -158,8 +158,8 @@ O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês
 `/en/search`, também no formulário da página inicial), a API de leitura
 (`/api/v1/stations?q=`, `/api/v1/stations?lat=&lon=`, `/api/v1/stations/{id}`,
 `/api/v1/evses/{evse}`, `/api/v1/main-photos`, `/api/v1/ranking`), a
-política de privacidade (`/privacidade`), os termos de utilização
-(`/termos`), o ranking (`/ranking`), o `sitemap.xml`, o `robots.txt` e o
+política de privacidade (`/privacidade`), as condições de utilização
+(`/condicoes`), o ranking (`/ranking`), o `sitemap.xml`, o `robots.txt` e o
 `llms.txt`.
 
 Com o login OSM há a conta (`/conta`: nome a mostrar, pontos, medalha, sair do
@@ -194,7 +194,7 @@ recebe o original nem os metadados. A página `/enviar`:
 Contas `trusted` publicam logo quando a foto foi tirada a 300 m ou menos de
 um posto `active`; o resto fica `pending` para a fila (`/admin/fila`), que
 mostra primeiro os postos propostos e avisa das fotos sem GPS ou longe do
-posto. Quem envia aceita os termos de utilização e a licença no primeiro
+posto. Quem envia aceita as condições de utilização e a licença no primeiro
 envio (`license_accepted_at`).
 
 **O que se faz com o GPS do EXIF.** Sugere o posto e sinaliza fotos longe

@@ -34,7 +34,7 @@ const T = {
     leave: 'Sair do ranking',
     join: 'Voltar ao ranking',
     tokensH: 'Tokens de API',
-    tokensIntro: `Para enviar fotos ou escolher fotos principais a partir de um programa, com <code>Authorization: Bearer &lt;token&gt;</code>. O token age em teu nome, com o teu papel e os teus limites, e segue os <a href="${termsPath('pt')}">termos de utilização</a>. Ler a API não precisa de token.`,
+    tokensIntro: `Para enviar fotos ou escolher fotos principais a partir de um programa, com <code>Authorization: Bearer &lt;token&gt;</code>. O token age em teu nome, com o teu papel e os teus limites, e segue as <a href="${termsPath('pt')}">condições de utilização</a>. Ler a API não precisa de token.`,
     none: 'Ainda não tens tokens.',
     name: 'Nome',
     nameHint: 'Para saberes onde o usas, por exemplo «script do telemóvel».',

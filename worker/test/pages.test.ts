@@ -103,7 +103,7 @@ test('sitemap lists both languages and escapes ids', () => {
   assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
   // Home, privacy, terms and the group in both languages, plus the station in both.
   assert.equal(xml.match(/<url>/g)?.length, 10);
-  assert.ok(xml.includes('<loc>https://olhaoposto.ocarroeletrico.com/termos</loc></url>'));
+  assert.ok(xml.includes('<loc>https://olhaoposto.ocarroeletrico.com/condicoes</loc></url>'));
   assert.ok(xml.includes('<loc>https://olhaoposto.ocarroeletrico.com/en/privacy</loc></url>'));
   assert.ok(xml.includes('<loc>https://olhaoposto.ocarroeletrico.com/grupo</loc></url>'));
   assert.ok(xml.includes('<loc>https://olhaoposto.ocarroeletrico.com/en/stations/A_1</loc><lastmod>2000-01-02T00:00:00+00:00</lastmod>'));

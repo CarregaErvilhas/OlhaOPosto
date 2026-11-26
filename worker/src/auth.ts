@@ -7,6 +7,7 @@
 // route here answers "not available yet", so this can ship before the OSM
 // application is registered.
 import { accountPage, accountPath, type Lang } from './pages.ts';
+import { nameKey } from './types.ts';
 
 // The slices of D1 and ExecutionContext used here, so the tests typecheck
 // under Node without the Workers types. The real ones fit these shapes.
@@ -233,9 +234,10 @@ export async function callback(request: Request, env: AuthEnv, ctx: Waiter, head
   try {
     await env.DB.batch([
       env.DB.prepare(
-        `INSERT INTO users (id, osm_uid, osm_name, created_at, last_login_at) VALUES (?1, ?2, ?3, ?4, ?4)
-         ON CONFLICT (osm_uid) DO UPDATE SET osm_name = excluded.osm_name, last_login_at = excluded.last_login_at`,
-      ).bind(crypto.randomUUID(), user.id, user.name, now.toISOString()),
+        `INSERT INTO users (id, osm_uid, osm_name, osm_key, created_at, last_login_at) VALUES (?1, ?2, ?3, ?5, ?4, ?4)
+         ON CONFLICT (osm_uid) DO UPDATE SET osm_name = excluded.osm_name, osm_key = excluded.osm_key,
+           last_login_at = excluded.last_login_at`,
+      ).bind(crypto.randomUUID(), user.id, user.name, now.toISOString(), nameKey(user.name)),
       env.DB.prepare(
         `INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
          SELECT ?1, id, ?2, ?3 FROM users WHERE osm_uid = ?4`,

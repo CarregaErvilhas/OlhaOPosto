@@ -30,7 +30,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <li><strong>És o autor.</strong> Só envias fotos que tiraste tu. Não envias fotos de outras pessoas, nem capturas de ecrã, nem imagens tiradas da Internet.</li>
 <li><strong>Licença.</strong> Publicas cada foto sob a <a href="${LINKS.ccbysa.pt}">Creative Commons Atribuição-CompartilhaIgual 4.0 (CC BY-SA 4.0)</a>. Qualquer pessoa pode usá-la, também para fins comerciais, desde que te dê crédito e partilhe os derivados sob a mesma licença. A licença não se pode revogar para as cópias que já foram feitas.</li>
 <li><strong>Dados tirados das fotos.</strong> Autorizas também que os dados não fotográficos que se tiram das fotos (o tipo de tomada, o operador, a posição de um posto) sejam publicados sob <a href="${LINKS.ccby.pt}">CC BY 4.0</a> ou <a href="${LINKS.odbl}">ODbL</a>, para poderem ir para o OpenStreetMap.</li>
-<li><strong>Crédito.</strong> O crédito é o teu nome no OpenStreetMap. Vai com a foto no Panoramax, nos metadados dos links estáticos e nas páginas dos postos.</li>
+<li><strong>Crédito.</strong> O crédito é o teu nome no OpenStreetMap ou, se o escolheres na tua <a href="${accountPath('pt')}">conta</a>, um pseudónimo («nome a mostrar»). Vai com a foto no Panoramax, nos metadados dos links estáticos, nas páginas dos postos e no ranking. O pseudónimo não pode ser o nome de outra pessoa nem um link, e muda no máximo uma vez por dia. Quando o mudas, atualizamos as tuas fotos no ${BRAND}, no Panoramax e nos links estáticos; as cópias que outras pessoas já fizeram ficam com o nome antigo.</li>
 </ul>
 
 <h2>Privacidade de quem aparece</h2>
@@ -84,7 +84,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <li><strong>You are the author.</strong> You only send photos you took yourself. No photos by other people, no screenshots, no images from the Internet.</li>
 <li><strong>Licence.</strong> You publish each photo under <a href="${LINKS.ccbysa.en}">Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0)</a>. Anyone can use it, commercially too, as long as they credit you and share derivatives under the same licence. The licence cannot be revoked for copies already made.</li>
 <li><strong>Data taken from the photos.</strong> You also allow the non-photographic data taken from the photos (the socket type, the operator, a station’s position) to be published under <a href="${LINKS.ccby.en}">CC BY 4.0</a> or <a href="${LINKS.odbl}">ODbL</a>, so it can go into OpenStreetMap.</li>
-<li><strong>Credit.</strong> The credit is your OpenStreetMap name. It travels with the photo on Panoramax, in the metadata of the static links and on the station pages.</li>
+<li><strong>Credit.</strong> The credit is your OpenStreetMap name or, if you choose one on your <a href="${accountPath('en')}">account</a> page, a pseudonym (“display name”). It travels with the photo on Panoramax, in the metadata of the static links, on the station pages and in the ranking. The pseudonym cannot be someone else’s name or a link, and changes at most once a day. When you change it, we update your photos on ${BRAND}, on Panoramax and in the static links; copies other people have already made keep the old name.</li>
 </ul>
 
 <h2>Privacy of the people in the picture</h2>

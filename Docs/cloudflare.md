@@ -108,8 +108,8 @@ desligados). Por agora tem:
 | `GET /privacidade`, `/en/privacy` | Política de privacidade (`src/privacy.ts`), com ligação no rodapé de todas as páginas e no *sitemap*. Muda no mesmo PR que mudar o que o Worker guarda |
 | `GET /condicoes`, `/en/terms` | Condições de utilização (`src/terms.ts`): o que aceita quem envia fotos, propõe postos ou usa um *token*. Ligação no rodapé, no consentimento da página de envio e no *sitemap* |
 | `GET /grupo`, `/en/group` | Os outros sites do grupo d'O Carro Elétrico, cada um com a sua mascote (`src/grupo.ts`, imagens em `public/grupo/`; o servidor Panoramax leva o logótipo do Panoramax). Mesma ordem e mesmos textos da página igual do `ocarroeletrico.com`. Ligação no rodapé de todas as páginas e no *sitemap* |
-| `GET /conta`, `/en/account` | A conta de quem tem sessão (`src/account.ts`): nome, papel, ligação para o envio, pontos e medalha, sair ou voltar ao ranking, *tokens* de API (criar, listar, revogar) e o botão para terminar; ou o botão para iniciar sessão. Lê a sessão: `no-store` e `noindex` |
-| `POST /conta/acao` | As ações da conta (`action`: `create_token`, `revoke_token`, `ranking_out`, `ranking_in`), só do próprio site. Criar um *token* responde com a própria página, que o mostra uma vez; nunca vai num URL nem num redirect |
+| `GET /conta`, `/en/account` | A conta de quem tem sessão (`src/account.ts`): nome, papel, ligação para o envio, nome a mostrar (pseudónimo), pontos e medalha, sair ou voltar ao ranking, *tokens* de API (criar, listar, revogar) e o botão para terminar; ou o botão para iniciar sessão. Lê a sessão: `no-store` e `noindex` |
+| `POST /conta/acao` | As ações da conta (`action`: `set_credit`, `reset_credit`, `create_token`, `revoke_token`, `ranking_out`, `ranking_in`), só do próprio site. Criar um *token* responde com a própria página, que o mostra uma vez; nunca vai num URL nem num redirect |
 | `GET /ranking`, `/en/ranking`, `/api/v1/ranking?period=month\|all` | Tabela dos 50 primeiros (nome, medalha, fotos, pontos) e as regras dos pontos (`src/points.ts`). Só contam fotos publicadas; quem saiu do ranking não aparece |
 | `GET /enviar`, `/en/upload` | Página de envio (`src/upload.ts` e `public/upload.js`), só com sessão; sem ela, o botão para iniciar sessão. Lê a sessão: `no-store`, `noindex`, fora do *sitemap*. A CSP desta página acrescenta `connect-src 'self'` (pede postos à API, e os ficheiros do HEIC e da deteção de caras), `blob:` e `https://tile.openstreetmap.org` em `img-src` (a foto preparada e o mapa), `'wasm-unsafe-eval'` em `script-src` (compilar o WebAssembly do libheif e do MediaPipe; não permite `eval` de JavaScript) e o Turnstile. O formulário de remoção tem a sua CSP, só com o Turnstile |
 | `GET /auth/osm/login?next=` | `302` para o OpenStreetMap, com `state` e PKCE num *cookie* de 10 minutos. `503` enquanto não houver os segredos do OSM |
@@ -192,8 +192,9 @@ serve uma vez, para ler `user/details`, e é revogado logo a seguir. A sessão
 é do olh'o'posto: um *cookie* `__Host-oop_session` (`HttpOnly`, `Secure`,
 `SameSite=Lax`, 30 dias) com um valor aleatório, e na tabela `sessions` só o
 SHA-256 dele. As sessões expiradas saem no login seguinte. A tabela `users`
-guarda o número e o nome no OSM (o nome atualiza-se em cada login), o papel
-(`contributor` por omissão) e, para depois, pseudónimo, promoção e licença.
+guarda o número e o nome no OSM (o nome e o `osm_key` atualizam-se em cada
+login), o papel (`contributor` por omissão), o pseudónimo, a promoção e a
+licença.
 As páginas dos postos e da pesquisa não leem a sessão, por isso continuam em
 cache e sem ida à D1; só a conta e o envio (`/conta`, `/enviar` e as versões
 em inglês) a leem.
@@ -283,6 +284,9 @@ as cópias na hora, e o cron fica para o que pode falhar a meio:
 
 O painel faz o mesmo ao abrir. É quase só espera de rede, por isso cabe nos 10 ms de CPU do plano
 Free.
+
+Depois disso, o mesmo *cron* corre um lote do que falta das mudanças de
+crédito (*Pseudónimo*, abaixo).
 
 No painel, **Remover** limpa as cópias, apaga o *upload set* no Panoramax (a
 denúncia vai com ele) e as cópias do `pictures-staging` (foto `removed`).
@@ -503,6 +507,23 @@ apagam-se quando a pessoa cria outro. Os pedidos levam
 por isso uma despromoção tira logo o `selections:write` a todos os *tokens*.
 Um pedido com *token* não precisa de origem nem de Turnstile; um pedido só
 com o *cookie* de sessão continua a ter de vir do próprio site.
+
+**Pseudónimo** (`src/credit.ts`, `src/account.ts`, migração `0014`). As
+regras estão em `arquitetura.md`, *Crédito*. A migração acrescenta a
+`users` o `pseudonym_key` (índice único parcial), o `osm_key` e o
+`pseudonym_changed_at`; a `photos` o `author_tag_old`; e a `selections` o
+`credit_pending`, os dois com índices parciais só nas linhas marcadas. As
+contas anteriores à migração recebem o `osm_key` no login seguinte ou na
+primeira verificação de um pseudónimo. `set_credit` e `reset_credit` em
+`POST /conta/acao` escrevem tudo numa transação da D1 e deixam marcas; o
+`syncCredits` faz um lote (5 alvos em `pictures`, com uma só purga de até 15
+URLs, e 25 etiquetas no Panoramax) no `waitUntil` da própria mudança e em
+cada *cron*, depois da reconciliação das remoções. São no máximo 26 pedidos
+externos por execução, dentro dos 50 do plano Free, e o trabalho de CPU é
+copiar uns poucos MB por alvo. Uma cópia só se reescreve se a foto estiver
+`published` e se o objeto não mudou desde a leitura; uma marca só sai quando
+a purga correu bem (ou não há segredos de purga, em local) e o crédito ainda
+é o que se escreveu. Um `404` do Panoramax tira a marca da etiqueta.
 
 **Postos propostos** (`src/proposals.ts`, migração `0013`).
 `POST /api/v1/stations` recebe `{name, operator, code?, lat, lon, note?}`,

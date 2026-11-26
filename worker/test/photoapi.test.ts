@@ -127,6 +127,39 @@ test('exportPhotos: every published photo of a public station, gallery included'
   assert.equal(gallery.isMain, false);
 });
 
+const EXT = '00000000-0000-0000-0000-000000000005';
+
+function withExternal(w: World) {
+  w.db.sql.exec(`INSERT INTO photos (id, origin, station_id, credit, license, status, external_ref, external_src, source_url, taken_at, created_at)
+    VALUES ('${EXT}', 'commons', 'EZC-AMD-00051', 'Rui', 'CC-BY-4.0', 'published', 'File:A.jpg', 'https://nap.ocarroeletrico.com/photos/a.jpg',
+            'https://commons.wikimedia.org/wiki/File:A.jpg', '2025-05-01', '2026-05-01')`);
+}
+
+test('external photos: in the export and GET with their own shape, never removable here', async () => {
+  const w = await world();
+  withExternal(w);
+  const out = await exportPhotos(w.env);
+  assert.equal(out.count, 3);
+  const ext = out.photos.find((p) => p.id === EXT) as Record<string, any>;
+  assert.equal(ext.origin, 'commons');
+  assert.equal(ext.license, 'CC-BY-4.0');
+  assert.equal(ext.sourceUrl, 'https://commons.wikimedia.org/wiki/File:A.jpg');
+  assert.deepEqual(ext.sizes, { thumb: { url: 'https://nap.ocarroeletrico.com/photos/a.jpg', maxPx: null } });
+  assert.equal(ext.attribution, '© Rui, CC-BY-4.0');
+  assert.equal(ext.isMain, false);
+  assert.equal(ext.creditPage, null);
+  assert.equal(ext.report, null);
+  assert.equal(ext.panoramax, null);
+  // Ours keep sourceUrl null.
+  assert.equal((out.photos.find((p) => p.id === MAIN) as Record<string, any>).sourceUrl, null);
+  const got = await getPhoto(w.env, EXT) as { photo: Record<string, any> };
+  assert.equal(got.photo.sourceUrl, 'https://commons.wikimedia.org/wiki/File:A.jpg');
+  // Not removed from here, not even by a moderator.
+  assert.deepEqual(await deletePhoto(w.env as never, user('mod', 'moderator'), EXT, {}, w.fetcher, NOW), { error: 'not_found', status: 404 });
+  assert.equal(photoRow(w, EXT).status, 'published');
+  assert.deepEqual(w.calls, []);
+});
+
 test('deletePhoto: the author removes their own published main photo end to end', async () => {
   const w = await world();
   const r = await deletePhoto(w.env as never, user('ana'), MAIN, {}, w.fetcher, NOW);

@@ -159,11 +159,12 @@ curl 'https://olhaoposto.ocarroeletrico.com/api/v1/photos/3f2b8d3e-0f0a-4c55-9c4
 - `target` é o posto, ou a tomada (o código sem `*`) quando a foto é de uma tomada; `socket` é `null` numa foto do posto em geral.
 - `lat` e `lon` são as do posto. O GPS da própria foto nunca se publica.
 - Só a foto principal tem os links estáticos de `pictures.*` e os tamanhos conhecidos. Qualquer outra foto publicada traz em `sizes` as imagens do próprio Panoramax (`thumb` e `main`, com `maxPx: null`).
+- Uma foto externa não tem cópia nossa: `sizes` só tem a miniatura (`thumb`, `maxPx: null`), `sourceUrl` é onde ela vive (e onde se tratam o autor, a licença e uma remoção), e `creditPage`, `panoramax` e `report` são `null`. O `attribution` é «© autor, licença», sem «via olh'o'posto». Não se retira com o `DELETE`.
 - Uma foto publicada é pública. O autor e os moderadores, com *token* ou sessão, veem também as outras fotos deles (para seguir um envio): a resposta traz `status` (`pending`, `published`, `hidden` ou `removed`) e, numa recusa, `refusal: { reason, note }`, sem links de imagem, e não fica em cache. Para os outros, essas fotos dão `404`, como um id que não existe.
 
 ### `GET /photos.json`
 
-Exportação completa para quem reutiliza as fotos: **todas** as fotos publicadas dos postos públicos, galeria incluída (não só as principais), cada uma como no `GET /photos/{id}`.
+Exportação completa para quem reutiliza as fotos: **todas** as fotos publicadas dos postos públicos, galeria incluída (não só as principais), cada uma como no `GET /photos/{id}`. Inclui também as referências a fotos externas (Panoramax de outros autores e Commons, ligadas do OSM): distinguem-se por `origin` (`osm_panoramax` ou `commons`, em vez de `olhaoposto`). Cada foto traz a sua licença: não assumas CC BY-SA 4.0 para todas.
 
 ```bash
 curl 'https://olhaoposto.ocarroeletrico.com/api/v1/photos.json'

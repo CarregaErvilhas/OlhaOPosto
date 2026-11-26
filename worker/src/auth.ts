@@ -88,7 +88,8 @@ export const langOf = (path: string): Lang => (path === '/en' || path.startsWith
 // cross-site POSTs; this is the second lock.
 export function sameOrigin(request: Request): boolean {
   const origin = request.headers.get('origin');
-  if (origin) return origin === new URL(request.url).origin;
+  // A page with Referrer-Policy no-referrer sends `null`: then Sec-Fetch-Site decides.
+  if (origin && origin !== 'null') return origin === new URL(request.url).origin;
   return request.headers.get('sec-fetch-site') === 'same-origin';
 }
 

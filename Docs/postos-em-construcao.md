@@ -1,6 +1,6 @@
 # Postos em construção — proposta de design
 
-Estado: decidido pelo Fernando (ver *Decisões*, no fim), à espera do Alexandre e do Telmo, e em implementação. Depois de feito, o que ficar passa para [`arquitetura.md`](arquitetura.md).
+Estado: decidido pelo Fernando (ver *Decisões*, no fim), à espera do Alexandre e do Telmo. Implementação no olh'o'posto: #77 (remoção das propostas) e #78. Depois de feito, o que ficar passa para [`arquitetura.md`](arquitetura.md).
 
 ## Porquê
 
@@ -61,7 +61,8 @@ Porque não o código MOBI.E: muitos não o têm; os que têm trazem intervalos 
 - **Página do posto:** uma faixa no topo, «Em construção segundo o OpenStreetMap: ainda não está no NAP» com o link para o elemento no OSM. Sem tomadas, sem link para o NAP dashboard enquanto não tiver id do NAP (o `?posto=OSM-w…` também funciona, mas mostra pouco). Sem link estático: a página diz que aparece quando o posto entrar no NAP. O botão «Enviar foto» funciona como noutro posto qualquer (`/enviar?posto=OSM-w1551836005`).
 - **Pesquisa** (`/pesquisa`, API `?q=`, `?lat=&lon=`): os postos em construção entram, com a mesma marca. A pesquisa por texto procura também os códigos MOBI.E (`ALM-00114`, `ALM-00155`), por isso entram no índice FTS.
 - **Página de envio:** aparecem nos postos sugeridos a 500 m do GPS, marcados «em construção», depois dos do NAP.
-- **`/postos/sem-foto`:** ficam de fora por defeito, com um filtro «incluir em construção». A lista é sobretudo para postos que se podem visitar e usar.
+- **Fila de moderação:** as fotos de um posto em construção trazem um aviso para rever caras e letreiros com mais atenção.
+- **`/postos/sem-foto`:** ficam de fora (e do `has_photo=false` da API). A lista é dos links estáticos por preencher, e estes ainda não têm.
 - **`sitemap.xml`:** ficam de fora. São páginas que vão mudar de URL.
 - **MCP e API** (`get_station`, `search_stations`, `/api/v1/stations`): cada posto em construção traz `lifecycle: "construction"` (ausente nos do NAP). A descrição das ferramentas diz que um posto em construção não carrega, para nenhum agente o apresentar como disponível.
 
@@ -118,7 +119,7 @@ Decidido: **sem link estático para os postos em construção** (era a opção C
 
 O OSM tira a etiqueta de obra (o posto abriu mas o operador ainda não o publicou, a obra parou, ou foi um engano) e o NAP não tem nada no sítio. O posto em construção sai do feed.
 
-Proposta: passa a `missing_from_osm`, fica com as fotos e os links, sai da pesquisa e aparece na página do moderador, como os `missing_from_nap`. Se mais tarde o NAP o publicar, a fusão faz-se pela fila do moderador.
+Passa a `missing_from_osm` e fica como um `missing_from_nap`: com a página, as fotos e na pesquisa, marcado. Se tiver fotos, aparece na página do moderador. Se mais tarde o NAP o publicar, a fusão faz-se pela fila do moderador.
 
 ## Base de dados (D1)
 

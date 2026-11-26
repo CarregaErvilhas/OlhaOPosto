@@ -1,6 +1,8 @@
 // Pure part of the station import: feed -> rows -> diff against D1 -> SQL.
 // No I/O here, so it can be unit tested (test/stations.test.ts).
 
+import { createHash } from 'node:crypto';
+
 export interface FeedPoint {
   id: string;
   evse?: string | null;   // NAP EVSE code as published, PT*EDP*E*LSB*90050*01
@@ -22,6 +24,19 @@ export interface FeedSite {
   lon: number;
   osm?: { element?: string | null } | null;
   points?: FeedPoint[];
+  photos?: FeedPhoto[];
+}
+
+// A photo the NAP dashboard found through OSM tags (charger_photos.py). The
+// thumbnail is published next to the dashboard; `page` is the source page.
+export interface FeedPhoto {
+  src?: string | null;       // photos/<hash>.jpg on nap.ocarroeletrico.com
+  credit?: string | null;
+  license?: string | null;
+  page?: string | null;
+  taken?: string | null;
+  map?: string | null;       // our own photos carry their Panoramax map link here
+  published?: string | null;
 }
 
 export interface Feed {
@@ -86,6 +101,95 @@ export function validateFeed(feed: unknown): Feed {
     throw new Error('feed: unexpected shape (schema 1 with generatedAt and sites[] expected)');
   }
   return f;
+}
+
+export interface ExternalPhotoRow {
+  id: string;
+  station_id: string;
+  origin: 'osm_panoramax' | 'commons';
+  external_ref: string;
+  external_src: string;
+  source_url: string;
+  credit: string | null;
+  license: string;
+  taken_at: string | null;
+}
+
+export const EXTERNAL_FIELDS = ['external_src', 'source_url', 'credit', 'license', 'taken_at'] as const;
+export const EXTERNAL_COLUMNS = ['id', 'station_id', 'origin', 'external_ref', ...EXTERNAL_FIELDS] as const;
+
+// Where the NAP dashboard publishes the thumbnails it copies.
+export const THUMB_BASE = 'https://nap.ocarroeletrico.com/';
+const THUMB_SRC = /^photos\/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp)$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Our own pages and Panoramax server: those photos are ours, not external.
+const OWN_HOSTS = new Set(['olhaoposto.ocarroeletrico.com', 'panoramax.ocarroeletrico.com']);
+
+const url = (v: unknown): URL | null => {
+  const s = str(v);
+  if (!s) return null;
+  try {
+    const u = new URL(s);
+    return u.protocol === 'https:' ? u : null;
+  } catch {
+    return null;
+  }
+};
+
+// The picture UUID in a Panoramax link (#focus=pic&pic=<uuid>, ?pic=<uuid>).
+function panoramaxUuid(u: URL): string | null {
+  const q = new URLSearchParams(u.hash.replace(/^#/, '')).get('pic') ?? u.searchParams.get('pic');
+  return q && UUID.test(q) ? q.toLowerCase() : null;
+}
+
+// A deterministic id, so a rerun updates the same row and the API link is stable.
+export const externalId = (stationId: string, origin: string, ref: string): string =>
+  `ext_${createHash('sha256').update(`${stationId}\u0000${origin}\u0000${ref}`).digest('hex').slice(0, 24)}`;
+
+// The external photos of the feed: Panoramax pictures and Commons files from
+// OSM, with a thumbnail, a licence and a source link. Mapillary and anything
+// unknown are left out, and so is any photo that is one of ours: its page is
+// ours, or its Panoramax UUID is in ownPanoramax (photos.panoramax_id of
+// origin olhaoposto).
+export function toExternalPhotos(feed: Feed, ownPanoramax: ReadonlySet<string> = new Set()): ExternalPhotoRow[] {
+  const out: ExternalPhotoRow[] = [];
+  const seen = new Set<string>();
+  for (const s of feed.sites) {
+    const stationId = str(s.id);
+    if (!stationId || !Number.isFinite(s.lat) || !Number.isFinite(s.lon)) continue;
+    for (const p of s.photos ?? []) {
+      const page = url(p.page);
+      const src = str(p.src);
+      const license = str(p.license);
+      if (!page || !src || !license || !THUMB_SRC.test(src)) continue;
+      const map = url(p.map);
+      if (OWN_HOSTS.has(page.hostname) || (map && OWN_HOSTS.has(map.hostname))) continue;
+      let origin: ExternalPhotoRow['origin'];
+      let ref: string | null;
+      if (page.hostname.endsWith('wikimedia.org') || page.hostname.endsWith('wikipedia.org')) {
+        origin = 'commons';
+        const file = /\/wiki\/(File:[^?#]+)/.exec(page.pathname)?.[1] ?? page.searchParams.get('title');
+        ref = file ? decodeURIComponent(file).replace(/_/g, ' ') : null;
+      } else if (page.hostname.includes('panoramax')) {
+        origin = 'osm_panoramax';
+        ref = panoramaxUuid(page);
+        if (ref && ownPanoramax.has(ref)) continue;
+      } else {
+        continue;   // Mapillary (its API needs a key) and the rest
+      }
+      if (!ref) continue;
+      const id = externalId(stationId, origin, ref);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const taken = str(p.taken);
+      out.push({
+        id, station_id: stationId, origin, external_ref: ref,
+        external_src: new URL(src, THUMB_BASE).href, source_url: page.href,
+        credit: str(p.credit), license, taken_at: taken && /^\d{4}-\d{2}-\d{2}/.test(taken) ? taken : null,
+      });
+    }
+  }
+  return out;
 }
 
 export function toRows(feed: Feed): { stations: StationRow[]; evses: EvseRow[]; skipped: string[] } {
@@ -260,4 +364,49 @@ export function checkMissing(d: Diff, current: CurrentStation[]): string | null 
     ? `refusing: ${d.missingStations.length} of ${active} active stations would become missing_from_nap ` +
       `(over ${MAX_MISSING_SHARE * 100}%). Check the feed; rerun with --allow-mass-missing if it is right.`
     : null;
+}
+
+export interface ExternalDiff {
+  upsert: ExternalPhotoRow[];   // new, or a field changed at the source
+  removed: string[];            // ids no longer in the feed
+}
+
+// The references of D1 against the feed. Only rows of origin osm_panoramax or
+// commons are touched; our own photos are never read here.
+export function diffExternalPhotos(feed: ExternalPhotoRow[], current: ExternalPhotoRow[]): ExternalDiff {
+  const cur = new Map(current.map((c) => [c.id, c]));
+  const inFeed = new Set(feed.map((f) => f.id));
+  return {
+    upsert: feed.filter((f) => {
+      const c = cur.get(f.id);
+      return !c || changed(f, c, EXTERNAL_FIELDS);
+    }),
+    removed: current.filter((c) => !inFeed.has(c.id)).map((c) => c.id),
+  };
+}
+
+// A feed that lost its photos by mistake (the collection step failed) must not
+// wipe every reference: refuse when it would drop over half of a real set.
+export function checkExternalRemovals(d: ExternalDiff, currentCount: number): string | null {
+  return currentCount >= 10 && d.removed.length > currentCount / 2
+    ? `refusing: ${d.removed.length} of ${currentCount} external photos would be removed. ` +
+      'Check the feed; rerun with --allow-mass-missing if it is right.'
+    : null;
+}
+
+export function externalSql(d: ExternalDiff, generatedAt: string): string[] {
+  const out: string[] = [];
+  const at = sqlValue(generatedAt);
+  for (const part of chunks(d.upsert, ROWS_PER_INSERT)) {
+    out.push(
+      `INSERT INTO photos (${EXTERNAL_COLUMNS.join(', ')}, status, created_at) VALUES\n  ` +
+      part.map((r) => `(${EXTERNAL_COLUMNS.map((c) => sqlValue((r as unknown as Record<string, unknown>)[c])).join(', ')}, 'published', ${at})`).join(',\n  ') +
+      `\nON CONFLICT (id) DO UPDATE SET ${EXTERNAL_FIELDS.map((f) => `${f} = excluded.${f}`).join(', ')};`,
+    );
+  }
+  for (const ids of chunks(d.removed, IDS_PER_UPDATE)) {
+    // origin <> 'olhaoposto': never our own photos, whatever the ids say.
+    out.push(`DELETE FROM photos WHERE origin <> 'olhaoposto' AND id IN (${ids.map(sqlValue).join(', ')});`);
+  }
+  return out;
 }

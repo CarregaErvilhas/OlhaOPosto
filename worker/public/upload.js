@@ -1,6 +1,5 @@
 // Upload page: open the photos (JPEG or HEIC, one or several), read their
-// EXIF, suggest the station (from the GPS, a map, a search, or a new station
-// the person proposes), look for faces and let the person mark faces and
+// EXIF, suggest the station (from the GPS, a map or a search), look for faces and let the person mark faces and
 // number plates, and re-encode each photo without metadata.
 // Everything that touches the photo runs on the device; the only requests
 // are station lookups on our own API, with the GPS rounded to about 100 m
@@ -59,9 +58,6 @@ function init(form, M) {
   const mapBox = $('map-box');
   const mapStatus = $('map-status');
   const locateButton = $('locate');
-  const propose = $('propose');
-  const proposeStatus = $('propose-status');
-  const proposePosition = $('p-position');
 
   /** The photo scaled to the largest size, with EXIF orientation applied. */
   let base = null;
@@ -80,11 +76,6 @@ function init(form, M) {
   let current = -1;
   /** The station of the last photo sent, suggested for the next one. */
   let lastStation = null;
-  /** A new station proposed for this photo: { id, name }. */
-  let proposed = null;
-  /** Position for a proposal: the photo's GPS, or the map centre. */
-  let proposeAt = null;
-  let forceProposal = false;
 
   form.hidden = false;
 
@@ -170,7 +161,6 @@ function init(form, M) {
     for (const s of sections) s.hidden = false;
     render();
     renderZones();
-    setProposeAt(meta?.lat != null ? { lat: meta.lat, lon: meta.lon } : mapCentre());
     const keep = lastStation && (meta?.lat == null || distance(meta.lat, meta.lon, lastStation.lat, lastStation.lon) < RADIUS);
     if (keep) preset(lastStation.id, M.previous);
     else if (M.station && current === 0) preset(M.station, M.preset);
@@ -186,11 +176,8 @@ function init(form, M) {
     zones = [];
     station = null;
     target = null;
-    proposed = null;
-    forceProposal = false;
     detectRun++;
     say(detectStatus, '');
-    say(proposeStatus, '');
     nextButton.hidden = true;
     skipButton.hidden = true;
     lookup++;
@@ -296,16 +283,6 @@ function init(form, M) {
   stationList.addEventListener('change', (e) => pickStation(e.target.value));
 
   async function pickStation(id) {
-    if (proposed && id === proposed.id) {
-      // Not public yet: the API does not know it. The photo goes on the station in general.
-      station = id;
-      targetList.replaceChildren(choice('target', id, [el('span', {}, M.general)]));
-      targetList.querySelector('input').checked = true;
-      say(targetNote, '');
-      setTarget(id);
-      targetsBox.hidden = false;
-      return;
-    }
     station = id;
     target = null;
     const mine = ++lookup;
@@ -683,11 +660,7 @@ function init(form, M) {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
     }).addTo(map);
     markers = L.layerGroup().addTo(map);
-    if (meta?.lat == null) setProposeAt(mapCentre());
-    map.on('moveend', () => {
-      mapStations(L);
-      if (meta?.lat == null) setProposeAt(mapCentre());
-    });
+    map.on('moveend', () => mapStations(L));
     mapStations(L);
   });
 
@@ -730,56 +703,4 @@ function init(form, M) {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   });
-
-  // ---- New station (POST /api/v1/stations, src/proposals.ts) ----
-
-  function mapCentre() {
-    if (!map) return null;
-    const c = map.getCenter();
-    return { lat: c.lat, lon: c.lng };
-  }
-
-  function setProposeAt(p) {
-    proposeAt = p;
-    say(proposePosition, p ? `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}` : '—');
-  }
-
-  $('propose-send').addEventListener('click', async () => {
-    const name = $('p-name').value.trim();
-    const operator = $('p-operator').value.trim();
-    if (name.length < 2 || operator.length < 2 || !proposeAt) return say(proposeStatus, M.proposeNeed);
-    say(proposeStatus, M.proposeSending);
-    let r;
-    try {
-      r = await fetch(`/api/v1/stations${forceProposal ? '?force=1' : ''}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({
-          name, operator, code: $('p-code').value.trim() || null, note: $('p-note').value.trim() || null,
-          lat: proposeAt.lat, lon: proposeAt.lon,
-        }),
-      });
-    } catch {
-      return say(proposeStatus, M.proposeErrors.other);
-    }
-    const body = await r.json().catch(() => ({}));
-    if (r.status === 409 && body.error === 'station_nearby') {
-      forceProposal = true;
-      return say(proposeStatus, fill(M.proposeNearby, { list: body.stations.map((s) => s.id).join(', ') }));
-    }
-    if (!r.ok) return say(proposeStatus, M.proposeErrors[body.error] ?? M.errors[body.error] ?? M.proposeErrors.other);
-    proposed = { id: body.id, name };
-    forceProposal = false;
-    stationList.replaceChildren(choice('station', body.id, [
-      el('strong', {}, body.id),
-      el('span', { className: 'meta' }, `${name} · ${M.proposedStation}`),
-    ]));
-    stationsBox.hidden = false;
-    stationList.querySelector('input').checked = true;
-    pickStation(body.id);
-    propose.open = false;
-    say(proposeStatus, '');
-    say(stationIntro, M.proposeDone);
-  });
-
 }

@@ -1,7 +1,7 @@
-// The terms of use: what someone agrees to when they send a photo, propose a
-// station or use an API token. Fixed text, like the privacy policy, and kept
-// true to the code: when the rules for uploads, moderation or tokens change,
-// this page changes in the same PR. The licence summary lives in
+// The terms of use: what someone agrees to when they send a photo or use an
+// API token. Fixed text, like the privacy policy, and kept true to the code:
+// when the rules for uploads, moderation or tokens change, this page changes
+// in the same PR. The licence summary lives in
 // Docs/licenca.md; the legal text is the licence itself.
 // pages.ts never imports this file, so there is no import cycle.
 import { BRAND, accountPath, homePath, layout, privacyPath, termsPath, uploadPath, type Lang } from './pages.ts';
@@ -43,7 +43,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <h2>O que se pode enviar</h2>
 <ul>
 <li>Fotos do posto ou da tomada que escolhes, tiradas no local. A página usa o GPS da foto para confirmar o posto; o GPS nunca é publicado (<a href="${privacyPath('pt')}">privacidade</a>).</li>
-<li>Postos novos só quando existem mesmo e não estão no site. Um moderador confirma cada proposta.</li>
+<li>Não se propõem postos aqui. Os postos vêm do NAP e do OpenStreetMap: um posto que falta acrescenta-se no OpenStreetMap.</li>
 <li>Não são aceites: publicidade, texto ou marcas de água por cima da foto, fotos repetidas, fotos tremidas ou escuras demais para se perceber o posto.</li>
 </ul>
 
@@ -76,9 +76,9 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
   },
   en: {
     title: `Terms of use · ${BRAND}`,
-    description: `What you agree to when you upload photos or propose stations on ${BRAND}: licence, privacy, moderation and API use.`,
+    description: `What you agree to when you upload photos on ${BRAND}: licence, privacy, moderation and API use.`,
     body: `<h1>Terms of use</h1>
-<p>You need no account and agree to nothing to browse the site or use the read-only API. These terms apply to people who sign in and upload photos, propose stations, use an API token or connect an agent through MCP. When you send your first photo, you accept these terms and we keep the date you did.</p>
+<p>You need no account and agree to nothing to browse the site or use the read-only API. These terms apply to people who sign in and upload photos, use an API token or connect an agent through MCP. When you send your first photo, you accept these terms and we keep the date you did.</p>
 
 <h2>Your photos</h2>
 <ul>
@@ -98,7 +98,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <h2>What you can send</h2>
 <ul>
 <li>Photos of the station or socket you pick, taken on site. The page uses the photo’s GPS to check the station; the GPS is never published (<a href="${privacyPath('en')}">privacy</a>).</li>
-<li>New stations only when they really exist and are not on the site. A moderator checks every proposal.</li>
+<li>Stations are not proposed here. They come from the NAP and OpenStreetMap: a missing station is added on OpenStreetMap.</li>
 <li>Not accepted: advertising, text or watermarks over the photo, repeated photos, photos too blurry or dark to make out the station.</li>
 </ul>
 

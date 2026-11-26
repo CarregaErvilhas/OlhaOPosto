@@ -10,7 +10,7 @@ Requisitos (proposta de Alexandre Moleiro):
 
 - Servidor que aloja as fotos e gera links estáticos.
 - Upload obrigatoriamente associado a um posto (`OPC-XXXXXXXXXX`) ou a uma tomada (`PT-OPC-E-YYYYYYYYY`).
-- O posto tem de existir; pesquisa por referência, morada ou coordenadas. Postos novos entram numa fila de revisão humana.
+- O posto tem de existir; pesquisa por referência, morada ou coordenadas. Postos novos entram numa fila de revisão humana (decidido depois: os postos vêm do NAP e do OpenStreetMap, e não se propõem no site).
 - Quando há várias fotos, escolher qual alimenta cada link estático.
 - Links por posto (`/OPC-XXXXXXXXXX.jpg`) e por tomada (`/PTOPCEYYYYYYYYY.jpg`), usáveis por qualquer app ou mapa (OSM, NAP dashboard).
 
@@ -46,7 +46,7 @@ O `pictures.*` não tem Worker à frente de propósito: um Worker corre antes da
               |
    Worker olhaoposto (olhaoposto.*)        R2 "pictures" (pictures.*)
    páginas, API, tokens, login OSM,        links estáticos pela CDN
-   envio, postos propostos, moderação,     (fotos principais)
+   envio, moderação,                       (fotos principais)
    pontos e ranking, sitemap
               |
    D1 "pictures": stations, evses,         R2 "pictures-staging"
@@ -93,7 +93,7 @@ A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19
 
 | Tabela | Colunas principais | Notas |
 | --- | --- | --- |
-| `stations` | `id` (PK, ex. `EZC-AMD-00051`), `code`, `opc`, `operator`, `name`, `address`, `municipality`, `region`, `lat`, `lon`, `source` (`nap`, `community`), `status` (`active`, `missing_from_nap`, `pending_review`, `rejected`), `osm_ref`, `updated_at` | `community` = proposto por um utilizador (`id` `OOP-…`), `pending_review` até um moderador decidir; o import só mexe em postos `nap` |
+| `stations` | `id` (PK, ex. `EZC-AMD-00051`), `code`, `opc`, `operator`, `name`, `address`, `municipality`, `region`, `lat`, `lon`, `source` (`nap`, `community`), `status` (`active`, `missing_from_nap`, `pending_review`, `rejected`), `osm_ref`, `updated_at` | O import só mexe em postos `nap`. O `community`, o `pending_review` e o `rejected` eram das propostas de postos, que saíram, e não têm linhas |
 | `evses` | `station_id` (FK) + `point_id` (PK), `evse_id` (forma original com `*`), `evse_compact` (sem `*`, índice simples), `connector`, `max_kw`, `dc`, `status` | Uma linha por ponto/tomada. O `point_id` do MOBI.Data repete-se entre postos |
 | `stations_fts` | Índice FTS5 de `id`, `code`, `name`, `address`, `municipality`, `operator`, `opc` | Para a pesquisa. Só o índice: o texto fica em `stations`, e três *triggers* mantêm-no a par, por isso o import não muda |
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
@@ -104,7 +104,7 @@ A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP: o link antigo responde `301` para o novo |
 | `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação (*Pontos e ranking*, abaixo). Uma linha por atribuição; só contam as de fotos `published` |
 | `api_tokens` | `id`, `user_id` (FK), `token_hash` (único, SHA-256), `prefix`, `name`, `scopes`, `created_at`, `expires_at`, `last_used_at`, `revoked_at` | *Tokens* de API: uma cópia da tabela não abre nada |
-| `review_queue` | `id`, `kind` (`new_station`), `station_id` (FK), `payload` (JSON), `submitted_by`, `status` (`pending`, `approved`, `rejected`), `decided_by`, `decided_at`, `note`, `created_at` | O que precisa de um humano e não tem tabela própria: hoje, os postos propostos. As fotos têm o estado em `photos`, e os pedidos de remoção vivem no Panoramax |
+| `review_queue` | `id`, `kind` (`new_station`), `station_id` (FK), `payload` (JSON), `submitted_by`, `status` (`pending`, `approved`, `rejected`), `decided_by`, `decided_at`, `note`, `created_at` | Vazia: era das propostas de postos, que saíram. As fotos têm o estado em `photos`, e os pedidos de remoção vivem no Panoramax |
 
 ## Site e API
 
@@ -118,11 +118,10 @@ Tudo o que mexe na foto original acontece no browser: o servidor nunca recebe o 
 
 1. Abre uma ou várias fotos, JPEG ou HEIC (o HEIC pelo browser ou pelo libheif em WebAssembly), e trata-as uma de cada vez.
 2. Lê o GPS e a data do EXIF e sugere os postos a 500 m. Sem GPS: pesquisa por texto ou mapa (OpenStreetMap, só se a pessoa o abrir). O posto da foto anterior fica sugerido para a seguinte.
-3. Se o posto não existir, propõe-se um posto novo (nome, operador, código, posição), que espera por um moderador com as fotos dele.
-4. Procura caras no dispositivo (MediaPipe, BlazeFace) e pré-desenha as zonas; a pessoa confirma, desliga ou acrescenta zonas, também para as matrículas, e cada zona leva um mosaico.
-5. Gera 2048, 1024 e 400 px sem metadados e envia-os, com a data e o GPS à parte. O Worker volta a verificar tudo, guarda a de 2048 px escondida no Panoramax (com as coordenadas do posto, nunca as do GPS) e as outras em `pictures-staging`.
+3. Procura caras no dispositivo (MediaPipe, BlazeFace) e pré-desenha as zonas; a pessoa confirma, desliga ou acrescenta zonas, também para as matrículas, e cada zona leva um mosaico.
+4. Gera 2048, 1024 e 400 px sem metadados e envia-os, com a data e o GPS à parte. O Worker volta a verificar tudo, guarda a de 2048 px escondida no Panoramax (com as coordenadas do posto, nunca as do GPS) e as outras em `pictures-staging`.
 
-Contas `trusted` publicam logo quando a foto foi tirada a 300 m ou menos de um posto `active`; o resto fica `pending` para a fila (`/admin/fila`), que mostra primeiro os postos propostos e avisa das fotos sem GPS ou longe do posto. Quem envia aceita as condições de utilização e a licença no primeiro envio (`license_accepted_at`).
+Contas `trusted` publicam logo quando a foto foi tirada a 300 m ou menos de um posto `active`; o resto fica `pending` para a fila (`/admin/fila`), que avisa das fotos sem GPS ou longe do posto. Quem envia aceita as condições de utilização e a licença no primeiro envio (`license_accepted_at`).
 
 **O que se faz com o GPS do EXIF.** Sugere o posto e sinaliza fotos longe dele (`distance_m`, e o aviso na fila). Fica só na D1, para a moderação; a API pública mostra a data, nunca as coordenadas de quem tirou a foto. O Panoramax recebe as coordenadas do posto.
 
@@ -166,13 +165,12 @@ Há postos com uma foto que alguém pôs no OSM (`panoramax=`, `wikimedia_common
 
 ## Publicação e gestão de fotos
 
-- **Publicação direta:** contas `trusted` publicam logo no envio, quando o posto está `active` e a foto foi tirada a ≤300 m dele. Caso contrário (contributor, sem GPS, >300 m, posto proposto) fica `pending` para a fila.
+- **Publicação direta:** contas `trusted` publicam logo no envio, quando o posto está `active` e a foto foi tirada a ≤300 m dele. Caso contrário (contributor, sem GPS, >300 m) fica `pending` para a fila.
 - **Trocar a principal:** `PUT /api/v1/selections/{target}` com `{ "photo": "<id>" }` (`trusted`, moderador, administrador; sessão ou *token* `selections:write`) copia os 3 tamanhos por cima e faz *purge* da cache.
 - **Aliases (re-key):** quando o NAP muda o código de um posto, o antigo fica `missing_from_nap`. Um moderador cria o alias em `/admin/postos-fora-do-nap`; o link antigo responde `301` para o novo.
-- **Postos propostos:** aprovados passam a `active` e públicos; recusados passam a `rejected`, com as fotos que esperavam por eles (motivo `wrong_station`).
 - **Motivo de recusa:** recusar uma foto na fila (`/admin/fila`) exige um motivo de uma lista fixa (`wrong_station`, `privacy`, `quality`, `duplicate`, `advertising`, `other`, em `src/reasons.ts`) e aceita uma nota curta. Guarda-se em `photos.refusal_reason`, `refusal_note` e `refused_by`. Uma remoção pelo painel `/admin/remocoes` guarda o motivo da denúncia convertido para a mesma lista, sem `refused_by`.
 - **Os meus envios:** `/conta/envios` (`/en/account/uploads`), ligada da conta: as fotos do próprio autor, com miniatura (só dele), posto, data, estado (à espera, publicada, principal, recusada, removida, oculta) e o motivo em linguagem simples. Paginada, 20 por página.
-- **Histórico de decisões:** `/admin/decisoes` (`/en/admin/decisions`), para moderadores: quem aprovou ou recusou fotos e postos propostos, quando e porquê, da mais recente para a mais antiga. As remoções por denúncia não entram (vivem no Panoramax).
+- **Histórico de decisões:** `/admin/decisoes` (`/en/admin/decisions`), para moderadores: quem aprovou ou recusou fotos, quando e porquê, da mais recente para a mais antiga. As remoções por denúncia não entram (vivem no Panoramax).
 
 ## Pontos e ranking
 
@@ -209,7 +207,6 @@ As ferramentas (`src/mcp.ts`, descrições em inglês) chamam as mesmas funçõe
 | `list_main_photos` | Todas as fotos principais (como `/api/v1/main-photos`), às páginas | — |
 | `get_ranking` | O ranking do mês ou de sempre | — |
 | `submit_photo` | Envio dos três tamanhos já limpos (base64 ou URL https), como o `POST /api/v1/photos` | `photos:write` |
-| `propose_station` | Posto novo para revisão, como o `POST /api/v1/stations` | `photos:write` |
 | `set_primary_photo` | Escolher a foto principal, como o `PUT /api/v1/selections/{target}` | `selections:write` e conta `trusted`, moderador ou administrador |
 | `get_photo` | Uma foto, como o `GET /api/v1/photos/{id}` (`getPhoto`) | — |
 | `delete_photo` | Retirar uma foto, como o `DELETE /api/v1/photos/{id}` (`deletePhoto`): a própria, ou a de outra pessoa por um moderador, com motivo | `photos:write` |

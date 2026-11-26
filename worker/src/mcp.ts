@@ -2,7 +2,7 @@
 // and the same rules as the REST API, as tools for AI assistants.
 //
 // Every tool calls the functions the REST routes call (src/data.ts,
-// src/bodies.ts, src/photos.ts, src/proposals.ts, src/publish.ts), so the
+// src/bodies.ts, src/photos.ts, src/publish.ts), so the
 // checks, the licence, the moderation and the limits are the same for people,
 // scripts and agents. Reading needs no sign-in. Writing needs an account:
 // an OAuth grant made on the consent page (src/oauth.ts) or an `oop_` token,
@@ -26,7 +26,6 @@ import { PHOTO_ID, deletePhoto, getPhoto } from './photoapi.ts';
 import type { TakedownEnv } from './takedown.ts';
 import { REASONS } from './reasons.ts';
 import { ranking, type PointsDb } from './points.ts';
-import { proposeStation } from './proposals.ts';
 import { chooseMain, type PublishEnv } from './publish.ts';
 import { canChooseMain, type Scope } from './tokens.ts';
 import { type StationFilters, compactCode, ftsQuery, MAX_QUERY, NEAR_MAX_M, STATION_ID } from './types.ts';
@@ -58,7 +57,6 @@ export const isMcpPath = (p: string) =>
 // signs in and repeats it (src/oauth.ts).
 export const WRITE_TOOLS: Record<string, Scope> = {
   submit_photo: 'photos:write',
-  propose_station: 'photos:write',
   set_primary_photo: 'selections:write',
   delete_photo: 'photos:write',
 };
@@ -82,7 +80,7 @@ const INSTRUCTIONS = `olh'o'posto is a community photo service for EV charging s
 Stations are identified by their official NAP id (e.g. EZC-AMD-00051) and sockets by their EVSE code (e.g. PT*EZC*E*AMD*00051*1 or PTEZCEAMD000511).
 Every photo is CC BY-SA 4.0: whenever you show or link one, show its "attribution" text next to it.
 Static photo links (pictures.ocarroeletrico.com/<id>.jpg) never change; the photo behind them may.
-Reading needs no sign-in. Sending photos, proposing stations and choosing main photos need an account (OpenStreetMap sign-in), and follow the terms at ${SITE}/condicoes.`;
+Reading needs no sign-in. Sending photos and choosing main photos need an account (OpenStreetMap sign-in), and follow the terms at ${SITE}/condicoes.`;
 
 const LICENCE = { license: LICENSE, licenseUrl: LICENSE_URL };
 const MAX_RESULTS = 50;
@@ -400,31 +398,6 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
     }));
     const req = new Request(`${SITE}/api/v1/photos`, { method: 'POST', body: form });
     return fromResponse(await submitPhoto(req, env, ctx, fetcher, now(), { user: who.user, viaToken: true }));
-  });
-
-  server.registerTool('propose_station', {
-    title: 'Propose a new station',
-    description: 'Propose a charging station that is not in the official NAP list, for a moderator to check (needs photos:write). '
-      + 'If a station already exists less than 60 m away the result lists it; repeat with force: true only if yours is another one. '
-      + 'The returned id (OOP-…) takes photos with submit_photo right away; they wait with the station.',
-    inputSchema: z.object({
-      name: z.string().min(2).max(120).describe('Name as shown on site, e.g. "Continente Sintra".'),
-      operator: z.string().min(2).max(120).describe('Who runs it.'),
-      code: z.string().max(40).optional().describe('Code on the sticker, if any.'),
-      lat: z.number().describe('Latitude (decimal degrees).'),
-      lon: z.number().describe('Longitude (decimal degrees).'),
-      note: z.string().max(500).optional().describe('Anything that helps the moderator.'),
-      force: z.boolean().optional().describe('Skip the nearby-station check.'),
-    }),
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-  }, async (a) => {
-    const who = signedIn(caller, 'photos:write');
-    if ('content' in who) return who;
-    const { force, ...body } = a;
-    const req = new Request(`${SITE}/api/v1/stations${force ? '?force=1' : ''}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
-    });
-    return fromResponse(await proposeStation(req, env, now(), { user: who.user, viaToken: true }));
   });
 
   server.registerTool('set_primary_photo', {

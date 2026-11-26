@@ -77,12 +77,12 @@ test('lists every tool, read and write, with English descriptions', async () => 
   const names = r.result!.tools!.map((t) => t.name).sort();
   assert.deepEqual(names, [
     'delete_photo', 'get_photo', 'get_photo_link', 'get_ranking', 'get_station', 'list_main_photos', 'list_missing_photos',
-    'propose_station', 'search_stations', 'set_primary_photo', 'submit_photo',
+    'search_stations', 'set_primary_photo', 'submit_photo',
   ]);
   for (const name of Object.keys(WRITE_TOOLS)) assert.ok(names.includes(name));
 });
 
-test('search_stations: words, place, filters, and never a proposal', async () => {
+test('search_stations: words, place, filters, and never a hidden station', async () => {
   const { call } = await connect(world());
   const words = await call('search_stations', { q: 'sintra' });
   assert.deepEqual(words.data.results.map((r: { id: string }) => r.id).sort(), ['EZC-SNT-00001', 'MOB-SNT-00002']);
@@ -164,28 +164,13 @@ test('write tools: sign-in, scope and role before anything else', async () => {
   assert.equal(a.isError, true);
   assert.equal(a.data.error, 'sign_in_required');
   const noScope = await connect(db, ana([]));
-  assert.equal((await noScope.call('propose_station', { name: 'Novo', operator: 'Op', lat: 38.7, lon: -9.1 })).data.error, 'missing_scope');
+  assert.equal((await noScope.call('submit_photo', photoArgs)).data.error, 'missing_scope');
   const contributor = await connect(db, { ...ana(['photos:write']), scopes: ['photos:write', 'selections:write'] });
   assert.equal((await contributor.call('set_primary_photo', { target: 'EZC-AMD-00051', photo: 'p1' })).data.error, 'forbidden');
   // Uploads are closed without the Panoramax token and the staging bucket:
   // the same answer as POST /api/v1/photos.
   const writer = await connect(db, ana(['photos:write']));
   assert.equal((await writer.call('submit_photo', photoArgs)).data.error, 'uploads_closed');
-});
-
-test('propose_station goes through the REST checks and lands in the queue', async () => {
-  const db = world();
-  const { call } = await connect(db, ana(['photos:write']));
-  const near = await call('propose_station', { name: 'Outro posto', operator: 'Op', lat: 38.80, lon: -9.38 });
-  assert.equal(near.data.error, 'station_nearby');
-  assert.equal(near.data.stations[0].id, 'EZC-SNT-00001');
-  const made = await call('propose_station', { name: 'Outro posto', operator: 'Op', lat: 38.80, lon: -9.38, force: true });
-  assert.equal(made.isError, false);
-  assert.match(made.data.id, /^OOP-/);
-  assert.equal(made.data.status, 'pending_review');
-  const row = db.sql.prepare('SELECT submitted_by FROM review_queue WHERE station_id = ?').get(made.data.id) as { submitted_by: string };
-  assert.equal(row.submitted_by, 'u');
-  assert.equal((await call('propose_station', { name: 'Longe', operator: 'Op', lat: 48.8, lon: 2.3 })).data.error, 'bad_position');
 });
 
 test('imageBytes: base64, data URL, https with a cap', async () => {

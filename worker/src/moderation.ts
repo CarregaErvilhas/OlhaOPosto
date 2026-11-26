@@ -19,7 +19,6 @@ import { FAR_M } from './types.ts';
 import { publishMain } from './publish.ts';
 import { awardApproval, type PointsDb } from './points.ts';
 import { cleanNote, isReason, reasonOptions, type Reason } from './reasons.ts';
-import { decideProposal, pendingProposals, proposalsSection, type ProposalRow } from './proposals.ts';
 import { lostSectionFor } from './mains.ts';
 
 export const decisionsPath = (lang: Lang) => (lang === 'pt' ? '/admin/decisoes' : '/en/admin/decisions');
@@ -56,8 +55,6 @@ const T = {
     title: 'Fila de moderação',
     intro: `Fotos à espera de decisão, da mais antiga para a mais recente. Aprovar torna a foto pública no Panoramax; recusar apaga-a do Panoramax e do armazenamento privado. Fotos a mais de ${FAR_M} m do posto ou sem GPS podem ser de outro posto: confirma antes de aprovar.`,
     empty: 'Não há fotos à espera.',
-    photosH: 'Fotos',
-    proposed: 'Posto proposto, ainda por aprovar.',
     station: 'Posto',
     socket: 'Tomada',
     sentBy: 'Enviada por',
@@ -74,7 +71,7 @@ const T = {
     reasonPick: 'Escolhe o motivo…',
     note: 'Nota para o autor (opcional)',
     history: 'Histórico de decisões',
-    ok: { approve: 'Foto aprovada.', main: 'Foto aprovada e publicada como foto principal: o link estático já a mostra.', reject: 'Foto recusada e apagada.', station_approved: 'Posto aprovado: já é público e pode receber fotos.', station_rejected: 'Posto recusado, com as fotos dele que estavam à espera.' } as Record<string, string>,
+    ok: { approve: 'Foto aprovada.', main: 'Foto aprovada e publicada como foto principal: o link estático já a mostra.', reject: 'Foto recusada e apagada.' } as Record<string, string>,
     errors: {
       stale: 'Esta foto já foi decidida por outra pessoa.',
       panoramax: 'O Panoramax não respondeu. Nada mudou; tenta outra vez.',
@@ -82,7 +79,6 @@ const T = {
       bad: 'Pedido inválido.',
       reason: 'Escolhe o motivo da recusa.',
       publish: 'Mas a cópia para o link estático falhou; a próxima aprovação deste posto tenta outra vez.',
-      station_pending: 'Esta foto é de um posto proposto: aprova primeiro o posto, mais acima.',
     } as Record<string, string>,
     forbidden: 'Esta página é só para moderadores e administradores.',
     back: 'Voltar à conta',
@@ -92,8 +88,6 @@ const T = {
     title: 'Moderation queue',
     intro: `Photos waiting for a decision, oldest first. Approving makes the photo public on Panoramax; rejecting deletes it from Panoramax and from the private storage. Photos more than ${FAR_M} m from the station, or without GPS, may be of another station: check before approving.`,
     empty: 'No photos waiting.',
-    photosH: 'Photos',
-    proposed: 'Proposed station, not approved yet.',
     station: 'Station',
     socket: 'Socket',
     sentBy: 'Sent by',
@@ -110,7 +104,7 @@ const T = {
     reasonPick: 'Choose the reason…',
     note: 'Note for the author (optional)',
     history: 'Decisions history',
-    ok: { approve: 'Photo approved.', main: 'Photo approved and published as the main photo: the static link shows it now.', reject: 'Photo rejected and deleted.', station_approved: 'Station approved: it is public now and can take photos.', station_rejected: 'Station rejected, with its photos that were waiting.' } as Record<string, string>,
+    ok: { approve: 'Photo approved.', main: 'Photo approved and published as the main photo: the static link shows it now.', reject: 'Photo rejected and deleted.' } as Record<string, string>,
     errors: {
       stale: 'Someone else already decided on this photo.',
       panoramax: 'Panoramax did not answer. Nothing changed; try again.',
@@ -118,7 +112,6 @@ const T = {
       bad: 'Invalid request.',
       reason: 'Choose the reason for refusing.',
       publish: 'But copying it to the static link failed; the next approval for this station tries again.',
-      station_pending: 'This photo is of a proposed station: approve the station first, above.',
     } as Record<string, string>,
     forbidden: 'This page is only for moderators and admins.',
     back: 'Back to account',
@@ -143,8 +136,7 @@ export interface QueueRow {
 
 function card(lang: Lang, r: QueueRow): string {
   const t = T[lang];
-  const proposed = r.station_status === 'pending_review' ? `<p class="notice">${t.proposed}</p>` : '';
-  const warn = proposed + (r.distance_m === null
+  const warn = (r.distance_m === null
     ? `<p class="notice">${t.noGps}</p>`
     : r.distance_m > FAR_M
       ? `<p class="notice">${t.far(r.distance_m)}</p>`
@@ -181,15 +173,13 @@ ${warn}
 </article>`;
 }
 
-export function queuePage(lang: Lang, rows: QueueRow[], p: { ok?: string; error?: string; proposals?: ProposalRow[]; lost?: string }): string {
+export function queuePage(lang: Lang, rows: QueueRow[], p: { ok?: string; error?: string; lost?: string }): string {
   const t = T[lang];
   const parts = [`<h1>${t.title}</h1>`];
   const ok = p.ok ? t.ok[p.ok] : undefined;
   if (ok) parts.push(`<p class="notice" role="status">${ok}</p>`);
   const err = p.error ? t.errors[p.error] : undefined;
   if (err) parts.push(`<p class="notice" role="alert">${esc(err)}</p>`);
-  const proposals = proposalsSection(lang, p.proposals ?? [], DECIDE_ACTION);
-  if (proposals) parts.push(proposals, `<h2>${t.photosH}</h2>`);
   parts.push(`<p>${t.intro}</p>`);
   if (rows.length === 0) parts.push(`<p>${t.empty}</p>`);
   else {
@@ -243,10 +233,8 @@ export async function queueHtml(lang: Lang, request: Request, env: PhotoEnv, hea
       LIMIT ${QUEUE_LIMIT}`,
   ).all<QueueRow>();
   const url = new URL(request.url);
-  const proposals = await pendingProposals(env).catch(() => []);
   const lost = await lostSectionFor(lang, env, request, 'queue');
   return page(lang, queuePage(lang, results ?? [], {
-    proposals,
     lost,
     ok: url.searchParams.get('ok') ?? undefined,
     error: url.searchParams.get('erro') ?? undefined,
@@ -285,29 +273,14 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
   if (!user) return redirect(`/auth/osm/login?next=${encodeURIComponent(queuePath(lang))}`, 303);
   if (!canModerate(user.role)) return noStore('forbidden', 403);
   const action = form.get('action');
-  if (action === 'approve_station' || action === 'reject_station') {
-    const station = form.get('station');
-    if (typeof station !== 'string') return back('erro=bad');
-    if (action === 'reject_station' && !env.PANORAMAX_TOKEN) return back('erro=closed');
-    const photos = await decideProposal(env, station, action === 'approve_station', user.id, now);
-    if (photos === null) return back('erro=stale');
-    // The station's waiting photos go with it. One that fails stays pending,
-    // shown as a photo of a rejected station: a moderator can reject it again.
-    for (const pid of photos) await rejectPhoto(env, fetcher, pid, user.id, now, 'wrong_station', null).catch(() => false);
-    return back(action === 'approve_station' ? 'ok=station_approved' : 'ok=station_rejected');
-  }
   const id = form.get('photo');
   if (typeof id !== 'string' || (action !== 'approve' && action !== 'reject')) return back('erro=bad');
   if (!env.PANORAMAX_TOKEN) return back('erro=closed');
 
   const photo = await db(env).prepare(
-    `SELECT p.panoramax_set, p.station_id, p.evse_compact, s.status AS station_status
-       FROM photos p JOIN stations s ON s.id = p.station_id WHERE p.id = ? AND p.status = 'pending'`,
-  ).bind(id).first<{ panoramax_set: string | null; station_id: string; evse_compact: string | null; station_status: string }>();
+    `SELECT panoramax_set, station_id, evse_compact FROM photos WHERE id = ? AND status = 'pending'`,
+  ).bind(id).first<{ panoramax_set: string | null; station_id: string; evse_compact: string | null }>();
   if (!photo) return back('erro=stale');
-  // A photo of a proposed station waits for the station: a public photo and
-  // static link of a station that has no public page would make no sense.
-  if (action === 'approve' && photo.station_status === 'pending_review') return back('erro=station_pending');
   if (action === 'reject') {
     const reason = form.get('reason');
     if (!isReason(reason)) return back('erro=reason');

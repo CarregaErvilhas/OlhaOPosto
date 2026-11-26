@@ -29,32 +29,38 @@ export interface MissingStation {
   alias: string | null;
   source: string;
   status: string;
-  // A NAP station that may be this one under construction: same OSM element,
-  // one of its codes, or less than SUGGEST_M away.
+  // A NAP station that may be this one under construction: same OSM element
+  // or one of its codes (at any distance), or less than SUGGEST_M away.
   suggest: string | null;
 }
 
 export const SUGGEST_M = 60;
 const WITH_PHOTOS = `EXISTS (SELECT 1 FROM photos p WHERE p.station_id = s.id AND p.origin = 'olhaoposto' AND p.status IN ('pending', 'published', 'hidden'))`;
 
-// The NAP station a station under construction probably became, if any.
+// The NAP station a station under construction probably became, if any:
+// the same OSM element first, then one of its codes, then the nearest within
+// SUGGEST_M. Element and codes at any distance: some NAP stations have wrong
+// coordinates that only OSM has right. Each lookup is on an index.
 async function suggestion(env: Env, r: { osm_ref: string | null; codes: string | null; lat: number; lon: number }): Promise<string | null> {
-  const codes = (r.codes ?? '').split(' ').filter(Boolean);
+  const codes = (r.codes ?? '').split(' ').filter(Boolean).slice(0, 20);
+  type Nap = { id: string; code: string | null; osm_ref: string | null; lat: number; lon: number };
+  const pick = `SELECT id, code, osm_ref, lat, lon FROM stations`;
+  const live = `source = 'nap' AND status = 'active'`;
+  const byElement = r.osm_ref
+    ? (await db(env).prepare(`${pick} WHERE osm_ref = ? AND ${live}`).bind(r.osm_ref).all<Nap>()).results
+    : [];
+  const byCode = codes.length
+    ? (await db(env).prepare(`${pick} WHERE code IN (${codes.map(() => '?').join(', ')}) AND ${live}`).bind(...codes).all<Nap>()).results
+    : [];
   const d = 0.001;
-  const { results } = await db(env).prepare(
-    // The box alone, so the stations_lat_lon index does the work; the same
-    // OSM element is scored below (a NAP station linked to it is this close).
-    `SELECT id, code, osm_ref, lat, lon FROM stations
-      WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? AND source = 'nap' AND status = 'active'`,
-  ).bind(r.lat - d, r.lat + d, r.lon - d * 1.3, r.lon + d * 1.3)
-    .all<{ id: string; code: string | null; osm_ref: string | null; lat: number; lon: number }>();
-  const score = (n: (typeof results)[number]) =>
-    (n.osm_ref && n.osm_ref === r.osm_ref ? 2 : 0) + (n.code && codes.includes(n.code) ? 1 : 0);
-  const near = results
-    .map((n) => ({ ...n, score: score(n), dist: distanceM(r.lat, r.lon, n.lat, n.lon) }))
-    .filter((n) => n.score > 0 || n.dist <= SUGGEST_M)
-    .sort((a, b) => b.score - a.score || a.dist - b.dist);
-  return near[0]?.id ?? null;
+  const near = (await db(env).prepare(`${pick} WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? AND ${live}`)
+    .bind(r.lat - d, r.lat + d, r.lon - d * 1.3, r.lon + d * 1.3).all<Nap>()).results
+    .filter((n) => distanceM(r.lat, r.lon, n.lat, n.lon) <= SUGGEST_M);
+  const all = new Map<string, Nap>();
+  for (const n of [...byElement, ...byCode, ...near]) all.set(n.id, n);
+  const score = (n: Nap) => (n.osm_ref && n.osm_ref === r.osm_ref ? 2 : 0) + (n.code && codes.includes(n.code) ? 1 : 0);
+  return [...all.values()]
+    .sort((a, b) => score(b) - score(a) || distanceM(r.lat, r.lon, a.lat, a.lon) - distanceM(r.lat, r.lon, b.lat, b.lon))[0]?.id ?? null;
 }
 
 // Stations gone from the NAP with photos, and stations under construction

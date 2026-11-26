@@ -48,8 +48,11 @@ INSERT INTO stations (rowid, id, code, opc, operator, name, address, municipalit
 DROP TABLE stations_copy;
 
 CREATE INDEX stations_lat_lon ON stations (lat, lon);
--- The merge looks up stations under construction by their OSM element.
-CREATE INDEX stations_osm_ref ON stations (osm_ref) WHERE source = 'osm';
+-- A station under construction and the NAP station it became are found by
+-- the OSM element and by the MOBI.E code, never by distance alone: some NAP
+-- stations have wrong coordinates that only OSM has right.
+CREATE INDEX stations_osm_ref ON stations (osm_ref);
+CREATE INDEX stations_code ON stations (code);
 
 -- The search index gains the codes, so ALM-00155 finds the station that only
 -- has it in its OSM name. Same shape as 0003 otherwise.

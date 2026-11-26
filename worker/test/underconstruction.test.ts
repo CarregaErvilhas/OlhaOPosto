@@ -125,6 +125,9 @@ test('the moderator page suggests the NAP station; merging by hand moves the pho
   const w = await world();
   const rows = await missingStationsWithPhotos(w.env as never);
   assert.deepEqual(rows.map((r) => [r.id, r.suggest]), [['OSM-w1', 'MOT-ALM-00114']]);
+  // Wrong NAP coordinates, kilometres away: the code still finds it.
+  w.db.sql.exec(`UPDATE stations SET lat = 39.5, lon = -8.0 WHERE id = 'MOT-ALM-00114'`);
+  assert.deepEqual((await missingStationsWithPhotos(w.env as never)).map((r) => [r.id, r.suggest]), [['OSM-w1', 'MOT-ALM-00114']]);
   const r = await rekey(new Request(`${SITE}/admin/rekey`, {
     method: 'POST', headers: { origin: SITE, cookie: '__Host-oop_session=t' },
     body: new URLSearchParams({ old: 'OSM-w1', new: 'MOT-ALM-00114', lang: 'pt' }),

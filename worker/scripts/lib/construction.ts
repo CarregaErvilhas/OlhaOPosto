@@ -1,5 +1,5 @@
-// Pure part of the import of stations under construction (Docs/postos-em-
-// construcao.md): the `planned` array of the feed -> rows -> diff against D1
+// Pure part of the import of stations under construction (Docs/arquitetura.md,
+// *Postos em construção*): the `planned` array of the feed -> rows -> diff against D1
 // -> SQL, and the merges into NAP stations. No I/O, like stations.ts.
 //
 // Only `lifecycle: "construction"` is imported: a planned site has nothing to
@@ -16,6 +16,8 @@ export interface FeedPlanned {
   codes?: string[] | null;
   name?: string | null;
   operator?: string | null;
+  city?: string | null;
+  region?: string | null;   // CONT, MAD, AZO
   lat: number;
   lon: number;
 }
@@ -26,6 +28,8 @@ export interface ConstructionRow {
   codes: string | null;  // all of them, space separated
   operator: string | null;
   name: string | null;
+  municipality: string | null;
+  region: string | null;
   lat: number;
   lon: number;
   osm_ref: string;       // way/1551836005
@@ -41,12 +45,14 @@ export interface CurrentRow {
   codes: string | null;
   operator: string | null;
   name: string | null;
+  municipality: string | null;
+  region: string | null;
   lat: number;
   lon: number;
   osm_ref: string | null;
 }
 
-export const CONSTRUCTION_FIELDS = ['code', 'codes', 'operator', 'name', 'lat', 'lon', 'osm_ref'] as const;
+export const CONSTRUCTION_FIELDS = ['code', 'codes', 'operator', 'name', 'municipality', 'region', 'lat', 'lon', 'osm_ref'] as const;
 export const CONSTRUCTION_COLUMNS = ['id', ...CONSTRUCTION_FIELDS] as const;
 
 const str = (v: unknown): string | null =>
@@ -70,7 +76,8 @@ export function toConstructionRows(planned: FeedPlanned[]): ConstructionRow[] {
     const codes = [...new Set((p.codes ?? []).map((c) => (typeof c === 'string' ? c.trim().toUpperCase() : '')).filter((c) => CODE.test(c)))];
     out.push({
       id, code: codes[0] ?? null, codes: codes.length ? codes.join(' ') : null,
-      operator: str(p.operator), name: str(p.name), lat: p.lat, lon: p.lon, osm_ref: element,
+      operator: str(p.operator), name: str(p.name), municipality: str(p.city), region: str(p.region),
+      lat: p.lat, lon: p.lon, osm_ref: element,
     });
   }
   return out;

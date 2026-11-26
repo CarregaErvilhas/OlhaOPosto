@@ -235,7 +235,7 @@ export function openApiSpec() {
         Operator: { type: 'object', properties: { id: nstr, name: nstr } },
         SearchRow: {
           type: 'object',
-          properties: { id: str, name: nstr, operator: ref('Operator'), address: nstr, municipality: nstr, region: nstr, lat: num, lon: num, status: { enum: ['active', 'missing_from_nap'] }, distance_m: { type: 'integer', description: 'Only in a place search.' } },
+          properties: { id: str, name: nstr, operator: ref('Operator'), address: nstr, municipality: nstr, region: nstr, lat: num, lon: num, status: { enum: ['active', 'missing_from_nap', 'missing_from_osm'] }, lifecycle: { const: 'construction', description: 'Only on stations under construction (from OSM, not in the NAP yet): they do not charge.' }, distance_m: { type: 'integer', description: 'Only in a place search.' } },
         },
         SearchResponse: {
           type: 'object',
@@ -264,6 +264,9 @@ export function openApiSpec() {
             id: str, code: nstr, name: nstr, operator: ref('Operator'), address: nstr, municipality: nstr, region: nstr,
             lat: num, lon: num, status: str, osm: nstr, photo: nullable(ref('PhotoLink')),
             points: { type: 'array', items: ref('Point') }, updatedAt: str,
+            lifecycle: { const: 'construction', description: 'Only on stations under construction (id OSM-w… or OSM-n…, from OpenStreetMap, not in the NAP yet). They do not charge, have no sockets and no static link; they merge into their NAP station later and the old id answers 301.' },
+            codes: { type: 'array', items: str, description: 'Under construction only: the MOBI.E codes in the OSM tags.' },
+            photos: { type: 'array', description: 'Under construction only: the published photos.', items: { type: 'object', properties: { id: str, credit: nstr, license: str, page: str, thumb: str } } },
           },
         },
         Evse: {

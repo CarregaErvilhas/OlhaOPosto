@@ -78,7 +78,7 @@ d1(target, (db) => {
   // Stations under construction. The NAP stations they may merge into are D1
   // as this run leaves it: the feed's rows active, the ones it dropped gone.
   const osmCurrent = db.query<CurrentRow>(
-    `SELECT id, source, status, code, codes, operator, name, lat, lon, osm_ref FROM stations WHERE source = 'osm'`,
+    `SELECT id, source, status, code, codes, operator, name, municipality, region, lat, lon, osm_ref FROM stations WHERE source = 'osm'`,
   );
   const gone = new Set(d.missingStations);
   const nap = new Map(current.stations.filter((s) => s.source === 'nap')

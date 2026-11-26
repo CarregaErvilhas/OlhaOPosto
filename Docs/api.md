@@ -74,6 +74,8 @@ Resposta: `{ "id", "code", "name", "operator": { "id", "name" }, "address", "mun
 
 `origin` é `osm_panoramax` ou `commons`. Quem as mostra deve dar o `credit` e a `license` e ligar a `source`. `credit` pode ser `null` e `takenAt` também.
 
+**Postos em construção.** Um posto que o OpenStreetMap diz estar em obra e o NAP ainda não tem (id `OSM-w…` ou `OSM-n…`, o elemento OSM) traz também `"lifecycle": "construction"`, `"codes": ["ALM-00114", "ALM-00155"]` (os códigos MOBI.E que o OSM traz, pode ser vazio) e `"photos": [ { "id", "credit", "license", "page", "thumb" } ]`, as fotos publicadas (`thumb` é a miniatura do Panoramax, `page` a página de crédito). Não carrega: não o apresentes como sítio para carregar. Não tem tomadas, `photo` é sempre `null` e não há link estático. Quando o NAP o publica, junta-se ao posto do NAP: as fotos passam para lá e o id antigo responde `301`. Na pesquisa (`GET /stations?q=` e `?lat=&lon=`) também vêm com `lifecycle`; o `has_photo=false` deixa-os de fora.
+
 ### `GET /evses/{evse}`
 
 Tomada pelo código EVSE (com ou sem `*`). Se o código repetir, responde `300` com `{ "error": "ambiguous", "candidates": [...] }`.

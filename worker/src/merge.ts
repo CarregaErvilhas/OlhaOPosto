@@ -1,5 +1,5 @@
 // Merging a station under construction (source 'osm', id OSM-w123) into the
-// NAP station it became (Docs/postos-em-construcao.md, *A fusão*). The same
+// NAP station it became (Docs/arquitetura.md, *Postos em construção*). The same
 // statements run in the daily import (scripts/lib/construction.ts, as SQL
 // text) and in the Worker when a moderator merges by hand (src/aliases.ts),
 // so both do exactly the same thing.
@@ -22,6 +22,13 @@ export const MERGE_SQL: readonly string[] = [
    WHERE station_id = ?1`,
   `UPDATE stations SET status = 'merged', updated_at = ?4 WHERE id = ?1 AND source = 'osm'`,
 ];
+
+// The values one statement of MERGE_SQL takes: up to its highest ?n (SQLite
+// counts parameters that way, and refuses extra ones).
+export function mergeBinds(sql: string, values: readonly unknown[]): unknown[] {
+  const top = Math.max(0, ...[...sql.matchAll(/\?(\d)/g)].map((m) => Number(m[1])));
+  return values.slice(0, top);
+}
 
 // The OSM element of a station under construction from its id, in the form
 // the NAP stations carry it (osm.element): OSM-w123 -> way/123.

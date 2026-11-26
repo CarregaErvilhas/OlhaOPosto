@@ -255,7 +255,10 @@ function init(form, M) {
       // From the exact GPS, which stays on the device.
       d: meta?.lat != null ? distance(meta.lat, meta.lon, s.lat, s.lon) : null,
     }));
-    if (rows.every((s) => s.d !== null)) rows.sort((a, b) => a.d - b.d);
+    // NAP stations first, then the ones under construction (from OSM).
+    const late = (s) => (s.lifecycle === 'construction' ? 1 : 0);
+    if (rows.every((s) => s.d !== null)) rows.sort((a, b) => late(a) - late(b) || a.d - b.d);
+    else rows.sort((a, b) => late(a) - late(b));
     if (rows.length === 0) {
       say(stationIntro, empty);
       return;
@@ -264,6 +267,7 @@ function init(form, M) {
     stationList.replaceChildren(...rows.map((s) => choice('station', s.id, [
       el('strong', {}, s.id),
       el('span', { className: 'meta', lang: 'pt-PT' }, [s.name, s.municipality].filter(Boolean).join(' · ')),
+      ...(s.lifecycle === 'construction' ? [el('span', { className: 'meta' }, M.building)] : []),
     ], s.d === null ? null : showDistance(s.d))));
     stationsBox.hidden = false;
     const first = stationList.querySelector('input');

@@ -15,6 +15,10 @@ export interface StationRow {
   status: string;
   osm_ref: string | null;
   updated_at: string;
+  // 'osm': a station under construction (Docs/arquitetura.md, *Postos em construção*), with
+  // its MOBI.E codes, space separated.
+  source: string;
+  codes: string | null;
 }
 
 export interface PointRow {
@@ -65,8 +69,14 @@ export function compactCode(raw: string): string | null {
   return EVSE_CODE.test(code) ? code : null;
 }
 
-// Proposals and rejected stations are not public.
-export const isPublic = (s: { status: string }) => s.status === 'active' || s.status === 'missing_from_nap';
+// The statuses with a public page. A merged station is not one: its id
+// answers with a redirect to the NAP station (station_aliases).
+export const PUBLIC_STATUSES = ['active', 'missing_from_nap', 'missing_from_osm'] as const;
+export const PUBLIC_SQL = `(${PUBLIC_STATUSES.map((s) => `'${s}'`).join(', ')})`;
+export const isPublic = (s: { status: string }) => (PUBLIC_STATUSES as readonly string[]).includes(s.status);
+// A station under construction: no sockets, no main photo, no static link
+// until it merges into its NAP station.
+export const underConstruction = (s: { source?: string | null }) => s.source === 'osm';
 
 // Beyond this, a photo is considered far from its station (Docs/plan.md).
 export const FAR_M = 300;
@@ -82,6 +92,7 @@ export interface SearchRow {
   lat: number;
   lon: number;
   status: string;
+  source: string;
 }
 
 // What a person typed, as an FTS5 query: every word must match, each as a
@@ -196,6 +207,15 @@ export type ExternalPhoto = {
   license: string;
   source: string;
   taken_at: string | null;
+};
+
+// One of our published photos of a station under construction: it has no
+// main photo (no static link until the merge), so they show as a gallery,
+// with Panoramax's own thumbnail and the credit page.
+export type OwnPhoto = {
+  id: string;
+  credit: string | null;
+  panoramax_id: string;
 };
 
 // One published main photo, for apps that copy them (nap.ocarroeletrico.com).

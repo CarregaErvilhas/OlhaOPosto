@@ -142,7 +142,11 @@ export async function publishMain(
 ): Promise<string[]> {
   if (!env.PICTURES || !env.STAGING) return [];
   const p = await db(env).prepare(
-    `SELECT id, station_id, evse_compact, credit, panoramax_id FROM photos WHERE id = ? AND status = 'published' AND origin = 'olhaoposto'`,
+    // A station under construction gets no main photo and no static link
+    // until it merges into its NAP station (Docs/arquitetura.md, *Postos em construção*).
+    `SELECT p.id, p.station_id, p.evse_compact, p.credit, p.panoramax_id
+       FROM photos p JOIN stations s ON s.id = p.station_id AND s.source = 'nap'
+      WHERE p.id = ? AND p.status = 'published' AND p.origin = 'olhaoposto'`,
   ).bind(photoId).first<Approved>();
   if (!p) return [];
   const claims = await claim(env, p, userId, now.toISOString());
@@ -212,7 +216,11 @@ export async function chooseMain(
 ): Promise<string[]> {
   if (!env.PICTURES || !env.STAGING || !STATION_ID.test(target)) return [];
   const p = await db(env).prepare(
-    `SELECT id, station_id, evse_compact, credit, panoramax_id FROM photos WHERE id = ? AND status = 'published' AND origin = 'olhaoposto'`,
+    // A station under construction gets no main photo and no static link
+    // until it merges into its NAP station (Docs/arquitetura.md, *Postos em construção*).
+    `SELECT p.id, p.station_id, p.evse_compact, p.credit, p.panoramax_id
+       FROM photos p JOIN stations s ON s.id = p.station_id AND s.source = 'nap'
+      WHERE p.id = ? AND p.status = 'published' AND p.origin = 'olhaoposto'`,
   ).bind(photoId).first<Approved>();
   // The target comes from the photo, not from its shape: a compact EVSE code
   // (PTEZCEAMD000511) also passes STATION_ID. A station takes only a photo of

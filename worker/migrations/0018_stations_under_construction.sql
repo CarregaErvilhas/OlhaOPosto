@@ -1,4 +1,4 @@
--- Stations under construction (Docs/postos-em-construcao.md): sites that
+-- Stations under construction (Docs/arquitetura.md, *Postos em construção*): sites that
 -- OpenStreetMap says are being built and the NAP does not list yet. They come
 -- from the `planned` array of the NAP dashboard feed, with the OSM element as
 -- id (OSM-w1551836005), and merge into the NAP station when it shows up.

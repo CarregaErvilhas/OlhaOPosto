@@ -10,7 +10,7 @@ import { d1 } from './d1.ts';
 
 const planned = (id: string, extra: Partial<FeedPlanned> = {}): FeedPlanned => ({
   id, osm: { element: osmElement(id) }, lifecycle: 'construction', codes: ['ALM-00114', 'ALM-00155'],
-  name: 'ALM-00114/155', operator: 'Mota-Engil', lat: 38.67, lon: -9.16, ...extra,
+  name: 'ALM-00114/155', operator: 'Mota-Engil', city: 'Almada', region: 'CONT', lat: 38.67, lon: -9.16, ...extra,
 });
 const current = (r: ReturnType<typeof toConstructionRows>[number], status = 'active'): CurrentRow =>
   ({ ...r, source: 'osm', status });
@@ -37,7 +37,7 @@ test('only construction is imported; codes are cleaned; odd ids are skipped', ()
   assert.deepEqual(rows.map((r) => r.id), ['OSM-w1', 'OSM-w3', 'OSM-w7']);
   assert.deepEqual(rows[0], {
     id: 'OSM-w1', code: 'ALM-00114', codes: 'ALM-00114 ALM-00155', operator: 'Mota-Engil',
-    name: 'ALM-00114/155', lat: 38.67, lon: -9.16, osm_ref: 'way/1',
+    name: 'ALM-00114/155', municipality: 'Almada', region: 'CONT', lat: 38.67, lon: -9.16, osm_ref: 'way/1',
   });
   assert.equal(rows[1].codes, 'ALM-00001');
   assert.equal(rows[2].codes, null);

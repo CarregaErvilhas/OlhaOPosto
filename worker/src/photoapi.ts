@@ -14,7 +14,7 @@ import { LICENSE, LICENSE_URL, SIZE_PX, reportPath } from './photolinks.ts';
 import { bearer, tokenUser, type TokenDb } from './tokens.ts';
 import { cleanNote, isReason, type Reason } from './reasons.ts';
 import { removePhoto, type TakedownEnv } from './takedown.ts';
-import { isPublic } from './types.ts';
+import { isPublic, PUBLIC_SQL } from './types.ts';
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -207,7 +207,7 @@ export async function getPhoto(env: { DB: unknown }, id: string, user: SessionUs
 // Thousands of rows at most for a long while; the Worker caches the answer.
 export async function exportPhotos(env: { DB: unknown }) {
   const { results } = await db(env).prepare(
-    `${SELECT} WHERE p.status = 'published' AND s.status IN ('active', 'missing_from_nap')
+    `${SELECT} WHERE p.status = 'published' AND s.status IN ${PUBLIC_SQL}
      ORDER BY p.station_id, p.evse_compact, p.approved_at, p.id`,
   ).all<PhotoRow>();
   return { license: LICENSE, licenseUrl: LICENSE_URL, count: results.length, photos: results.map(publicPhoto) };

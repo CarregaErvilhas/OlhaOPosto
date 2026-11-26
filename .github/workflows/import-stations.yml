@@ -1,15 +1,18 @@
-# Daily import of stations and charge points into D1 (Docs/cloudflare.md,
-# "Importação dos postos"). It runs here and not in the Worker: parsing the
-# ~12 MB feed does not fit the 10 ms CPU limit of a Free-plan Cron Trigger.
+# Import of stations, charge points and stations under construction into D1
+# (Docs/cloudflare.md, "Importação dos postos"). It runs here and not in the
+# Worker: parsing the ~12 MB feed does not fit the 10 ms CPU limit of a
+# Free-plan Cron Trigger.
 #
-# The NAP dashboard publishes the feed around 03:00 and 15:00 UTC. GitHub cron
-# is best effort, so this runs well after the early publish.
+# Hourly: the NAP dashboard publishes the feed several times a day, and a
+# station under construction should merge into its NAP station soon after
+# both show up. A run whose feed has the same generatedAt as the last import
+# stops after one D1 read.
 
 name: Import stations
 
 on:
   schedule:
-    - cron: "23 5 * * *"
+    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       force:

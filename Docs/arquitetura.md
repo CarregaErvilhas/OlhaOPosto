@@ -78,7 +78,7 @@ O servidor está configurado para isto: licença CC BY-SA 4.0, envio só com tok
 
 A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19 700 pontos.
 
-**Sincronização.** O olh'o'posto lê o `ohmigo_chargers.json` que o NAP dashboard já publica (o mesmo que o site e o ohmigo usam), todos os dias, pelo GitHub Actions, e faz *upsert* na D1: postos novos entram como `active`, postos que desaparecem passam a `missing_from_nap` (nunca são apagados, para os links e as fotos continuarem a funcionar). Funcionamento e travões em [`cloudflare.md`](cloudflare.md), secção 5.
+**Sincronização.** O olh'o'posto lê o `ohmigo_chargers.json` que o NAP dashboard já publica (o mesmo que o site e o ohmigo usam), todos os dias, pelo GitHub Actions, e faz *upsert* na D1: postos novos entram como `active`, postos que desaparecem passam a `missing_from_nap` (nunca são apagados, para os links e as fotos continuarem a funcionar). O mesmo import traz os postos em construção do OpenStreetMap (abaixo). Corre de hora a hora e não faz nada quando o feed não mudou. Funcionamento e travões em [`cloudflare.md`](cloudflare.md), secção 5.
 
 **Chave dos links.** O posto usa o `id` do local (`EZC-AMD-00051`: prefixo do operador + código), que é único e é o formato `OPC-XXXXXXXXXX` do Alexandre. A tomada usa o código EVSE do NAP sem os `*` (`PTEZCEAMD000511`), vindo do campo `evse` de cada ponto do feed. Pontos sem código EVSE no NAP não têm link de tomada.
 
@@ -93,9 +93,9 @@ A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19
 
 | Tabela | Colunas principais | Notas |
 | --- | --- | --- |
-| `stations` | `id` (PK, ex. `EZC-AMD-00051`), `code`, `opc`, `operator`, `name`, `address`, `municipality`, `region`, `lat`, `lon`, `source` (`nap`, `community`), `status` (`active`, `missing_from_nap`, `pending_review`, `rejected`), `osm_ref`, `updated_at` | O import só mexe em postos `nap`. O `community`, o `pending_review` e o `rejected` eram das propostas de postos, que saíram, e não têm linhas |
+| `stations` | `id` (PK, ex. `EZC-AMD-00051`), `code`, `opc`, `operator`, `name`, `address`, `municipality`, `region`, `lat`, `lon`, `source` (`nap`, `osm`), `status` (`active`, `missing_from_nap`, `missing_from_osm`, `merged`), `osm_ref`, `codes`, `updated_at` | `osm` = posto em construção (id `OSM-w…`/`OSM-n…`, `codes` = os códigos MOBI.E que o OSM traz, separados por espaços). `merged` não é público: o id responde `301` pelo alias |
 | `evses` | `station_id` (FK) + `point_id` (PK), `evse_id` (forma original com `*`), `evse_compact` (sem `*`, índice simples), `connector`, `max_kw`, `dc`, `status` | Uma linha por ponto/tomada. O `point_id` do MOBI.Data repete-se entre postos |
-| `stations_fts` | Índice FTS5 de `id`, `code`, `name`, `address`, `municipality`, `operator`, `opc` | Para a pesquisa. Só o índice: o texto fica em `stations`, e três *triggers* mantêm-no a par, por isso o import não muda |
+| `stations_fts` | Índice FTS5 de `id`, `code`, `name`, `address`, `municipality`, `operator`, `opc`, `codes` | Para a pesquisa. Só o índice: o texto fica em `stations`, e três *triggers* mantêm-no a par, por isso o import não muda |
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
 | `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `osm_key`, `pseudonym`, `pseudonym_key` (único), `pseudonym_changed_at`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. Os `*_key` são os nomes sem acentos, maiúsculas nem pontuação, para a unicidade do pseudónimo (*Crédito*, abaixo) |
 | `sessions` | `token_hash` (PK, SHA-256 do *cookie*), `user_id` (FK), `created_at`, `expires_at` | Uma cópia da tabela não abre sessões. As expiradas saem no login seguinte |
@@ -105,6 +105,19 @@ A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19
 | `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação (*Pontos e ranking*, abaixo). Uma linha por atribuição; só contam as de fotos `published` |
 | `api_tokens` | `id`, `user_id` (FK), `token_hash` (único, SHA-256), `prefix`, `name`, `scopes`, `created_at`, `expires_at`, `last_used_at`, `revoked_at` | *Tokens* de API: uma cópia da tabela não abre nada |
 | `review_queue` | `id`, `kind` (`new_station`), `station_id` (FK), `payload` (JSON), `submitted_by`, `status` (`pending`, `approved`, `rejected`), `decided_by`, `decided_at`, `note`, `created_at` | Vazia: era das propostas de postos, que saíram. As fotos têm o estado em `photos`, e os pedidos de remoção vivem no Panoramax |
+
+## Postos em construção
+
+Para haver fotos de um posto antes de ele abrir (as mais difíceis de arranjar depois). Um posto em construção é o que o OpenStreetMap diz estar em obra e o NAP ainda não tem. O OSM passa a ser a fonte só destes, e o NAP manda logo que os publica. Os planeados (sem obra à vista) ficam de fora.
+
+- **Origem:** o array `planned` do feed do NAP dashboard, só os `lifecycle: "construction"`. Uma chave `planned` em falta (corrida sem o passo do OSM) não muda nada; uma lista vazia passa-os todos a `missing_from_osm`, com travão.
+- **Id:** o elemento OSM, `OSM-w1551836005` (`n` para um nó, `w` para uma *way*), o mesmo que o NAP dashboard usa. `osm_ref` guarda `way/1551836005`, e `codes` os códigos MOBI.E que vêm do `ref` e do nome (`ALM-00114 ALM-00155`), que também entram na pesquisa.
+- **Página** (`/postos/OSM-w…`): faixa «Em construção segundo o OpenStreetMap», os códigos, as fotos aprovadas em galeria (miniatura do Panoramax, ligada à página de crédito), sem tomadas, sem links estáticos, sem link para o NAP dashboard, `noindex` e fora do `sitemap.xml`. Na pesquisa e na página de envio aparecem marcados, depois dos do NAP. Ficam fora de `/postos/sem-foto` e do `has_photo=false` (não têm link estático por preencher). A API e o MCP trazem `lifecycle: "construction"`, os `codes` e as `photos`.
+- **Fotos:** como noutro posto (as `trusted` publicam direto a ≤300 m), mas **sem foto principal nem link estático** até à fusão: o `publishMain` e o `chooseMain` recusam um posto `osm`. Assim um link estático nunca muda de chave. A fila de moderação marca estas fotos para uma revisão mais atenta (trabalhadores, carrinhas com o nome da empresa).
+- **Fusão automática** (no import, `src/merge.ts`): o posto do NAP tem o mesmo elemento OSM (`osm.element`) e o código dele está nos `codes` (ou não há códigos). Olha para todos os postos em construção da D1, também os que já saíram do feed. Faz o alias (`OSM-w…` → id do NAP, `301`), passa as fotos para o posto do NAP, marca a etiqueta do Panoramax para trocar (`photos.site_tag_old`) e põe o posto em construção a `merged`. Um posto novo que já bate com um do NAP nem entra.
+- **Depois da fusão** (o *cron* de 6 em 6 horas, `src/construction.ts`, porque o import só escreve na D1): se o posto do NAP não tinha principal, a primeira foto aprovada passa a principal dele, como numa aprovação; e a etiqueta `OlhaOPosto|site` troca para o id do NAP no Panoramax.
+- **Fusão manual:** a página `/admin/postos-fora-do-nap` lista também os postos em construção com fotos que saíram do OSM ou que têm um posto do NAP parecido (mesmo elemento, um dos códigos, ou a menos de 60 m), com a sugestão. O moderador junta-os com as mesmas instruções da fusão automática.
+- **Nunca são apagados.** Um que sai do OSM sem entrar no NAP passa a `missing_from_osm` e fica com a página e as fotos.
 
 ## Site e API
 

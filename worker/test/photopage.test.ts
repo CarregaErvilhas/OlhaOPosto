@@ -85,7 +85,7 @@ test('osmEditUrl: element, way, relation, or position', () => {
 });
 
 test('station page links the main photos to their credit pages', () => {
-  const st = { id: 'S1', code: null, opc: null, operator: null, name: null, address: null, municipality: null, region: null, lat: 1, lon: 2, status: 'active', osm_ref: null, updated_at: '' };
+  const st = { id: 'S1', code: null, opc: null, operator: null, name: null, address: null, municipality: null, region: null, lat: 1, lon: 2, status: 'active', osm_ref: null, updated_at: '', source: 'nap', codes: null };
   const pt = { point_id: 'S1-1', evse_id: 'PT*X*E*S1*1', evse_compact: 'PTXES11', connector: 'T2', max_kw: 7, dc: 0, status: 'active' };
   const page = stationPage('pt', st, [pt], {
     S1: { credit: 'Ana', photo_id: 'main1' },

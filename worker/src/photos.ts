@@ -12,11 +12,13 @@
 // Closed (503) until sign-in is on, the Panoramax token exists and the
 // staging bucket is bound, so this can ship before uploads open.
 import { isCleanJpeg, jpegSize } from '../public/jpeg.js';
-import { currentUser, loginEnabled, page, sameOrigin, type AuthEnv, type Db, type Waiter } from './auth.ts';
+import { currentUser, loginEnabled, page, type AuthEnv, type Db, type Waiter } from './auth.ts';
+import { apiCaller } from './tokens.ts';
 import { PANORAMAX_URL, type Lang } from './pages.ts';
 import { distanceM, FAR_M, STATION_ID } from './types.ts';
 import { TURNSTILE_ACTION, presetStation, uploadPage } from './upload.ts';
 import { allowed, type RateEnv } from './ratelimit.ts';
+import { awardApproval, type PointsDb } from './points.ts';
 
 // The slice of R2 used here, so the tests typecheck under Node.
 export interface Bucket {
@@ -219,11 +221,13 @@ export async function submitPhoto(
   request: Request, env: PhotoEnv, ctx: Waiter, fetcher: Fetch = fetch, now = new Date(),
 ): Promise<Response> {
   if (!uploadsOpen(env)) return reply(503, { error: 'uploads_closed' });
-  // The session cookie is SameSite=Lax, which still lets another site post a
-  // form here; the origin check closes that, as on /auth/logout.
-  if (!sameOrigin(request)) return reply(403, { error: 'cross_site' });
-  const user = await currentUser(request, env).catch(() => null);
-  if (!user) return reply(401, { error: 'sign_in_required' });
+  // A bearer token with photos:write (scripts and agents, src/tokens.ts), or
+  // the session cookie from our own upload page. The cookie is SameSite=Lax,
+  // which still lets another site post a form here; apiCaller's origin check
+  // closes that, as on /auth/logout.
+  const caller = await apiCaller(request, env, 'photos:write', now);
+  if ('error' in caller) return reply(caller.status, { error: caller.error });
+  const { user, viaToken } = caller;
   // Before the body is read: a burst of uploads from one account is a script.
   if (!(await allowed(env.UPLOAD_LIMIT, user.id))) return reply(429, { error: 'too_fast' });
   const length = Number(request.headers.get('content-length') ?? 0);
@@ -236,8 +240,10 @@ export async function submitPhoto(
     return reply(400, { error: 'bad_form' });
   }
   // Before anything is read or written: the cheap checks above stop most
-  // junk, this one stops scripts with a stolen or scripted session.
-  if (!(await turnstileOk(env, fetcher, form.get('turnstile'), request.headers.get('cf-connecting-ip')))) {
+  // junk, this one stops scripts with a stolen or scripted session. A token
+  // is the person's own say-so that a program sends for them: no Turnstile,
+  // the same limits and checks on the files.
+  if (!viaToken && !(await turnstileOk(env, fetcher, form.get('turnstile'), request.headers.get('cf-connecting-ip')))) {
     return reply(403, { error: 'turnstile' });
   }
   const meta = parseMeta(form.get('meta'), now);
@@ -326,23 +332,7 @@ export async function submitPhoto(
         // The photo stays published; the link may be missing. A later
         // approval of the same target retries (publishMain is idempotent).
       }
-      // Award points for a directly published photo.
-      try {
-        const others = await env.DB.prepare(
-          `SELECT COUNT(*) AS n FROM photos WHERE station_id = ? AND evse_compact IS ? AND id <> ? AND status = 'published'`,
-        ).bind(meta.station, evse, id).first<{ n: number }>();
-        const isFirst = (others?.n ?? 0) === 0;
-        const month = now.toISOString().slice(0, 7);
-        const stmts = [env.DB.prepare(
-          `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 1, 'approved', ?, ?)`,
-        ).bind(user.id, id, month, now.toISOString())];
-        if (isFirst) stmts.push(env.DB.prepare(
-          `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 3, 'first_photo', ?, ?)`,
-        ).bind(user.id, id, month, now.toISOString()));
-        await env.DB.batch(stmts);
-      } catch {
-        // Points are best-effort.
-      }
+      await awardApproval(env.DB as unknown as PointsDb, id, now).catch(() => []);
     }
   } catch (err) {
     // Leave nothing behind but the failed row.

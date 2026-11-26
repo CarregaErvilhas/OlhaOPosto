@@ -2,7 +2,7 @@
 // (public/upload.js): the original and its EXIF never reach the server. This
 // file only renders the form and the messages the script needs. Until uploads
 // open (src/photos.ts), the page prepares the photo and stops there.
-import { BRAND, accountPath, esc, layout, privacyPath, uploadPath, type AccountView, type Lang } from './pages.ts';
+import { BRAND, accountPath, esc, layout, privacyPath, termsPath, uploadPath, type AccountView, type Lang } from './pages.ts';
 
 // The URL the photos will get, for the "Link:" line.
 const PICTURES_HOST = 'pictures.ocarroeletrico.com';
@@ -42,7 +42,7 @@ const T = {
     check2: 'Vão à parte, só para a moderação e nunca publicados: a data e o GPS da foto.',
     check3: 'Tamanhos gerados: 2048, 1024 e 400 px.',
     okPrivacy: 'Confirmo que não há caras nem matrículas legíveis.',
-    okLicense: 'Tirei esta foto e publico-a sob CC BY-SA 4.0, com autorização para dados derivados em ODbL.',
+    okLicense: `Tirei esta foto, aceito os <a href="${termsPath('pt')}" target="_blank" rel="noopener">termos de utilização</a> e publico-a sob CC BY-SA 4.0, com autorização para dados derivados em ODbL.`,
     prepare: 'Preparar a foto',
     send: 'Enviar a foto',
     // Read by upload.js; {name} is replaced there.
@@ -123,7 +123,7 @@ const T = {
     check2: 'Sent apart, only for moderation and never published: the photo’s date and GPS.',
     check3: 'Sizes made: 2048, 1024 and 400 px.',
     okPrivacy: 'I confirm there are no readable faces or number plates.',
-    okLicense: 'I took this photo and publish it under CC BY-SA 4.0, with permission for derived data under ODbL.',
+    okLicense: `I took this photo, accept the <a href="${termsPath('en')}" target="_blank" rel="noopener">terms of use</a> and publish it under CC BY-SA 4.0, with permission for derived data under ODbL.`,
     prepare: 'Prepare the photo',
     send: 'Send the photo',
     js: {

@@ -5,16 +5,19 @@
 import { ROLE_ACTION, setRole, usersHtml } from './admin.ts';
 import { DECIDE_ACTION, STAGING_PREFIX, decide, queueHtml, stagingImage } from './moderation.ts';
 import { ALIAS_ACTION, aliasPath, aliasesHtml, getStationAlias, rekey } from './aliases.ts';
-import { accountHtml, callback, currentUser, login, logout } from './auth.ts';
+import { ACCOUNT_ACTION, accountAction, accountHtml } from './account.ts';
+import { callback, login, logout } from './auth.ts';
+import { apiCaller, canChooseMain } from './tokens.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { chooseMain } from './publish.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
 import { findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
-import { ranking } from './ranking.ts';
+import { ranking } from './points.ts';
 import {
   PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, rankingPage, rankingPath, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
+import { termsPage } from './terms.ts';
 import { photoLink } from './photolinks.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
@@ -206,25 +209,13 @@ function evseHtml(lang: Lang) {
 }
 
 async function rankingJson(env: Env, url: URL): Promise<Response> {
-  const periodRaw = url.searchParams.get('period') ?? 'month';
-  const period = periodRaw === 'all' ? 'all' : 'month';
-  const rows = await ranking(env, period);
-  const month = new Date().toISOString().slice(0, 7);
-  const contributors = rows.map((r, i) => ({
-    rank: i + 1,
-    name: r.name,
-    points: r.points,
-    total: r.points,
-    total_points: r.points,
-    score: r.points,
-  }));
+  const period = url.searchParams.get('period') === 'all' ? 'all' : 'month';
+  const now = new Date();
+  const rows = await ranking(env.DB, period, now);
   return json({
     period,
-    month: period === 'month' ? month : undefined,
-    contributors,
-    ranking: contributors,
-    results: contributors,
-    items: contributors,
+    month: period === 'month' ? now.toISOString().slice(0, 7) : undefined,
+    contributors: rows.map((r, i) => ({ rank: i + 1, name: r.name, points: r.points, photos: r.photos, medal: r.medal })),
   });
 }
 
@@ -323,11 +314,10 @@ const ROUTES: [RegExp, Handler, () => Response][] = [
 ];
 
 async function setSelection(request: Request, env: Env & PhotoEnv, ctx: ExecutionContext, target: string): Promise<Response> {
-  const user = await currentUser(request, env).catch(() => null);
-  if (!user) return json({ error: 'sign_in_required' }, 401, 'no-store');
-  if (user.role !== 'trusted' && user.role !== 'moderator' && user.role !== 'admin') {
-    return json({ error: 'forbidden' }, 403, 'no-store');
-  }
+  const caller = await apiCaller(request, env, 'selections:write');
+  if ('error' in caller) return json({ error: caller.error }, caller.status, 'no-store');
+  const { user } = caller;
+  if (!canChooseMain(user.role)) return json({ error: 'forbidden' }, 403, 'no-store');
   let body: { photo?: string } = {};
   try { body = await request.json(); } catch { return json({ error: 'bad_body' }, 400, 'no-store'); }
   if (!body.photo) return json({ error: 'bad_photo' }, 400, 'no-store');
@@ -345,6 +335,7 @@ export default {
     const { pathname } = url;
     // The POSTs: everything else on this site only reads.
     if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
+    if (request.method === 'POST' && pathname === ACCOUNT_ACTION) return accountAction(request, env, HTML_HEADERS);
     if (request.method === 'POST' && pathname === ROLE_ACTION) return setRole(request, env);
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
@@ -380,6 +371,8 @@ export default {
     if (pathname === '/en') return new Response(null, { status: 301, headers: { location: '/en/' } });
     if (pathname === '/privacidade') return html('pt', privacyPage('pt'));
     if (pathname === '/en/privacy') return html('en', privacyPage('en'));
+    if (pathname === '/termos') return html('pt', termsPage('pt'));
+    if (pathname === '/en/terms') return html('en', termsPage('en'));
     if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/account') return accountHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/admin/fila') return queueHtml('pt', request, env, HTML_HEADERS);
@@ -405,7 +398,7 @@ export default {
       const lang = pathname.startsWith('/en/') ? 'en' : 'pt';
       const periodRaw = url.searchParams.get('period') ?? 'all';
       const period = periodRaw === 'month' ? 'month' : 'all';
-      const rows = await ranking(env, period);
+      const rows = await ranking(env.DB, period);
       return html(lang, rankingPage(lang, period, rows));
     }
     if (pathname === '/sitemap.xml') return sitemap(request, env, ctx);

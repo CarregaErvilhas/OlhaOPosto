@@ -17,6 +17,7 @@ import { BRAND, accountPath, esc, layout, stationPath, type Lang } from './pages
 import { PANORAMAX_URL, type PhotoEnv } from './photos.ts';
 import { FAR_M } from './types.ts';
 import { publishMain } from './publish.ts';
+import { awardApproval, type PointsDb } from './points.ts';
 
 export const queuePath = (lang: Lang) => (lang === 'pt' ? '/admin/fila' : '/en/admin/queue');
 // One POST for both languages; the form says which page to go back to.
@@ -277,24 +278,8 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
   ).bind(status, user.id, now.toISOString(), id).run();
   if (res.meta.changes !== 1) return back('erro=stale');
   if (action === 'approve') {
-    // Award points (Docs/plan.md, *Gamificação*).
-    try {
-      const target = photo.evse_compact ?? photo.station_id;
-      const others = await db(env).prepare(
-        `SELECT COUNT(*) AS n FROM photos WHERE station_id = ? AND evse_compact IS ? AND id <> ? AND status = 'published'`,
-      ).bind(photo.station_id, photo.evse_compact, id).first<{ n: number }>();
-      const isFirst = (others?.n ?? 0) === 0;
-      const month = now.toISOString().slice(0, 7);
-      const stmts = [db(env).prepare(
-        `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 1, 'approved', ?, ?)`,
-      ).bind(user.id, id, month, now.toISOString())];
-      if (isFirst) stmts.push(db(env).prepare(
-        `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 3, 'first_photo', ?, ?)`,
-      ).bind(user.id, id, month, now.toISOString()));
-      await env.DB.batch(stmts);
-    } catch {
-      // Points are best-effort; never block an approval.
-    }
+    // Points go to the author, not to the moderator (src/points.ts).
+    await awardApproval(env.DB as unknown as PointsDb, id, now).catch(() => []);
     // Main photo of its socket and station when they have none (src/publish.ts).
     // The approval stands either way; a failed publish only loses the link.
     try {

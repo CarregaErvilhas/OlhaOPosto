@@ -2,8 +2,9 @@
 
 Documentação de uso da API do olh'o'posto. Atualizar sempre que uma rota
 mudar ou surgir. Os `GET` são públicos, com CORS aberto (`*`) e cache de
-5 minutos (salvo indicação). As escritas pedem sessão (cookie) ou, mais
-tarde, um token Bearer.
+5 minutos (salvo indicação). As escritas pedem um *token* (`Authorization: Bearer oop_…`,
+criado na conta, ver *Tokens*) ou a sessão do site (*cookie*, só a partir das
+páginas do próprio site).
 
 Base: `https://olhaoposto.ocarroeletrico.com/api/v1`
 
@@ -111,17 +112,58 @@ Top de contribuidores (pontos). `period` opcional, por defeito `month`.
 curl 'https://olhaoposto.ocarroeletrico.com/api/v1/ranking?period=month'
 ```
 
-Resposta: lista de contribuidores com pontos, nome (pseudónimo ou nome OSM) e mês.
+Resposta: `{ "period", "month" (só no mês, `YYYY-MM` UTC), "contributors": [ { "rank", "name", "points", "photos", "medal" } ] }`. `name` é o crédito (pseudónimo ou nome OSM), `medal` é `bronze`, `silver`, `gold` ou `null` (pelo total de sempre). Só contam fotos publicadas; quem saiu do ranking não aparece.
 
 ## Escrita
+
+### Tokens
+
+Quem tem sessão cria *tokens* na conta (`/conta`, `/en/account`): um nome, os
+âmbitos e a validade (30, 90 ou 365 dias), até 5 ativos. O *token* só aparece
+uma vez. Âmbitos:
+
+| Âmbito | Dá acesso a | Quem o pode ter |
+| --- | --- | --- |
+| `photos:write` | `POST /photos`, `POST /stations` | Todas as contas |
+| `selections:write` | `PUT /selections/{target}` | `trusted`, `moderator`, `admin` |
+
+O *token* age como a conta, com o papel e os limites dela, lidos em cada
+pedido. Erros: `401 sign_in_required` (*token* desconhecido, expirado ou
+revogado), `403 missing_scope`. Sem *token*, a sessão só vale a partir do
+próprio site (`403 cross_site`).
 
 ### `POST /photos`
 
 Envio de uma foto (multipart). Campos: `full`, `main`, `thumb` (JPEGs dos
-três tamanhos), `meta` (JSON com `station`, `target`, `taken_at`, `exif_lat`,
-`exif_lon`, `license: true`, `no_people: true`), `turnstile` (token).
+três tamanhos: lado maior até 2048, 1024 e 400 px, a mesma imagem, já
+desfocados e sem nenhum metadado), `meta` (JSON com `station`, `target`,
+`taken_at`, `exif_lat`, `exif_lon`, `license: true`, `no_people: true`) e, só
+com a sessão do site, `turnstile`.
 
-Requer sessão (cookie `__Host-oop_session`) e Turnstile. Responde `201 { "id", "status": "pending"|"published" }`. Contas `trusted` publicam direto.
+```bash
+curl -X POST 'https://olhaoposto.ocarroeletrico.com/api/v1/photos' \
+  -H 'authorization: Bearer oop_...' \
+  -F full=@2048.jpg -F main=@1024.jpg -F thumb=@400.jpg \
+  -F 'meta={"station":"EZC-AMD-00051","target":"PTEZCEAMD000511","taken_at":"2026-11-20T10:15:00Z","exif_lat":38.7879,"exif_lon":-9.2268,"license":true,"no_people":true}'
+```
+
+Responde `201 { "id", "status": "pending"|"published" }`. Contas `trusted`
+publicam direto quando a foto foi tirada a 300 m ou menos de um posto ativo.
+O GPS é só para a moderação, nunca publicado. Erros: `400 bad_photo` (EXIF ou
+outro metadado, tamanho, forma), `400 bad_target`, `400 consent_required`,
+`429 daily_limit` (50 por dia para contribuidores), `429 too_fast`, `409
+duplicate`.
+
+### `POST /stations`
+
+Propor um posto que não está no NAP. Corpo JSON:
+`{ "name", "operator", "code"?, "lat", "lon", "note"? }`, com a posição em
+Portugal. Se houver um posto a menos de 60 m: `409 { "error":
+"station_nearby", "stations": [ { "id", "name", "distance_m" } ] }`; repetir
+com `?force=1` se for outro. Responde `201 { "id": "OOP-…", "status":
+"pending_review" }`. O posto não é público até um moderador o aprovar; quem o
+propôs já pode enviar fotos dele (`station` e `target` = o id). Limite: 5 por
+dia para contribuidores.
 
 ### `PUT /selections/{target}`
 
@@ -130,11 +172,11 @@ Escolher a foto principal de um posto ou tomada. Corpo JSON: `{ "photo": "<id>" 
 ```bash
 curl -X PUT 'https://olhaoposto.ocarroeletrico.com/api/v1/selections/EZC-AMD-00051' \
   -H 'content-type: application/json' \
-  -b '__Host-oop_session=...' \
+  -H 'authorization: Bearer oop_...' \
   -d '{ "photo": "uuid-da-foto" }'
 ```
 
-Resposta: `{ "targets": ["EZC-AMD-00051"] }`.
+Resposta: `{ "targets": ["EZC-AMD-00051"] }` (vazia se a foto não servir para esse alvo).
 
 ### `POST /report`
 
@@ -148,5 +190,5 @@ O formulário público de remoção (`/report`), não é uma API JSON: campos
 ## Ainda por implementar
 
 OpenAPI 3.1 (`/api/v1/openapi.json`), `GET /photos/{id}`, `GET /photos.json`,
-`POST /stations`, `DELETE /photos/{id}`, tokens Bearer e
-servidor MCP (`/mcp`). Ver [`plan.md`](plan.md).
+`DELETE /photos/{id}`, os filtros `opc` e `has_photo` na pesquisa e o
+servidor MCP ([`plan.md`](plan.md)).

@@ -28,13 +28,16 @@ function world(opts: { role?: string | null; status?: string; set?: string | nul
       bind(...a: unknown[]) { args = a; return s; },
       async first<T>(): Promise<T | null> {
         if (sql.includes('FROM sessions')) return (role ? { id: 'mod', name: 'Mo', role } : null) as T;
-        if (sql.includes('FROM photos')) return (w.photo.status === 'pending' && args[0] === ID ? { panoramax_set: w.photo.panoramax_set } : null) as T;
+        if (sql.includes('FROM photos')) {
+          return (w.photo.status === 'pending' && args[0] === ID ? { panoramax_set: w.photo.panoramax_set, station_status: 'active' } : null) as T;
+        }
         return null;
       },
       async run() {
-        if (sql.startsWith('UPDATE photos') && w.photo.status === 'pending' && args[3] === ID) {
-          w.photo.status = args[0] as string;
-          w.photo.approved_by = args[1];
+        const to = sql.match(/SET status = '(\w+)'/)?.[1];
+        if (sql.startsWith('UPDATE photos') && to && w.photo.status === 'pending' && args[2] === ID) {
+          w.photo.status = to;
+          w.photo.approved_by = args[0];
           return { meta: { changes: 1 } };
         }
         return { meta: { changes: 0 } };

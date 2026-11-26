@@ -17,13 +17,25 @@ As fotos enviadas pelo olh'o'posto ficam sob a [Creative Commons Atribuição-Co
 
 Quem envia uma foto aceita estas condições uma vez, ao entrar, e declara que é o autor da foto.
 
-**Atribuição.** O autor e a licença vão nos metadados (XMP/IPTC) da cópia pública e o crédito completo fica em `https://olhaoposto.ocarroeletrico.com/p/{photo_id}`.
+**Atribuição.** O autor e a licença vão nos metadados (XMP) das cópias públicas, que apontam para a página do posto, onde está o crédito. Uma página de crédito por foto (`/p/{photo_id}`) está no [`plan.md`](plan.md).
+
+Quem envia aceita também as [condições de utilização](https://olhaoposto.ocarroeletrico.com/condicoes) (`worker/src/terms.ts`), que repetem estas regras.
 
 **Fotos de outras origens.** As fotos referenciadas a partir do OSM, do Wikimedia Commons ou de outro servidor Panoramax mantêm a licença e o autor de origem.
 
 ## Fontes: SIL Open Font License 1.1
 
 O site usa a Inter, a Space Grotesk e a JetBrains Mono, alojadas no próprio Worker (`worker/public/fonts/`). Estão sob a [SIL Open Font License 1.1](https://openfontlicense.org/), e o texto da licença de cada uma vai ao lado dos ficheiros (`OFL-*.txt`), como a licença pede.
+
+## Bibliotecas e modelo da página de envio
+
+A página de envio carrega três bibliotecas de terceiros, que não estão no repositório: são `devDependencies` do `worker/` copiadas de `node_modules` para `worker/public/vendor/` no deploy (`worker/scripts/vendor.ts`), cada uma com a sua licença ao lado.
+
+- **libheif** (`libheif-js`), para abrir fotos HEIC: [LGPL-3.0](https://www.gnu.org/licenses/lgpl-3.0.html). É servida como ficheiros separados e sem alterações, por isso pode ser trocada por outra versão, como a LGPL pede.
+- **MediaPipe Tasks Vision** (`@mediapipe/tasks-vision`), para procurar caras: Apache-2.0.
+- **Leaflet**, para o mapa: BSD-2-Clause. Os mosaicos do mapa são do OpenStreetMap (© contribuidores do OpenStreetMap, ODbL; mosaicos CC BY-SA 2.0), com a atribuição no próprio mapa.
+
+O modelo de deteção de caras (BlazeFace, da Google) está em `worker/public/models/`, sob Apache-2.0, com a origem no `README.txt` ao lado.
 
 ## O nome e a imagem ficam de fora
 

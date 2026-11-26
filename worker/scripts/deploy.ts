@@ -11,7 +11,11 @@
 // with nothing new is a no-op there. Without a TTY wrangler does not ask for
 // confirmation.
 
+import { execFileSync } from 'node:child_process';
 import { withRemoteConfig, wrangler } from './lib/wrangler.ts';
+
+// The browser libraries the upload page loads (scripts/vendor.ts).
+execFileSync(process.execPath, [new URL('./vendor.ts', import.meta.url).pathname], { stdio: 'inherit' });
 
 withRemoteConfig((config) => {
   wrangler(['d1', 'migrations', 'apply', 'DB', '--remote', '-c', config]);

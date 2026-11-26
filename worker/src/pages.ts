@@ -5,6 +5,7 @@
 // Portuguese whatever the page language, and English pages mark it as such
 // (lang="pt-PT") so screen readers read it with the right voice.
 import { MAX_QUERY, type EvseMatch, type MainPhotos, type PointRow, type SearchRow, type StationRow } from './types.ts';
+import { MEDALS, POINTS, SAME_TARGET_DAYS, type Medal, type RankingRow } from './points.ts';
 
 // The brand as written. The apostrophes keep it out of every technical name
 // (olhaoposto, or OlhaOPosto where case shows, so it is not read as Olhão),
@@ -30,6 +31,7 @@ export const socketPath = (lang: Lang, evse: string) =>
   `${lang === 'pt' ? '/tomadas/' : '/en/sockets/'}${encodeURIComponent(evse)}`;
 export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/search');
 export const privacyPath = (lang: Lang) => (lang === 'pt' ? '/privacidade' : '/en/privacy');
+export const termsPath = (lang: Lang) => (lang === 'pt' ? '/condicoes' : '/en/terms');
 export const groupPath = (lang: Lang) => (lang === 'pt' ? '/grupo' : '/en/group');
 export const accountPath = (lang: Lang) => (lang === 'pt' ? '/conta' : '/en/account');
 export const uploadPath = (lang: Lang) => (lang === 'pt' ? '/enviar' : '/en/upload');
@@ -55,6 +57,7 @@ const T = {
     footerData: 'Fotos CC BY-SA 4.0 · Dados dos postos: NAP Portugal (MOBI.E) e © contribuidores do OpenStreetMap (ODbL)',
     footerCode: 'Código (MIT)',
     footerPrivacy: 'Privacidade',
+    footerTerms: 'Condições',
     footerGroup: 'O grupo',
     ogImageAlt: `Pic, a mascote do ${BRAND}`,
     inNap: 'No NAP',
@@ -112,7 +115,7 @@ const T = {
     homeTitle: `${BRAND} · fotos dos postos de carregamento`,
     homeDesc: 'Fotos comunitárias de postos e tomadas de carregamento em Portugal, com links estáticos pelo código do posto ou da tomada.',
     homeH1: 'Fotos dos postos de carregamento',
-    homeText: 'Fotos comunitárias de postos e tomadas em Portugal, com um link estático por posto e por tomada. Ainda em construção: o envio de fotos vem a seguir.',
+    homeText: 'Fotos comunitárias de postos e tomadas em Portugal, com um link estático por posto e por tomada. O envio de fotos está aberto: cada foto é desfocada no teu dispositivo e passa pela moderação.',
     homeExample: 'Exemplo:',
     homeExampleLink: 'posto EZC-AMD-00051',
     homeApi: 'API:',
@@ -164,6 +167,7 @@ const T = {
     footerData: 'Photos CC BY-SA 4.0 · Station data: NAP Portugal (MOBI.E) and © OpenStreetMap contributors (ODbL)',
     footerCode: 'Source code (MIT)',
     footerPrivacy: 'Privacy',
+    footerTerms: 'Terms',
     footerGroup: 'The group',
     ogImageAlt: `Pic, the ${BRAND} mascot`,
     inNap: 'In the NAP',
@@ -221,7 +225,7 @@ const T = {
     homeTitle: `${BRAND} · photos of charging stations`,
     homeDesc: 'Community photos of EV charging stations and sockets in Portugal, with static links by station or socket code.',
     homeH1: 'Photos of charging stations',
-    homeText: 'Community photos of charging stations and sockets in Portugal, with one static link per station and per socket. Still being built: photo uploads come next.',
+    homeText: 'Community photos of charging stations and sockets in Portugal, with one static link per station and per socket. Photo uploads are open: each photo is blurred on your device and moderated.',
     homeExample: 'Example:',
     homeExampleLink: 'station EZC-AMD-00051',
     homeApi: 'API:',
@@ -399,6 +403,7 @@ ${p.body}
   <div class="wrap">
     <span>${t.footerData}</span>
     <a href="${privacyPath(p.lang)}">${t.footerPrivacy}</a>
+    <a href="${termsPath(p.lang)}">${t.footerTerms}</a>
     <a href="${groupPath(p.lang)}">${t.footerGroup}</a>
     <a target="_blank" rel="noopener" href="https://github.com/CarregaErvilhas/OlhaOPosto">${t.footerCode}</a>
   </div>
@@ -586,7 +591,8 @@ export interface AccountView {
 // station and search pages can stay public and cacheable.
 export function accountPage(
   lang: Lang,
-  p: { user: AccountView | null; enabled: boolean; error?: string },
+  // sections: the signed-in parts that need D1 (points, tokens), from src/account.ts.
+  p: { user: AccountView | null; enabled: boolean; error?: string; sections?: string },
 ): string {
   const t = T[lang];
   const here = accountPath(lang);
@@ -607,6 +613,7 @@ export function accountPage(
           `<p><a class="button secondary" href="${lang === 'pt' ? '/admin/postos-fora-do-nap' : '/en/admin/stations-missing'}">${t.missingStations}</a></p>`,
         ]
         : []),
+      ...(p.sections ? [p.sections] : []),
       `<form method="post" action="/auth/logout?next=${encodeURIComponent(here)}">` +
         `<button type="submit" class="button">${t.logout}</button></form>`,
     );
@@ -705,33 +712,77 @@ ${body}
   });
 }
 
-export function rankingPage(lang: Lang, period: 'month' | 'all', rows: { name: string; points: number }[]): string {
-  const t = T[lang];
-  const title = period === 'month'
-    ? (lang === 'pt' ? `Ranking do mês · ${BRAND}` : `This month's ranking · ${BRAND}`)
-    : (lang === 'pt' ? `Ranking de sempre · ${BRAND}` : `All-time ranking · ${BRAND}`);
-  const h1 = period === 'month'
-    ? (lang === 'pt' ? 'Ranking do mês' : "This month's ranking")
-    : (lang === 'pt' ? 'Ranking de sempre' : 'All-time ranking');
-  const otherPeriod = period === 'month' ? 'all' : 'month';
-  const otherLabel = period === 'month'
-    ? (lang === 'pt' ? 'Ver de sempre' : 'All-time')
-    : (lang === 'pt' ? 'Ver do mês' : 'This month');
-  const otherHref = `${rankingPath(lang)}?period=${otherPeriod}`;
-  const list = rows.length === 0
-    ? `<p>${lang === 'pt' ? 'Ainda não há pontos.' : 'No points yet.'}</p>`
-    : `<ol class="ranking" role="list">${rows.map((r) => `<li><span class="name">${esc(r.name)}</span> <span class="points">${r.points}</span></li>`).join('')}</ol>`;
+const MEDAL_NAMES: Record<Lang, Record<Medal, string>> = {
+  pt: { gold: 'Ouro', silver: 'Prata', bronze: 'Bronze' },
+  en: { gold: 'Gold', silver: 'Silver', bronze: 'Bronze' },
+};
+
+export const medalBadge = (lang: Lang, m: Medal | null) =>
+  m ? `<span class="medal medal-${m}">${MEDAL_NAMES[lang][m]}</span>` : '';
+
+const RANKING_T = {
+  pt: {
+    month: 'Ranking do mês', all: 'Ranking de sempre', seeAll: 'Ver de sempre', seeMonth: 'Ver do mês',
+    desc: `Quem mais contribuiu com fotos de postos para o ${BRAND}.`,
+    empty: 'Ainda não há pontos.',
+    cols: ['#', 'Nome', 'Medalha', 'Fotos', 'Pontos'],
+    caption: (p: string) => `${p}: os 50 primeiros`,
+    rulesH: 'Como se ganham pontos',
+    rules: [
+      `${POINTS.approved} ponto por foto aprovada.`,
+      `+${POINTS.first_photo} pela primeira foto de um posto ou de uma tomada.`,
+      `+${POINTS.refresh} por substituir uma foto principal com mais de 12 meses.`,
+      `Várias fotos tuas do mesmo posto ou tomada em ${SAME_TARGET_DAYS} dias contam uma vez.`,
+      `Medalhas pelo total de sempre: bronze com ${MEDALS[2].min} pontos, prata com ${MEDALS[1].min}, ouro com ${MEDALS[0].min}. Não há prémios.`,
+    ],
+    optOut: 'Podes sair do ranking na tua conta; as fotos continuam a contar pontos.',
+  },
+  en: {
+    month: "This month's ranking", all: 'All-time ranking', seeAll: 'All-time', seeMonth: 'This month',
+    desc: `Who has contributed the most station photos to ${BRAND}.`,
+    empty: 'No points yet.',
+    cols: ['#', 'Name', 'Medal', 'Photos', 'Points'],
+    caption: (p: string) => `${p}: top 50`,
+    rulesH: 'How points are earned',
+    rules: [
+      `${POINTS.approved} point per approved photo.`,
+      `+${POINTS.first_photo} for the first photo of a station or socket.`,
+      `+${POINTS.refresh} for replacing a main photo older than 12 months.`,
+      `Several photos of yours of the same station or socket within ${SAME_TARGET_DAYS} days count once.`,
+      `Medals from the all-time total: bronze at ${MEDALS[2].min} points, silver at ${MEDALS[1].min}, gold at ${MEDALS[0].min}. There are no prizes.`,
+    ],
+    optOut: 'You can leave the ranking from your account; your photos still earn points.',
+  },
+};
+
+export function rankingPage(lang: Lang, period: 'month' | 'all', rows: RankingRow[]): string {
+  const t = RANKING_T[lang];
+  const h1 = period === 'month' ? t.month : t.all;
+  const other = period === 'month' ? 'all' : 'month';
+  const [cRank, cName, cMedal, cPhotos, cPoints] = t.cols;
+  const table = rows.length === 0
+    ? `<p>${t.empty}</p>`
+    : `<div class="table-wrap"><table class="ranking">
+<caption class="sr-only">${esc(t.caption(h1))}</caption>
+<thead><tr><th scope="col">${cRank}</th><th scope="col">${cName}</th><th scope="col">${cMedal}</th><th scope="col" class="num">${cPhotos}</th><th scope="col" class="num">${cPoints}</th></tr></thead>
+<tbody>
+${rows.map((r, i) => `<tr><td>${i + 1}</td><th scope="row" lang="">${esc(r.name)}</th><td>${medalBadge(lang, r.medal)}</td><td class="num">${r.photos}</td><td class="num">${r.points}</td></tr>`).join('\n')}
+</tbody>
+</table></div>`;
   const switchTo = { pt: `${rankingPath('pt')}?period=${period}`, en: `${rankingPath('en')}?period=${period}` };
   return layout({
     lang,
-    title,
-    description: lang === 'pt' ? 'Top de contribuidores do olh\'o\'posto.' : 'Top contributors of olh\'o\'posto.',
+    title: `${h1} · ${BRAND}`,
+    description: t.desc,
     path: `${rankingPath(lang)}?period=${period}`,
     alternates: switchTo,
     body: `<div class="page-msg">
 <h1>${h1}</h1>
-<p><a href="${otherHref}">${otherLabel}</a></p>
-${list}
+<p><a href="${rankingPath(lang)}?period=${other}">${period === 'month' ? t.seeAll : t.seeMonth}</a></p>
+${table}
+<h2>${t.rulesH}</h2>
+<ul>${t.rules.map((r) => `<li>${r}</li>`).join('')}</ul>
+<p class="hint">${t.optOut} <a href="${accountPath(lang)}">${lang === 'pt' ? 'Conta' : 'Account'}</a>.</p>
 </div>`,
   });
 }

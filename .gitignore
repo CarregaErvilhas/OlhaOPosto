@@ -6,3 +6,4 @@ worker/node_modules/
 worker/.wrangler/
 worker/.wrangler.remote.json
 worker/.dev.vars*
+worker/public/vendor/

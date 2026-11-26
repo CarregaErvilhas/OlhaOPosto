@@ -24,6 +24,7 @@ import { isCleanJpeg, stripMetadata } from '../public/jpeg.js';
 import { PANORAMAX_URL, type PhotoEnv } from './photos.ts';
 import { PICTURES, SITE, stationPath } from './pages.ts';
 import { STATION_ID } from './types.ts';
+import { awardRefresh, type PointsDb } from './points.ts';
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -236,19 +237,9 @@ export async function chooseMain(
     // Purge the cache for the three keys.
     await purgeCache(env, targets, fetcher).catch(() => {});
 
-    // Refresh bonus: replacing a main photo older than 12 months.
-    if (old && old.photo_id !== photoId && old.published_at) {
-      const age = now.getTime() - new Date(old.published_at).getTime();
-      if (age > 365 * 24 * 3600 * 1000) {
-        try {
-          const month = now.toISOString().slice(0, 7);
-          await db(env).prepare(
-            `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 2, 'refresh', ?, ?)`,
-          ).bind(userId, photoId, month, nowIso).run();
-        } catch {
-          // best-effort
-        }
-      }
+    // +2 for the author when the replaced main photo was over 12 months old.
+    if (old && old.photo_id !== photoId) {
+      await awardRefresh(env.DB as unknown as PointsDb, photoId, old.published_at, now).catch(() => false);
     }
     return targets;
   } catch (err) {

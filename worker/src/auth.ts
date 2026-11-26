@@ -142,14 +142,6 @@ export async function currentUser(request: Request, env: AuthEnv): Promise<Sessi
 
 // --- routes ---
 
-export async function accountHtml(lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>) {
-  const enabled = loginEnabled(env);
-  // A D1 hiccup (or a missing migration) reads as signed out, never as a 500.
-  const user = enabled ? await currentUser(request, env).catch(() => null) : null;
-  const error = new URL(request.url).searchParams.get('erro') ?? undefined;
-  return page(lang, accountPage(lang, { user, enabled, error }), 200, headers);
-}
-
 export async function login(request: Request, env: AuthEnv, headers: Record<string, string>): Promise<Response> {
   const url = new URL(request.url);
   const next = safeNext(url.searchParams.get('next'));

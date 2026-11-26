@@ -2,7 +2,7 @@
 // (public/upload.js): the original and its EXIF never reach the server. This
 // file only renders the form and the messages the script needs. Until uploads
 // open (src/photos.ts), the page prepares the photo and stops there.
-import { BRAND, accountPath, esc, layout, privacyPath, uploadPath, type AccountView, type Lang } from './pages.ts';
+import { BRAND, accountPath, esc, layout, privacyPath, termsPath, uploadPath, type AccountView, type Lang } from './pages.ts';
 
 // The URL the photos will get, for the "Link:" line.
 const PICTURES_HOST = 'pictures.ocarroeletrico.com';
@@ -23,32 +23,76 @@ const T = {
     noScript: 'Esta página precisa de JavaScript: a foto é tratada no teu dispositivo, não no servidor.',
     stepPhoto: '1 · Foto',
     photoLabel: 'Escolher a foto',
-    photoHint: 'Uma foto JPEG de cada vez. No iPhone, as fotos HEIC passam a JPEG ao escolher.',
+    photoHint: 'JPEG ou HEIC. Podes escolher várias: tratas uma de cada vez, e o posto da anterior fica sugerido para a seguinte.',
     stepStation: '2 · Posto',
     stationsLegend: 'Escolher posto',
     searchLabel: 'Procurar outro posto',
     searchHint: 'Código do posto, localidade, morada ou operador.',
     searchButton: 'Procurar',
+    mapOpen: 'Escolher no mapa',
+    mapNote: 'O mapa carrega os mosaicos do OpenStreetMap, que recebe o teu endereço IP, como qualquer site que os mostre. Só abre se tocares no botão.',
+    locate: 'Ir para a minha localização',
+    mapLabel: 'Mapa dos postos. Toca num posto para o escolher.',
+    proposeSummary: 'O posto não está na lista? Propor um posto novo',
+    proposeIntro: 'Um moderador confirma o posto antes de ficar público. As fotos que enviares dele esperam por essa confirmação.',
+    proposeName: 'Nome ou local',
+    proposeOperator: 'Operador',
+    proposeCode: 'Código no posto (se houver)',
+    proposeCodeHint: 'O código no autocolante ou no ecrã, por exemplo LSB-00123.',
+    proposePosition: 'Posição',
+    proposePositionHint: 'Vem do GPS da foto, ou do centro do mapa. Abre o mapa e centra-o no posto para a acertar.',
+    proposeNote: 'Nota para a moderação (opcional)',
+    proposeSend: 'Propor o posto',
     targetsLegend: 'Esta foto mostra',
     link: 'Link:',
     stepBlur: '3 · Privacidade',
     preview: 'Pré-visualização da foto, com as zonas desfocadas',
     draw: 'Desenhar zona',
     add: 'Acrescentar zona',
-    blurHint: 'Ainda não há deteção automática: marca tu cada cara e cada matrícula legível. Toca numa zona para a ligar ou desligar. Com o teclado: as setas movem a zona, Shift e setas mudam o tamanho, Delete apaga-a.',
+    detect: 'Procurar caras',
+    blurHint: 'As caras são procuradas automaticamente no teu dispositivo; confirma cada zona. As matrículas tens de as marcar tu. Toca numa zona para a ligar ou desligar. Com o teclado: as setas movem a zona, Shift e setas mudam o tamanho, Delete apaga-a.',
     stepSend: '4 · Enviar',
     checklist: 'Antes de enviar',
     check1: 'Sai da imagem todo o EXIF: GPS, data, câmara e número de série.',
     check2: 'Vão à parte, só para a moderação e nunca publicados: a data e o GPS da foto.',
     check3: 'Tamanhos gerados: 2048, 1024 e 400 px.',
     okPrivacy: 'Confirmo que não há caras nem matrículas legíveis.',
-    okLicense: 'Tirei esta foto e publico-a sob CC BY-SA 4.0, com autorização para dados derivados em ODbL.',
+    okLicense: `Tirei esta foto, aceito as <a href="${termsPath('pt')}" target="_blank" rel="noopener">condições de utilização</a> e publico-a sob CC BY-SA 4.0, com autorização para dados derivados em ODbL.`,
     prepare: 'Preparar a foto',
     send: 'Enviar a foto',
+    next: 'Foto seguinte',
     // Read by upload.js; {name} is replaced there.
     js: {
       reading: 'A abrir a foto…',
-      notJpeg: 'Não foi possível abrir esta foto. Escolhe um JPEG.',
+      notJpeg: 'Não foi possível abrir esta foto. Escolhe um JPEG ou um HEIC.',
+      heic: 'A converter a foto HEIC no teu dispositivo…',
+      queue: 'Foto {n} de {all}.',
+      queueDone: 'Já trataste todas as fotos que escolheste.',
+      skip: 'Saltar esta foto',
+      previous: 'Posto da foto anterior:',
+      detecting: 'A procurar caras na foto…',
+      detected: '{n} caras encontradas e desfocadas. Confirma se não falta nenhuma, e marca as matrículas.',
+      detectedOne: '1 cara encontrada e desfocada. Confirma se não falta nenhuma, e marca as matrículas.',
+      detectedNone: 'Não foi encontrada nenhuma cara. Confirma tu, e marca as matrículas.',
+      detectFailed: 'A procura automática de caras não funcionou neste dispositivo. Marca tu cada cara e cada matrícula.',
+      mapLoading: 'A abrir o mapa…',
+      mapFailed: 'Não foi possível abrir o mapa.',
+      mapZoom: 'Aproxima o mapa para veres os postos.',
+      mapStations: '{n} postos nesta zona. Toca num para o escolher.',
+      locating: 'A procurar a tua localização…',
+      locateFailed: 'Não foi possível saber a tua localização.',
+      proposeNeed: 'Escreve o nome e o operador, e indica a posição (pelo GPS da foto ou pelo mapa).',
+      proposeSending: 'A propor o posto…',
+      proposeDone: 'Posto proposto. Fica escolhido para esta foto, à espera da moderação.',
+      proposeNearby: 'Já há postos a menos de 60 m daqui: {list}. Se for um deles, escolhe-o; se não, carrega outra vez em «Propor o posto».',
+      proposeErrors: {
+        name_and_operator: 'Escreve o nome e o operador.',
+        bad_code: 'O código só pode ter letras, números, *, -, _ e pontos.',
+        bad_position: 'A posição tem de ser em Portugal.',
+        daily_limit: 'Chegaste ao limite de postos propostos por hoje.',
+        other: 'Não foi possível propor o posto. Tenta outra vez.',
+      },
+      proposedStation: 'Posto proposto (à espera da moderação)',
       tooBig: 'A foto tem mais de 40 MB. Escolhe outra.',
       gps: 'GPS lido da foto e arredondado a cerca de 100 m. Postos num raio de 500 m:',
       preset: 'Posto do link que abriste:',
@@ -76,6 +120,7 @@ const T = {
       resultAlt: 'A foto preparada, em 400 px',
       sending: 'A enviar…',
       sent: 'Enviada. Fica à espera da moderação antes de aparecer.',
+      sentPublished: 'Enviada e publicada.',
       errors: {
         uploads_closed: 'O envio está fechado neste momento.',
         turnstile: 'A verificação de segurança falhou ou ainda não terminou. Espera uns segundos e volta a enviar.',
@@ -104,31 +149,75 @@ const T = {
     noScript: 'This page needs JavaScript: the photo is handled on your device, not on the server.',
     stepPhoto: '1 · Photo',
     photoLabel: 'Choose the photo',
-    photoHint: 'One JPEG photo at a time. On an iPhone, HEIC photos become JPEG when you pick them.',
+    photoHint: 'JPEG or HEIC. You can pick several: you handle one at a time, and the previous photo’s station is suggested for the next.',
     stepStation: '2 · Station',
     stationsLegend: 'Choose the station',
     searchLabel: 'Find another station',
     searchHint: 'Station code, town, address or operator.',
     searchButton: 'Search',
+    mapOpen: 'Choose on the map',
+    mapNote: 'The map loads its tiles from OpenStreetMap, which receives your IP address, like any site that shows them. It only opens if you tap the button.',
+    locate: 'Go to my location',
+    mapLabel: 'Map of the stations. Tap a station to choose it.',
+    proposeSummary: 'Station not listed? Propose a new station',
+    proposeIntro: 'A moderator checks the station before it becomes public. The photos you send of it wait for that check.',
+    proposeName: 'Name or place',
+    proposeOperator: 'Operator',
+    proposeCode: 'Code on the station (if any)',
+    proposeCodeHint: 'The code on the sticker or screen, for example LSB-00123.',
+    proposePosition: 'Position',
+    proposePositionHint: 'From the photo’s GPS, or the centre of the map. Open the map and centre it on the station to get it right.',
+    proposeNote: 'Note for the moderators (optional)',
+    proposeSend: 'Propose the station',
     targetsLegend: 'This photo shows',
     link: 'Link:',
     stepBlur: '3 · Privacy',
     preview: 'Preview of the photo, with the blurred areas',
     draw: 'Draw an area',
     add: 'Add an area',
-    blurHint: 'There is no automatic detection yet: mark every readable face and number plate yourself. Tap an area to turn it on or off. With a keyboard: the arrow keys move the area, Shift and arrows resize it, Delete removes it.',
+    detect: 'Look for faces',
+    blurHint: 'Faces are looked for automatically on your device; check every area. Number plates you have to mark yourself. Tap an area to turn it on or off. With a keyboard: the arrow keys move the area, Shift and arrows resize it, Delete removes it.',
     stepSend: '4 · Send',
     checklist: 'Before sending',
     check1: 'All EXIF leaves the image: GPS, date, camera and serial number.',
     check2: 'Sent apart, only for moderation and never published: the photo’s date and GPS.',
     check3: 'Sizes made: 2048, 1024 and 400 px.',
     okPrivacy: 'I confirm there are no readable faces or number plates.',
-    okLicense: 'I took this photo and publish it under CC BY-SA 4.0, with permission for derived data under ODbL.',
+    okLicense: `I took this photo, accept the <a href="${termsPath('en')}" target="_blank" rel="noopener">terms of use</a> and publish it under CC BY-SA 4.0, with permission for derived data under ODbL.`,
     prepare: 'Prepare the photo',
     send: 'Send the photo',
+    next: 'Next photo',
     js: {
       reading: 'Opening the photo…',
-      notJpeg: 'Couldn’t open this photo. Choose a JPEG.',
+      notJpeg: 'Couldn’t open this photo. Choose a JPEG or a HEIC.',
+      heic: 'Converting the HEIC photo on your device…',
+      queue: 'Photo {n} of {all}.',
+      queueDone: 'You have handled every photo you picked.',
+      skip: 'Skip this photo',
+      previous: 'Station of the previous photo:',
+      detecting: 'Looking for faces in the photo…',
+      detected: '{n} faces found and blurred. Check that none is missing, and mark the number plates.',
+      detectedOne: '1 face found and blurred. Check that none is missing, and mark the number plates.',
+      detectedNone: 'No faces found. Check for yourself, and mark the number plates.',
+      detectFailed: 'Automatic face detection did not work on this device. Mark every face and number plate yourself.',
+      mapLoading: 'Opening the map…',
+      mapFailed: 'Couldn’t open the map.',
+      mapZoom: 'Zoom in to see the stations.',
+      mapStations: '{n} stations in this area. Tap one to choose it.',
+      locating: 'Finding your location…',
+      locateFailed: 'Couldn’t get your location.',
+      proposeNeed: 'Type the name and the operator, and set the position (from the photo’s GPS or the map).',
+      proposeSending: 'Proposing the station…',
+      proposeDone: 'Station proposed. It is chosen for this photo, waiting for moderation.',
+      proposeNearby: 'There are stations less than 60 m from here: {list}. If it is one of them, choose it; if not, press “Propose the station” again.',
+      proposeErrors: {
+        name_and_operator: 'Type the name and the operator.',
+        bad_code: 'The code can only have letters, numbers, *, -, _ and dots.',
+        bad_position: 'The position must be in Portugal.',
+        daily_limit: 'You have reached today’s limit of proposed stations.',
+        other: 'Couldn’t propose the station. Try again.',
+      },
+      proposedStation: 'Proposed station (waiting for moderation)',
       tooBig: 'The photo is over 40 MB. Choose another.',
       gps: 'GPS read from the photo and rounded to about 100 m. Stations within 500 m:',
       preset: 'Station from the link you opened:',
@@ -156,6 +245,7 @@ const T = {
       resultAlt: 'The prepared photo, at 400 px',
       sending: 'Sending…',
       sent: 'Sent. It waits for moderation before it appears.',
+      sentPublished: 'Sent and published.',
       errors: {
         uploads_closed: 'Uploads are closed right now.',
         turnstile: 'The security check failed or has not finished yet. Wait a few seconds and send again.',
@@ -205,8 +295,9 @@ function form(lang: Lang, sending: boolean, sitekey?: string, station?: string |
 <section class="card" aria-labelledby="h-photo">
   <h2 id="h-photo">${t.stepPhoto}</h2>
   <label for="photo">${t.photoLabel}</label>
-  <input id="photo" name="photo" type="file" accept="image/jpeg" required aria-describedby="photo-hint">
+  <input id="photo" name="photo" type="file" accept="image/jpeg,image/heic,image/heif,.heic,.heif,.jpg,.jpeg" multiple required aria-describedby="photo-hint">
   <p id="photo-hint" class="hint">${t.photoHint}</p>
+  <p id="photo-queue" class="hint" hidden></p>
   <p id="photo-status" class="status" role="status"></p>
 </section>
 <section class="card" id="step-station" aria-labelledby="h-station" hidden>
@@ -225,6 +316,32 @@ function form(lang: Lang, sending: boolean, sitekey?: string, station?: string |
     </div>
     <p id="station-q-hint" class="hint">${t.searchHint}</p>
   </div>
+  <div class="station-map">
+    <button type="button" id="map-open" class="button secondary">${t.mapOpen}</button>
+    <p class="hint">${t.mapNote}</p>
+    <div id="map-box" hidden>
+      <div id="map" class="map" role="region" aria-label="${esc(t.mapLabel)}"></div>
+      <div class="zone-tools"><button type="button" id="locate" class="button secondary">${t.locate}</button></div>
+      <p id="map-status" class="status" role="status"></p>
+    </div>
+  </div>
+  <details id="propose" class="propose">
+    <summary>${t.proposeSummary}</summary>
+    <p class="hint">${t.proposeIntro}</p>
+    <label for="p-name">${t.proposeName}</label>
+    <input id="p-name" maxlength="120" autocomplete="off">
+    <label for="p-operator">${t.proposeOperator}</label>
+    <input id="p-operator" maxlength="120" autocomplete="off">
+    <label for="p-code">${t.proposeCode}</label>
+    <input id="p-code" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="p-code-hint">
+    <p id="p-code-hint" class="hint">${t.proposeCodeHint}</p>
+    <p><strong>${t.proposePosition}:</strong> <span id="p-position">—</span></p>
+    <p class="hint">${t.proposePositionHint}</p>
+    <label for="p-note">${t.proposeNote}</label>
+    <textarea id="p-note" maxlength="500" rows="2"></textarea>
+    <p><button type="button" id="propose-send" class="button secondary">${t.proposeSend}</button></p>
+    <p id="propose-status" class="status" role="status"></p>
+  </details>
   <fieldset id="targets" hidden>
     <legend>${t.targetsLegend}</legend>
     <div class="choices" id="target-list"></div>
@@ -241,7 +358,9 @@ function form(lang: Lang, sending: boolean, sitekey?: string, station?: string |
   <div class="zone-tools">
     <button type="button" id="draw" class="button secondary" aria-pressed="false">${t.draw}</button>
     <button type="button" id="add-zone" class="button secondary">${t.add}</button>
+    <button type="button" id="detect" class="button secondary">${t.detect}</button>
   </div>
+  <p id="detect-status" class="status" role="status"></p>
   <p id="zone-summary" class="status" role="status"></p>
   <p class="hint">${t.blurHint}</p>
 </section>
@@ -260,6 +379,8 @@ function form(lang: Lang, sending: boolean, sitekey?: string, station?: string |
   <button type="submit" class="button">${sending ? t.send : t.prepare}</button>
   <p id="send-status" class="status" role="status"></p>
   <div id="result" class="result-photo" hidden></div>
+  <p class="zone-tools"><button type="button" id="next-photo" class="button" hidden>${t.next}</button>
+  <button type="button" id="skip-photo" class="button secondary" hidden>${t.js.skip}</button></p>
 </section>
 </form>`;
 }

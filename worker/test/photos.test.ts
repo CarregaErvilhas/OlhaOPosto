@@ -91,6 +91,9 @@ function fakes(opts: { count?: number; panoramax?: number; role?: string; socket
     const s = {
       bind(...a: unknown[]) { args = a; return s; },
       async first<T>(): Promise<T | null> {
+        if (sql.includes('FROM api_tokens')) {
+          return { token_id: 't1', scopes: 'photos:write', last_used_at: NOW.toISOString(), id: 'u1', name: 'Ana', role: opts.role ?? 'contributor' } as T;
+        }
         if (sql.includes('FROM sessions')) return { id: 'u1', name: 'Ana', role: opts.role ?? 'contributor' } as T;
         if (sql.includes('FROM stations')) return (args[0] === 'EZC-AMD-00051' ? { lat: 38.78791, lon: -9.226767 } : null) as T;
         if (sql.includes('FROM evses')) return (opts.socket === false ? null : { evse_id: 'PT*EZC*E*AMD*00051*1' }) as T;
@@ -140,7 +143,7 @@ function fakeFetch(f: Fakes, status = 200) {
   };
 }
 
-function upload(opts: { meta?: Record<string, unknown>; origin?: string; full?: Uint8Array; turnstile?: string | null } = {}) {
+function upload(opts: { meta?: Record<string, unknown>; origin?: string; full?: Uint8Array; turnstile?: string | null; token?: string } = {}) {
   const body = new FormData();
   body.append('full', new Blob([opts.full ?? jpeg(2048, 1536)], { type: 'image/jpeg' }), 'full.jpg');
   body.append('main', new Blob([jpeg(1024, 768)], { type: 'image/jpeg' }), 'main.jpg');
@@ -149,9 +152,9 @@ function upload(opts: { meta?: Record<string, unknown>; origin?: string; full?: 
   if (opts.turnstile !== null) body.append('turnstile', opts.turnstile ?? 'ts-token');
   return new Request('https://olhaoposto.ocarroeletrico.com/api/v1/photos', {
     method: 'POST', body,
-    headers: {
-      origin: opts.origin ?? 'https://olhaoposto.ocarroeletrico.com', cookie: '__Host-oop_session=abc', 'cf-connecting-ip': '192.0.2.1',
-    },
+    headers: opts.token
+      ? { authorization: `Bearer ${opts.token}`, 'cf-connecting-ip': '192.0.2.1' }
+      : { origin: opts.origin ?? 'https://olhaoposto.ocarroeletrico.com', cookie: '__Host-oop_session=abc', 'cf-connecting-ip': '192.0.2.1' },
   });
 }
 
@@ -252,4 +255,14 @@ test('submitPhoto: a Panoramax failure leaves only a failed row', async () => {
     assert.equal(f.calls.at(-1)?.method, 'DELETE');
     assert.equal(f.licenseSet, 0);
   }
+});
+
+test('submitPhoto: an API token uploads without Turnstile or an origin, with the same checks', async () => {
+  const f = fakes();
+  const { status, body } = await run(f, upload({ token: 'oop_abc', turnstile: null }));
+  assert.equal(status, 201);
+  assert.equal(f.verified.length, 0);
+  assert.equal(f.rows.get(body.id as string)!.status, 'pending');
+  assert.deepEqual((await run(fakes(), upload({ token: 'oop_abc', turnstile: null, full: jpeg(2048, 1536, EXIF) }))).body, { error: 'bad_photo' });
+  assert.deepEqual((await run(fakes(), upload({ token: 'not-ours', turnstile: null }))).body, { error: 'sign_in_required' });
 });

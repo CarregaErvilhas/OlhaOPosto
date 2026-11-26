@@ -6,6 +6,8 @@
     "node": ">=24"
   },
   "scripts": {
+    "vendor": "node scripts/vendor.ts",
+    "predev": "npm run vendor",
     "dev": "wrangler dev",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.scripts.json",
     "test": "node --test \"test/**/*.test.ts\"",
@@ -16,7 +18,10 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261110.1",
+    "@mediapipe/tasks-vision": "1.2.3",
     "@types/node": "24.19.2",
+    "leaflet": "1.9.4",
+    "libheif-js": "1.23.5",
     "typescript": "7.0.2",
     "wrangler": "4.160.1"
   },

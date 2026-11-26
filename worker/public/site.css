@@ -395,6 +395,37 @@ table.users th { font-weight: 600; color: var(--muted); font-size: 0.875rem; }
 .main-photo figcaption { margin-top: 8px; font-size: 0.875rem; color: var(--muted); }
 img.thumb { object-fit: cover; height: 48px; border-style: solid; }
 
+/* Ranking */
+.table-wrap { overflow-x: auto; margin: 0 0 24px; }
+table.ranking { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+table.ranking th, table.ranking td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+table.ranking thead th { color: var(--muted); font-weight: 600; font-size: 0.8125rem; }
+table.ranking tbody th { font-weight: 600; overflow-wrap: anywhere; }
+table.ranking .num { text-align: right; font-variant-numeric: tabular-nums; }
+.medal { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 0.8125rem; font-weight: 600; border: 1px solid var(--line-strong); color: var(--text); }
+.medal::before { content: "●"; margin-right: 6px; }
+.medal-gold::before { color: #C9971C; }
+.medal-silver::before { color: #8E99A6; }
+.medal-bronze::before { color: #A8642F; }
+
+/* Account: points and API tokens */
+.account-section { text-align: left; margin: 0 0 20px; }
+.account-section h2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tokens { margin: 0 0 16px; }
+.token-item { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.token-item form { margin: 4px 0 0; }
+.token-new { display: block; overflow-wrap: anywhere; user-select: all; font-family: var(--mono); padding: 8px; background: var(--code); border-radius: 8px; color: var(--text); }
+.token-form { display: grid; gap: 6px; }
+.token-form fieldset { border: 0; padding: 0; margin: 8px 0; }
+.account-section > p { color: var(--text); font-size: 1rem; }
+
+/* Upload: map and new station */
+.station-map { margin: 16px 0 0; }
+.map { height: 320px; border-radius: 12px; border: 1px solid var(--line); margin: 8px 0; }
+.propose { margin: 16px 0 0; }
+.propose summary { cursor: pointer; font-weight: 600; }
+.propose input, .propose textarea { width: 100%; box-sizing: border-box; }
+.propose label { display: block; margin: 10px 0 4px; }
 /* The group (/grupo): each site's mascot beside a speech bubble, alternating sides,
    as on the other sites of the group. --c is that site's colour, only for the circle
    behind the mascot and the dot before its address: text keeps the page's colours. */

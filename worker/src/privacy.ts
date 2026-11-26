@@ -4,7 +4,7 @@
 // changes in the same PR, before it goes live.
 // pages.ts never imports this file (its footer uses privacyPath from there),
 // so there is no import cycle.
-import { BRAND, accountPath, homePath, layout, privacyPath, type Lang } from './pages.ts';
+import { BRAND, accountPath, homePath, layout, privacyPath, termsPath, type Lang } from './pages.ts';
 import { DEADLINE_H, takedownFormPath } from './takedown.ts';
 
 const CONTACT = 'info@ocarroeletrico.com';
@@ -23,7 +23,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
     title: `Privacidade · ${BRAND}`,
     description: `Que dados o ${BRAND} trata, porquê, durante quanto tempo e como pedir que os apaguemos.`,
     body: `<h1>Privacidade</h1>
-<p>O ${BRAND} mostra fotos e dados dos postos de carregamento em Portugal. Para ver o site não precisas de conta. Não há anúncios, análise de tráfego nem nada de terceiros nas páginas.</p>
+<p>O ${BRAND} mostra fotos e dados dos postos de carregamento em Portugal. Para ver o site não precisas de conta. Não há anúncios, análise de tráfego nem nada de terceiros nas páginas, salvo o que se diz abaixo para o envio de fotos.</p>
 <p><strong>Responsável:</strong> O Carro Elétrico / Fernando Miguel, ${mail}.</p>
 
 <h2>Ao visitar o site</h2>
@@ -43,16 +43,24 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>Ao iniciar sessão passas pelo site do OpenStreetMap, que trata os teus dados segundo a <a href="${LINKS.osmf}">política de privacidade da OpenStreetMap Foundation</a>.</p>
 
 <h2>Envio de fotos</h2>
-<p>A página de envio trata a foto no teu dispositivo: abre-a, lê a data e o GPS, desfoca as zonas que marcares por cima de caras e matrículas, e faz três tamanhos (2048, 1024 e 400 px) sem metadados. A foto original nunca é enviada. Para sugerir postos, a página arredonda o GPS a cerca de 100 metros e pede-nos os postos à volta desse ponto; esse pedido fica no registo técnico como qualquer outro.</p>
-<p>Enquanto o envio estiver fechado, a página só prepara a foto, e nada dela sai do teu dispositivo além desse pedido de postos. Quando enviares, recebemos os três tamanhos e, à parte, a data e o GPS exato da foto, se os tiver. Guardamos:</p>
-<p>Com o envio aberto, a página usa o Cloudflare Turnstile para confirmar que quem envia é uma pessoa e não um programa. O Turnstile corre no teu navegador, recolhe sinais técnicos (por exemplo, o endereço IP e características do navegador) e não usa <i>cookies</i>; recebemos só um código de uma utilização, que verificamos na Cloudflare junto com o teu endereço IP. O fundamento é o nosso interesse legítimo em travar envios automáticos (artigo 6.º, n.º 1, alínea f) do RGPD). Ver a <a href="${LINKS.turnstilePrivacy}">política de privacidade do Turnstile</a>.</p>
+<p>A página de envio trata a foto no teu dispositivo: abre-a (também as fotos HEIC, convertidas no dispositivo), lê a data e o GPS, procura caras para sugerir as zonas a desfocar, desfoca as zonas que confirmares por cima de caras e matrículas, e faz três tamanhos (2048, 1024 e 400 px) sem metadados. A foto original nunca é enviada, e a procura de caras corre no teu dispositivo, com um programa e um modelo servidos por este site. Para sugerir postos, a página arredonda o GPS a cerca de 100 metros e pede-nos os postos à volta desse ponto; esse pedido fica no registo técnico como qualquer outro.</p>
+<p>Se abrires o mapa para escolher o posto, o teu navegador pede as imagens do mapa (os mosaicos) aos servidores do OpenStreetMap, que recebem o teu endereço IP e a zona do mapa que vês, segundo a <a href="${LINKS.osmf}">política de privacidade da OpenStreetMap Foundation</a>. O mapa só abre se tocares no botão. O botão «Ir para a minha localização» pede ao navegador a tua posição; ela só serve para centrar o mapa, e o que nos chega é o centro do mapa arredondado a cerca de 100 metros, para listar os postos.</p>
+<p>Se propuseres um posto novo, guardamos o que escreveste (nome, operador, código, posição e nota), quem o propôs e quando, e a decisão do moderador. Até ser aprovado, não é público e só a moderação o vê; aprovado, o nome, o operador, o código e a posição ficam públicos como os dos outros postos, sem o teu nome.</p>
+<p>Quando enviares, recebemos os três tamanhos e, à parte, a data e o GPS exato da foto, se os tiver. Guardamos:</p>
 <ul>
 <li>a foto de 2048 px no nosso servidor Panoramax, com as coordenadas do posto (nunca as do GPS da foto), a data da foto e o teu nome no OpenStreetMap como autor;</li>
 <li>as versões de 1024 e 400 px num armazenamento privado;</li>
-<li>na nossa base de dados: o posto ou a tomada, a data e o GPS da foto, a distância ao posto, o nome de autor, quem enviou, quando, e a data em que aceitaste a licença.</li>
+<li>na nossa base de dados: o posto ou a tomada, a data e o GPS da foto, a distância ao posto, o nome de autor, quem enviou, quando, e a data em que aceitaste a licença e as <a href="${termsPath('pt')}">condições de utilização</a>.</li>
 </ul>
+<p>Com o envio aberto, a página usa o Cloudflare Turnstile para confirmar que quem envia é uma pessoa e não um programa. O Turnstile corre no teu navegador, recolhe sinais técnicos (por exemplo, o endereço IP e características do navegador) e não usa <i>cookies</i>; recebemos só um código de uma utilização, que verificamos na Cloudflare junto com o teu endereço IP. O fundamento é o nosso interesse legítimo em travar envios automáticos (artigo 6.º, n.º 1, alínea f) do RGPD). Ver a <a href="${LINKS.turnstilePrivacy}">política de privacidade do Turnstile</a>.</p>
 <p>Até um moderador a aprovar, a foto só é visível para a moderação. Ao ser aprovada, fica pública com o nome de autor, a data e a licença CC BY-SA 4.0 (com autorização para dados ODbL), no Panoramax e nos links estáticos. O GPS da foto nunca é publicado: serve só aos moderadores para confirmar o posto, e fica enquanto a foto existir. Uma foto recusada é apagada do Panoramax e do armazenamento privado.</p>
 <p>O fundamento é prestar o serviço que pedes ao enviar (artigo 6.º, n.º 1, alínea b) do RGPD). Contamos os envios por pessoa e por dia, para travar abusos. Para retirar uma foto tua, escreve para ${mail}.</p>
+
+<h2>Pontos e ranking</h2>
+<p>Cada foto aprovada dá pontos ao seu autor. Guardamos, por cada atribuição, a conta, a foto, os pontos, o motivo e a data. O <a href="/ranking">ranking</a> mostra publicamente o nome de autor, os pontos, o número de fotos aprovadas e a medalha. Podes sair do ranking na tua <a href="${accountPath('pt')}">conta</a>: deixas de aparecer, e os pontos continuam a contar só para ti. O fundamento é prestar o serviço que pedes ao enviar (artigo 6.º, n.º 1, alínea b) do RGPD).</p>
+
+<h2><i>Tokens</i> de API</h2>
+<p>Se criares um <i>token</i> de API na tua conta, guardamos o nome que lhe dás, o que pode fazer, as datas de criação, de validade e do último uso (no máximo uma vez por hora), e só uma impressão digital (<i>hash</i>) do <i>token</i>, que não serve para o usar. O <i>token</i> em claro aparece-te uma vez e não fica connosco. Um <i>token</i> revogado ou expirado apaga-se quando crias o seguinte, e todos se apagam com a conta. Os envios feitos com um <i>token</i> não passam pelo Turnstile e guardam-se como os outros envios.</p>
 
 <h2>Pedidos de remoção</h2>
 <p>Se uma foto te mostra a ti, a tua matrícula ou a tua casa, ou é uma foto tua publicada sem autorização, podes pedir que a retiremos no <a href="${takedownFormPath('pt')}">formulário de remoção</a>, sem conta e sem deixar contacto. A foto fica oculta logo que o pedido chega (no site, nos links estáticos e no Panoramax) e um moderador decide em ${DEADLINE_H} horas se a apaga de vez ou a mantém.</p>
@@ -77,7 +85,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
     title: `Privacy · ${BRAND}`,
     description: `What data ${BRAND} handles, why, for how long, and how to ask us to delete it.`,
     body: `<h1>Privacy</h1>
-<p>${BRAND} shows photos and data about EV charging stations in Portugal. You do not need an account to use the site. There are no ads, no analytics and nothing from third parties on the pages.</p>
+<p>${BRAND} shows photos and data about EV charging stations in Portugal. You do not need an account to use the site. There are no ads, no analytics and nothing from third parties on the pages, apart from what is said below for photo uploads.</p>
 <p><strong>Controller:</strong> O Carro Elétrico / Fernando Miguel, ${mail}.</p>
 
 <h2>When you visit the site</h2>
@@ -97,16 +105,24 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>Signing in takes you through the OpenStreetMap site, which handles your data under the <a href="${LINKS.osmf}">OpenStreetMap Foundation privacy policy</a>.</p>
 
 <h2>Photo uploads</h2>
-<p>The upload page handles the photo on your device: it opens it, reads its date and GPS, blurs the areas you mark over faces and number plates, and makes three sizes (2048, 1024 and 400 px) without metadata. The original photo is never sent. To suggest stations, the page rounds the GPS to about 100 metres and asks us for the stations around that point; that request goes into the technical log like any other.</p>
-<p>While uploads are closed, the page only prepares the photo, and nothing from it leaves your device apart from that station request. When you send a photo, we receive the three sizes and, separately, the photo’s date and exact GPS, if it has them. We keep:</p>
-<p>With uploads open, the page uses Cloudflare Turnstile to confirm that the sender is a person and not a program. Turnstile runs in your browser, collects technical signals (for example, your IP address and browser characteristics) and uses no cookies; we receive only a single-use code, which we check with Cloudflare together with your IP address. The basis is our legitimate interest in stopping automated uploads (Article 6(1)(f) GDPR). See the <a href="${LINKS.turnstilePrivacy}">Turnstile privacy addendum</a>.</p>
+<p>The upload page handles the photo on your device: it opens it (HEIC photos too, converted on the device), reads its date and GPS, looks for faces to suggest the areas to blur, blurs the areas you confirm over faces and number plates, and makes three sizes (2048, 1024 and 400 px) without metadata. The original photo is never sent, and the face search runs on your device, with a program and a model served by this site. To suggest stations, the page rounds the GPS to about 100 metres and asks us for the stations around that point; that request goes into the technical log like any other.</p>
+<p>If you open the map to choose the station, your browser asks OpenStreetMap’s servers for the map images (tiles), and they receive your IP address and the area of the map you look at, under the <a href="${LINKS.osmf}">OpenStreetMap Foundation privacy policy</a>. The map only opens if you tap the button. The “Go to my location” button asks your browser for your position; it only centres the map, and what reaches us is the centre of the map rounded to about 100 metres, to list the stations.</p>
+<p>If you propose a new station, we keep what you wrote (name, operator, code, position and note), who proposed it and when, and the moderator’s decision. Until it is approved, it is not public and only the moderators see it; once approved, its name, operator, code and position are public like those of the other stations, without your name.</p>
+<p>When you send a photo, we receive the three sizes and, separately, the photo’s date and exact GPS, if it has them. We keep:</p>
 <ul>
 <li>the 2048 px photo on our Panoramax server, with the station’s coordinates (never the photo’s GPS), the photo’s date and your OpenStreetMap name as the author;</li>
 <li>the 1024 and 400 px versions in private storage;</li>
-<li>in our database: the station or socket, the photo’s date and GPS, the distance to the station, the author name, who sent it, when, and the date you accepted the licence.</li>
+<li>in our database: the station or socket, the photo’s date and GPS, the distance to the station, the author name, who sent it, when, and the date you accepted the licence and the <a href="${termsPath('en')}">terms</a>.</li>
 </ul>
+<p>With uploads open, the page uses Cloudflare Turnstile to confirm that the sender is a person and not a program. Turnstile runs in your browser, collects technical signals (for example, your IP address and browser characteristics) and uses no cookies; we receive only a single-use code, which we check with Cloudflare together with your IP address. The basis is our legitimate interest in stopping automated uploads (Article 6(1)(f) GDPR). See the <a href="${LINKS.turnstilePrivacy}">Turnstile privacy addendum</a>.</p>
 <p>Until a moderator approves it, the photo is visible only to moderators. Once approved, it becomes public with the author name, the date and the CC BY-SA 4.0 licence (with permission for ODbL data), on Panoramax and through the static links. The photo’s GPS is never published: it only helps moderators confirm the station, and it is kept for as long as the photo exists. A rejected photo is deleted from Panoramax and from the private storage.</p>
 <p>The legal basis is providing the service you ask for when you send it (Article 6(1)(b) GDPR). We count uploads per person per day to stop abuse. To take down one of your photos, write to ${mail}.</p>
+
+<h2>Points and ranking</h2>
+<p>Each approved photo earns points for its author. For each award we keep the account, the photo, the points, the reason and the date. The <a href="/en/ranking">ranking</a> shows publicly the author name, the points, the number of approved photos and the medal. You can leave the ranking from your <a href="${accountPath('en')}">account</a>: you no longer appear, and the points keep counting for you alone. The legal basis is providing the service you ask for when you send photos (GDPR Article 6(1)(b)).</p>
+
+<h2>API tokens</h2>
+<p>If you create an API token on your account page, we keep the name you give it, what it can do, the dates it was created, expires and was last used (at most once an hour), and only a fingerprint (hash) of the token, which cannot be used to sign in. The token in clear is shown to you once and not kept by us. A revoked or expired token is deleted when you create the next one, and all of them are deleted with the account. Uploads made with a token skip Turnstile and are kept like any other upload.</p>
 
 <h2>Removal requests</h2>
 <p>If a photo shows you, your number plate or your home, or is a photo of yours published without your permission, you can ask us to take it down with the <a href="${takedownFormPath('en')}">removal form</a>, without an account and without leaving a contact. The photo is hidden as soon as the request arrives (on the site, the static links and Panoramax), and a moderator decides within ${DEADLINE_H} hours whether to delete it for good or keep it.</p>

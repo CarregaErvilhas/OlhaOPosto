@@ -5,16 +5,20 @@
 import { ROLE_ACTION, setRole, usersHtml } from './admin.ts';
 import { DECIDE_ACTION, STAGING_PREFIX, decide, queueHtml, stagingImage } from './moderation.ts';
 import { ALIAS_ACTION, aliasPath, aliasesHtml, getStationAlias, rekey } from './aliases.ts';
-import { accountHtml, callback, currentUser, login, logout } from './auth.ts';
+import { ACCOUNT_ACTION, accountAction, accountHtml } from './account.ts';
+import { callback, login, logout } from './auth.ts';
+import { apiCaller, canChooseMain } from './tokens.ts';
 import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { chooseMain } from './publish.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
 import { findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
-import { ranking } from './ranking.ts';
+import { ranking } from './points.ts';
 import {
   PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, rankingPage, rankingPath, searchPage, socketAnchor, stationPage, stationPath, type Lang,
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
+import { termsPage } from './terms.ts';
+import { proposeStation } from './proposals.ts';
 import { groupPage } from './grupo.ts';
 import { photoLink } from './photolinks.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
@@ -44,13 +48,25 @@ const HTML_HEADERS = {
   'strict-transport-security': 'max-age=31536000',
 };
 
-// The upload page also asks our API for stations (connect-src), shows the
-// prepared photo from a blob: URL and loads Turnstile (its script and its
-// iframe). Only that page gets these.
+// The upload page also asks our API for stations (connect-src; also the
+// HEIC decoder and face model files, fetched from /vendor/ and /models/),
+// shows the prepared photo from a blob: URL, loads Turnstile (its script and
+// its iframe), compiles WebAssembly (libheif for HEIC, MediaPipe for faces:
+// 'wasm-unsafe-eval' allows compiling wasm, not eval of JavaScript) and,
+// only when the person opens the map, shows OpenStreetMap tiles. Only that
+// page gets these.
 const UPLOAD_HEADERS = {
   ...HTML_HEADERS,
   'content-security-policy': HTML_HEADERS['content-security-policy']
-    .replace("img-src 'self'", "img-src 'self' blob:")
+    .replace("img-src 'self'", "img-src 'self' blob: https://tile.openstreetmap.org")
+    .replace("default-src 'none';", "default-src 'none'; connect-src 'self'; frame-src https://challenges.cloudflare.com;")
+    .replace("script-src 'self'", "script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com"),
+};
+
+// The removal form loads Turnstile, like the upload page, and nothing else.
+const TURNSTILE_HEADERS = {
+  ...HTML_HEADERS,
+  'content-security-policy': HTML_HEADERS['content-security-policy']
     .replace("default-src 'none';", "default-src 'none'; connect-src 'self'; frame-src https://challenges.cloudflare.com;")
     .replace("script-src 'self'", "script-src 'self' https://challenges.cloudflare.com"),
 };
@@ -207,25 +223,13 @@ function evseHtml(lang: Lang) {
 }
 
 async function rankingJson(env: Env, url: URL): Promise<Response> {
-  const periodRaw = url.searchParams.get('period') ?? 'month';
-  const period = periodRaw === 'all' ? 'all' : 'month';
-  const rows = await ranking(env, period);
-  const month = new Date().toISOString().slice(0, 7);
-  const contributors = rows.map((r, i) => ({
-    rank: i + 1,
-    name: r.name,
-    points: r.points,
-    total: r.points,
-    total_points: r.points,
-    score: r.points,
-  }));
+  const period = url.searchParams.get('period') === 'all' ? 'all' : 'month';
+  const now = new Date();
+  const rows = await ranking(env.DB, period, now);
   return json({
     period,
-    month: period === 'month' ? month : undefined,
-    contributors,
-    ranking: contributors,
-    results: contributors,
-    items: contributors,
+    month: period === 'month' ? now.toISOString().slice(0, 7) : undefined,
+    contributors: rows.map((r, i) => ({ rank: i + 1, name: r.name, points: r.points, photos: r.photos, medal: r.medal })),
   });
 }
 
@@ -324,11 +328,10 @@ const ROUTES: [RegExp, Handler, () => Response][] = [
 ];
 
 async function setSelection(request: Request, env: Env & PhotoEnv, ctx: ExecutionContext, target: string): Promise<Response> {
-  const user = await currentUser(request, env).catch(() => null);
-  if (!user) return json({ error: 'sign_in_required' }, 401, 'no-store');
-  if (user.role !== 'trusted' && user.role !== 'moderator' && user.role !== 'admin') {
-    return json({ error: 'forbidden' }, 403, 'no-store');
-  }
+  const caller = await apiCaller(request, env, 'selections:write');
+  if ('error' in caller) return json({ error: caller.error }, caller.status, 'no-store');
+  const { user } = caller;
+  if (!canChooseMain(user.role)) return json({ error: 'forbidden' }, 403, 'no-store');
   let body: { photo?: string } = {};
   try { body = await request.json(); } catch { return json({ error: 'bad_body' }, 400, 'no-store'); }
   if (!body.photo) return json({ error: 'bad_photo' }, 400, 'no-store');
@@ -346,10 +349,12 @@ export default {
     const { pathname } = url;
     // The POSTs: everything else on this site only reads.
     if (request.method === 'POST' && pathname === '/auth/logout') return logout(request, env);
+    if (request.method === 'POST' && pathname === ACCOUNT_ACTION) return accountAction(request, env, HTML_HEADERS);
     if (request.method === 'POST' && pathname === ROLE_ACTION) return setRole(request, env);
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
     if (request.method === 'POST' && pathname === '/api/v1/photos') return submitPhoto(request, env, ctx);
+    if (request.method === 'POST' && pathname === '/api/v1/stations') return proposeStation(request, env);
     if (request.method === 'POST' && pathname === '/report') return submitTakedown(request, env);
     if (request.method === 'POST' && pathname === TAKEDOWN_DECIDE) return decideTakedown(request, env);
     if (request.method === 'PUT') {
@@ -381,6 +386,8 @@ export default {
     if (pathname === '/en') return new Response(null, { status: 301, headers: { location: '/en/' } });
     if (pathname === '/privacidade') return html('pt', privacyPage('pt'));
     if (pathname === '/en/privacy') return html('en', privacyPage('en'));
+    if (pathname === '/condicoes') return html('pt', termsPage('pt'));
+    if (pathname === '/en/terms') return html('en', termsPage('en'));
     if (pathname === '/grupo') return html('pt', groupPage('pt'));
     if (pathname === '/en/group') return html('en', groupPage('en'));
     if (pathname === '/conta') return accountHtml('pt', request, env, HTML_HEADERS);
@@ -393,8 +400,8 @@ export default {
     if (pathname === '/admin/postos-fora-do-nap' || pathname === '/admin/aliases' || pathname === '/admin/rekeys' || pathname === '/admin/rekey') return aliasesHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/stations-missing' || pathname === '/en/admin/aliases' || pathname === '/en/admin/rekeys' || pathname === '/en/admin/rekey') return aliasesHtml('en', request, env, HTML_HEADERS);
     // The removal form loads Turnstile, like the upload page.
-    if (pathname === '/report') return takedownHtml('pt', request, env, UPLOAD_HEADERS);
-    if (pathname === '/en/report') return takedownHtml('en', request, env, UPLOAD_HEADERS);
+    if (pathname === '/report') return takedownHtml('pt', request, env, TURNSTILE_HEADERS);
+    if (pathname === '/en/report') return takedownHtml('en', request, env, TURNSTILE_HEADERS);
     if (pathname === '/admin/remocoes') return takedownsHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/takedowns') return takedownsHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
@@ -408,7 +415,7 @@ export default {
       const lang = pathname.startsWith('/en/') ? 'en' : 'pt';
       const periodRaw = url.searchParams.get('period') ?? 'all';
       const period = periodRaw === 'month' ? 'month' : 'all';
-      const rows = await ranking(env, period);
+      const rows = await ranking(env.DB, period);
       return html(lang, rankingPage(lang, period, rows));
     }
     if (pathname === '/sitemap.xml') return sitemap(request, env, ctx);

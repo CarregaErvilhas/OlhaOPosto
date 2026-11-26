@@ -3,24 +3,28 @@
 Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`.
 
 Este documento só tem o que ainda não existe. O que já está a funcionar
-(objetivos, princípios, domínios, servidor Panoramax, import dos postos,
-páginas, pesquisa e API só de leitura, login OSM, política de privacidade e
-a parte do envio que corre no browser) está em [`arquitetura.md`](arquitetura.md). Quando
-uma parte daqui fica feita, sai deste documento e a descrição do que ficou
-passa para lá, para o [`cloudflare.md`](cloudflare.md) ou para o
-[`infra.md`](infra.md).
+(servidor Panoramax, import dos postos, páginas, pesquisa, API de leitura e de
+escrita com *tokens*, login OSM, condições de utilização e privacidade, o envio com HEIC, mapa,
+postos propostos e deteção de caras, a moderação, os pedidos de remoção, a
+troca da foto principal, os aliases, os pontos e o ranking) está em
+[`arquitetura.md`](arquitetura.md), com a operação em
+[`cloudflare.md`](cloudflare.md) e [`infra.md`](infra.md). Quando uma parte
+daqui fica feita, sai deste documento e passa para lá.
 
 ## Fases
 
 1. **Panoramax.** Falta:
    - começar a conversa com a OSM Portugal e a equipa do Panoramax (proposta no fórum da comunidade OSM, categoria Portugal, e no fórum do Panoramax).
 2. **O site para pessoas.** Falta:
-   - envio de fotos: a página `/enviar` e o `POST /api/v1/photos` estão feitos, com moderação e Turnstile, e fechados até haver os segredos do Turnstile e o token do Panoramax ([`cloudflare.md`](cloudflare.md), *Abrir o envio*); o que falta está no *Fluxo de upload*;
-   - fotos na API;
+   - detetor de matrículas no browser (ver *Desfocagem*);
+   - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
+   - página de crédito `/p/{photo_id}` e pseudónimo no perfil (ver *Crédito*);
+   - promover a foto aprovada seguinte a principal quando uma principal é ocultada ou retirada;
+   - o autor ver os seus envios e o motivo de uma recusa (ver *Moderação*);
    - link manual "acrescentar ao OSM";
    - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
    - entrada na federação, depois da conversa com a comunidade.
-3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP, escrita pela API com tokens, exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
+3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP, o resto da API (OpenAPI, `GET /photos/{id}`, `DELETE /photos/{id}`, filtros), exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
 4. **Desfocagem no servidor**, quando houver uma GPU a um custo razoável.
 
 ## Panoramax: etiquetas e federação
@@ -37,58 +41,21 @@ OlhaOPosto|author=joao_osm
 
 ## Modelo de dados (D1)
 
-As imagens vivem no Panoramax (originais e tamanhos) e, para as fotos principais, no bucket `pictures`. A D1 guarda metadados, a ligação a postos e tomadas e as escolhas. As tabelas `stations`, `evses`, `users`, `sessions`, `photos` e `selections` já existem ([`arquitetura.md`](arquitetura.md), *Postos e tomadas*). Faltam:
+Falta uma tabela:
 
 | Tabela | Colunas principais | Notas |
 | --- | --- | --- |
-| `review_queue` | `id`, `kind` (`new_station`, `photo`, `takedown`), `payload` (JSON), `submitted_by`, `status`, `decided_by`, `decided_at`, `note` | Fila única para tudo o que precisa de um humano |
-| `points` | `user_id`, `photo_id`, `points`, `reason` (`approved`, `first_photo`, `refresh`), `month` | Ver *Gamificação* |
 | `osm_edits` | `osm_element`, `key`, `value`, `photo_id`, `changeset`, `written_at` | O que o bot escreveu no OSM, para só alterar valores dele |
 
-Os *tokens* de API vão para uma tabela própria, só com o hash, como as sessões.
-
-Regras:
-
-- Um `photo_id` em `selections` tem de pertencer ao mesmo posto ou EVSE (verificado no Worker).
-- Quando não há seleção explícita, a primeira foto aprovada de um alvo passa a principal.
-- Apagar uma foto = `status=removed`, apagar no Panoramax e, se for principal, apagar as cópias em `pictures`; o registo fica para auditoria.
-
-## Fluxo de upload
-
-Tudo o que envolve a foto original acontece no browser: lê-se o EXIF, desfoca-se e re-codifica-se antes do envio. O servidor nunca recebe o original nem os metadados.
-
-A página `/enviar` faz a parte do browser (abre um JPEG, lê o EXIF, sugere o posto, deixa marcar zonas à mão, desfoca-as e gera os três tamanhos sem metadados) e o `POST /api/v1/photos` valida, guarda a foto no Panoramax (escondida) e em `pictures-staging`, e regista-a como `pending` ([`cloudflare.md`](cloudflare.md), secção 4, *Página de envio* e *Envio*). Falta, por ordem do fluxo:
-
-1. **Termos.** O `license_accepted_at` já se guarda no primeiro envio; falta uma página de termos para ler antes de aceitar.
-2. **HEIC e várias fotos.** A página aceita um JPEG de cada vez. No iPhone, o seletor converte HEIC para JPEG (falta confirmar num iPhone que o GPS sobrevive à conversão). Nos outros browsers, `heic2any` (libheif em WebAssembly, ver a licença) e um leitor do EXIF dentro do HEIC.
-3. **Mapa** para escolher o posto quando a foto não tem GPS; hoje só há a pesquisa por texto.
-4. **Posto não existe?** Formulário "novo posto": nome, operador, coordenadas (pré-preenchidas pelo GPS) e código se for conhecido. Cria `stations.status=pending_review` e uma entrada em `review_queue`.
-5. **Deteção automática** de caras e matrículas, que pré-desenha as zonas (ver *Desfocagem*).
-6. **Publicar ou rever.** Hoje todas as fotos ficam `pending`.
-    - Conta `trusted` (promovida à mão), posto `active` e dentro de 300 m → aprovada logo.
-    - Conta `contributor` → sempre `pending`, à espera de um moderador. Todas as contas novas começam aqui.
-    - Sem GPS, a mais de 300 m ou com posto novo → `pending` mesmo para `trusted`. Estes sinais também ordenam a fila e aparecem como avisos.
-7. **Ao aprovar.** A fila (`/admin/fila`) já passa o upload set a `anyone` no Panoramax e marca a foto `published` ([`cloudflare.md`](cloudflare.md), secção 4, *Fila de moderação*). Se o alvo não tinha principal, já a publica em `pictures` ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Os pontos são atribuídos na aprovação (+1 approved, +3 first_photo) e na troca de principal (+2 refresh).
-
-**O que se faz com a localização do EXIF**
-
-- Sugere o posto e evita fotos no posto errado.
-- Sinaliza discrepâncias: uma foto a 2 km do posto vai para revisão.
-- Ajuda a corrigir coordenadas: se várias fotos de pessoas diferentes concordam entre si e divergem do NAP, gera-se uma pista para reportar ao OPC ou corrigir no OSM.
-- Fica só na D1, visível para moderadores; a API pública mostra a data, nunca as coordenadas de quem tirou a foto.
-- O Panoramax é um mapa de fotos e pede coordenadas: recebe as **coordenadas do posto**, nunca as do EXIF, para manter a regra de nunca publicar o GPS de quem tirou a foto.
+E uma coluna para o motivo de uma recusa em `photos` (hoje fica só o estado `removed`, quem decidiu e quando).
 
 ## Publicação dos links estáticos
 
-A primeira foto aprovada de cada alvo já é publicada ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta:
+A primeira foto aprovada de cada alvo já é publicada, e a principal já se troca ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta:
 
-- **Trocar a principal:** um moderador ou uma conta `trusted` escolhe outra foto aprovada; o Worker copia-a por cima das três chaves e faz *purge* desses URLs (a Cache Rule guarda um `200` 30 dias; precisa de um token de API com *Cache Purge* como segredo do Worker). No pior caso, um browser mostra a foto antiga durante 24 h.
-- **Tirar a principal** quando a foto é removida (pedido de remoção): apagar as três chaves, *purge*, e passar a seguinte aprovada a principal, se houver.
+- **Passar a principal à seguinte** quando a foto é ocultada ou retirada (pedido de remoção): hoje as três chaves saem do `pictures` e o link passa a `404`; deve passar a seguinte foto aprovada do mesmo alvo, se houver.
 - **Página de crédito** `olhaoposto.ocarroeletrico.com/p/{photo_id}`, com o autor, a data e a licença. Hoje o XMP aponta para a página do posto.
-- **Re-keys:** o `301` do código antigo é uma regra de redirect da Cloudflare gerada a partir de `station_aliases`.
 - **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
-
-**Mudanças de código (re-key).** O NAP às vezes muda o código de um local. Quando isso acontece, o posto antigo fica `missing_from_nap` com as fotos. O admin tem uma lista "postos com fotos que saíram do NAP"; um moderador escreve o código novo e o link antigo passa a responder `301` para o novo. Sem sugestões automáticas.
 
 ### Fotos externas e links estáticos
 
@@ -128,26 +95,18 @@ Na fase 3, o refresh do NAP dashboard lê a exportação `olhaoposto.ocarroeletr
 
 ## API, MCP e llms.txt
 
-Há uma única camada de serviço no Worker (`searchStations`, `getStation`, `submitPhoto`…) e três portas para ela: a página web, a API REST e o servidor MCP. Assim as regras (validação, licença, desfocagem, moderação) são as mesmas para pessoas e para agentes.
+A camada de serviço no Worker serve a página, a API REST e, mais tarde, o servidor MCP, para as regras (validação, licença, desfocagem, moderação) serem as mesmas para pessoas e para agentes. O que já existe está em [`api.md`](api.md).
 
 ### API REST (`/api/v1`)
 
-Já existem `GET /stations?q=` (pesquisa por texto), `GET /stations?lat=&lon=&radius=` (proximidade), `GET /stations/{id}` e `GET /evses/{evse}`, sem fotos ([`cloudflare.md`](cloudflare.md), secção 4). Falta descrevê-la em OpenAPI 3.1 em `/api/v1/openapi.json`, juntar as fotos e os links estáticos a essas duas respostas, e o resto. Os `GET` são públicos e têm CORS aberto; as escritas pedem sessão ou token.
+Falta descrevê-la em OpenAPI 3.1 em `/api/v1/openapi.json`, e:
 
 | Método e rota | Faz | Auth |
 | --- | --- | --- |
 | `GET /stations?opc=&has_photo=` | Juntar às pesquisas por texto e por proximidade: operador ou falta de foto | — |
 | `GET /photos/{id}` | Metadados: autor, licença, data, URLs | — |
 | `GET /photos.json` | Exportação diária completa | — |
-| `POST /photos` | Envio (multipart: imagens + JSON de metadados) | `photos:write` |
-| `PUT /selections/{target}` | Escolher a foto principal de um posto ou tomada | `trusted` |
-| `POST /stations` | Propor posto novo (vai para a fila) | `photos:write` |
 | `DELETE /photos/{id}` | Retirar uma foto (autor ou moderador) | sessão/token |
-| `POST /report` | Pedido de remoção por privacidade, sem login | Turnstile |
-
-**Tokens para scripts e agentes** (fase 3). Cada utilizador gera *personal access tokens* na sua página, com âmbitos (`photos:read`, `photos:write`, `selections:write`) e validade. Envio com `Authorization: Bearer <token>`. Na D1 guarda-se só o hash. Os limites de envio são os da conta, não do token.
-
-**Envio pela API:** só `mode=clean`. O cliente já desfocou e tirou o EXIF, e manda as coordenadas e a data no JSON; o Worker confirma que não há EXIF nos bytes. A foto fica `pending` salvo se a conta for `trusted`. Um `mode=raw` (o servidor desfoca) só existe se a desfocagem no servidor vier a existir.
 
 ### Servidor MCP (`/mcp`)
 
@@ -167,75 +126,26 @@ As ferramentas de leitura funcionam sem login, para qualquer assistente poder mo
 
 ### llms.txt
 
-O `/llms.txt` já existe (`worker/public/llms.txt`), com as páginas, a API, os links estáticos e as licenças. Falta acrescentar o MCP, o envio de fotos e os tokens quando existirem, com uma página `.md` para cada um (o que a [proposta](https://llmstxt.org/) pede para os links), e o cabeçalho `Link: </llms.txt>; rel="describedby"; type="text/markdown"` nas páginas HTML.
+O `/llms.txt` já descreve as páginas, a API de leitura e de escrita, os links estáticos e as licenças. Falta acrescentar o MCP quando existir, uma página `.md` para cada parte (o que a [proposta](https://llmstxt.org/) pede para os links), e o cabeçalho `Link: </llms.txt>; rel="describedby"; type="text/markdown"` nas páginas HTML.
 
-## Autenticação
+## Crédito
 
-**Só login com conta OpenStreetMap (OAuth2)**, no `olhaoposto.*`. Ler as fotos e a API é público; só o envio e a moderação pedem login. GitHub fica para depois, se alguém o pedir: a maior parte da comunidade EV não tem conta lá.
-
-O início de sessão já está feito e desligado: como funciona e como se liga está no [`cloudflare.md`](cloudflare.md), secção 4. Nunca se pede `write_api` aos contribuidores: as edições no OSM são do bot ou manuais.
-
-**O que falta**
-
-1. Ligá-lo: aplicação registada no OSM e segredos `OSM_CLIENT_ID`/`OSM_CLIENT_SECRET` no Worker.
-2. O token da conta de serviço do Panoramax como segredo do Worker, quando o envio abrir.
-3. Turnstile: feito; faltam só os segredos ([`cloudflare.md`](cloudflare.md), *Abrir o envio*).
-4. ~~Painéis `/admin` de remoções e postos fora do NAP~~: feitos ([`cloudflare.md`](cloudflare.md), secção 4, *Pedidos de remoção* e *Aliases de postos*).
-
-**Papéis**
-
-| Papel | Pode |
-| --- | --- |
-| `contributor` | Papel de todas as contas novas. Enviar fotos e propor postos; tudo fica `pending` até um moderador aprovar |
-| `trusted` | Publicar direto, escolher a foto principal de um posto ou tomada |
-| `moderator` | Aprovar ou rejeitar a fila, ocultar fotos, tratar pedidos de remoção, promover a `trusted`, criar aliases de postos |
-| `admin` | Gerir moderadores, importações e configuração |
-
-**Sem promoção automática.** Todos os contribuidores ficam moderados até um moderador ou admin os promover manualmente a `trusted`. A promoção fica registada (`promoted_by`, `promoted_at`) e pode ser revertida, na página `/admin/utilizadores` ([`cloudflare.md`](cloudflare.md), secção 4, *Papéis*).
-
-**Crédito.** Por defeito, o nome OSM. Na página de perfil, a pessoa pode escrever um pseudónimo, que passa a ser o crédito em todo o lado (olh'o'posto, etiqueta no Panoramax, XMP). Mudar o crédito volta a publicar as cópias em `pictures`. O `uploader_id` fica sempre, para a moderação.
+Por defeito, o crédito é o nome OSM. Falta a página de perfil onde a pessoa escreve um pseudónimo, que passa a ser o crédito em todo o lado (olh'o'posto, etiqueta no Panoramax, XMP). Mudar o crédito volta a publicar as cópias em `pictures`. O `uploader_id` fica sempre, para a moderação. GitHub como segunda forma de entrar fica para quando alguém o pedir.
 
 ## Desfocagem de caras e matrículas
 
-**No browser, para já.** O editor de zonas já existe em `/enviar`: a pessoa desenha um retângulo por cima de cada cara ou matrícula e a página cobre-o com um mosaico grosso. Falta o detetor: ONNX Runtime Web ou MediaPipe no telemóvel, que pré-desenha as zonas para a pessoa confirmar, acrescentar ou remover (o WebAssembly vai pedir `'wasm-unsafe-eval'` na CSP dessa página). O original nunca sai do telemóvel, e o envio para o Panoramax vai com `isBlurred=true`.
+**No browser.** A deteção de caras já pré-desenha as zonas ([`arquitetura.md`](arquitetura.md), *Fluxo de envio*). Falta o detetor de **matrículas**: um modelo com pesos de licença permissiva que se possa distribuir no browser (os YOLO da Ultralytics são AGPL-3.0, por isso não servem). Matrículas de carros a carregar são o caso comum; é a prioridade seguinte da desfocagem.
 
-- **Caras:** MediaPipe Face Detector (Apache 2.0).
-- **Matrículas:** modelo por escolher, com pesos de licença permissiva. Os YOLO da Ultralytics são AGPL-3.0, por isso não servem para distribuir no browser. Matrículas de carros a carregar são o caso comum; vale a pena dar prioridade a este detetor.
-- **Abuso:** um cliente alterado pode enviar fotos sem desfocar. A mitigação: só publicam direto os `trusted`, promovidos à mão; o resto passa pela fila.
+**Abuso:** um cliente alterado, ou um *token*, pode enviar fotos sem desfocar. A mitigação: só publicam direto os `trusted`, promovidos à mão; o resto passa pela fila.
 
 **No servidor, mais tarde (fase 4).** O Panoramax liga-se a um serviço de desfocagem por `API_BLUR_URL` (hoje vazio); o de produção é o [sgblur](https://gitlab.com/panoramax/server/sgblur) (código MIT, modelo YOLOv11 para caras e matrículas). A deteção pede uma GPU NVIDIA (a CPU não é recomendada em produção) e a imagem Docker tem cerca de 7 GB. O Zerops não tem GPU. Falta encontrar uma forma barata de o correr em escala (GPU à hora, Cloudflare, ou outro fornecedor) antes de o ligar.
 
-## Gamificação
+## Moderação
 
-Um ranking simples no site, para incentivar fotos novas e cobrir o que falta.
-
-- **Pontos**, só para fotos aprovadas:
-  - 1 ponto por foto aprovada;
-  - +3 pela primeira foto de um posto ou tomada;
-  - +2 por substituir uma foto principal com mais de 12 meses;
-  - a mesma pessoa no mesmo alvo dentro de 30 dias conta uma vez.
-- **Nome:** o crédito da pessoa (nome OSM ou pseudónimo). Opção no perfil para sair do ranking; as fotos continuam a contar pontos.
-- **Prémios:** só medalhas no site, sem prémios. Prémios convidam a fazer batota e um sorteio pode cair nas regras dos sorteios promocionais.
-
-## RGPD e moderação
-
-A licença das fotos (CC BY-SA 4.0 com autorização ODbL) está em [`licenca.md`](licenca.md). O uploader aceita-a uma vez (`license_accepted_at`) e declara que tirou a foto. Fotos referenciadas do OSM ou do Commons mantêm a licença e o autor de origem.
-
-**RGPD**
-
-- **Dados de quem envia:** ID e nome do OSM, pseudónimo opcional, papel e GPS das fotos. Sem email.
-- **Pessoas e matrículas nas fotos:** desfocagem obrigatória e caixa a confirmar no envio.
-- **Pedidos de remoção:** feitos sobre as denúncias do Panoramax ([`cloudflare.md`](cloudflare.md), secção 4, *Pedidos de remoção*). Falta promover a seguinte foto aprovada a principal quando uma é ocultada.
-- **Política de privacidade:** publicada em `/privacidade`, com o responsável, os registos, o login, os *cookies* e o envio (o que se guarda, onde, a moderação, a licença). Inclui o formulário de remoção.
-- **Conservação:** o GPS fica na D1 só para moderação; as versões em `pictures-staging` apagam-se ao aprovar ou rejeitar; logs com retenção curta.
-
-**Moderação**
-
-- Fila única (`review_queue`) com três tipos: posto novo, foto pendente e remoção.
-- Todos os envios de contas `contributor` passam pela fila; só `trusted` (promovidos à mão) publicam direto.
-- Critérios de rejeição: posto errado, privacidade, qualidade (desfocada, escura), duplicado, publicidade.
-- Histórico de decisões visível para moderadores; o autor recebe o motivo na sua página.
+- Critérios de recusa: posto errado, privacidade, qualidade (desfocada, escura), duplicado, publicidade. Falta escolher o motivo ao recusar e guardá-lo.
+- Falta uma página "os meus envios" para o autor ver o estado de cada foto e o motivo de uma recusa, e um histórico de decisões para os moderadores.
 - Moderadores: só o Fernando no lançamento; a lista de moderadores da comunidade vem depois. Com um só moderador, o prazo de 72 h depende de ele estar disponível; como a foto fica oculta logo, o risco é atraso, não exposição.
+- Apagar a conta a partir da própria conta (hoje é por email, como diz a política de privacidade).
 
 ## Custos
 
@@ -253,3 +163,4 @@ Orçamento: **10 €/mês** no total.
 - [ ] Resposta da OSM Portugal e da equipa do Panoramax (federação, nome, bot).
 - [ ] Convenção do MapComplete para várias fotos no mesmo elemento (`panoramax:1=`?).
 - [ ] Fotos externas e links estáticos: rever a opção B (em uso) contra a A ou outras alternativas.
+- [ ] Os mosaicos do mapa vêm do `tile.openstreetmap.org`, cuja política de uso aceita sites pequenos com atribuição. Se o uso crescer, passar para um fornecedor próprio ou mosaicos servidos por nós.

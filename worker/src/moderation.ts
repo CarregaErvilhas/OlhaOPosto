@@ -17,6 +17,8 @@ import { BRAND, accountPath, esc, layout, stationPath, type Lang } from './pages
 import { PANORAMAX_URL, type PhotoEnv } from './photos.ts';
 import { FAR_M } from './types.ts';
 import { publishMain } from './publish.ts';
+import { awardApproval, type PointsDb } from './points.ts';
+import { decideProposal, pendingProposals, proposalsSection, type ProposalRow } from './proposals.ts';
 
 export const queuePath = (lang: Lang) => (lang === 'pt' ? '/admin/fila' : '/en/admin/queue');
 // One POST for both languages; the form says which page to go back to.
@@ -51,6 +53,8 @@ const T = {
     title: 'Fila de moderação',
     intro: `Fotos à espera de decisão, da mais antiga para a mais recente. Aprovar torna a foto pública no Panoramax; recusar apaga-a do Panoramax e do armazenamento privado. Fotos a mais de ${FAR_M} m do posto ou sem GPS podem ser de outro posto: confirma antes de aprovar.`,
     empty: 'Não há fotos à espera.',
+    photosH: 'Fotos',
+    proposed: 'Posto proposto, ainda por aprovar.',
     station: 'Posto',
     socket: 'Tomada',
     sentBy: 'Enviada por',
@@ -63,13 +67,14 @@ const T = {
     unknown: 'desconhecida',
     approve: 'Aprovar',
     reject: 'Recusar',
-    ok: { approve: 'Foto aprovada.', main: 'Foto aprovada e publicada como foto principal: o link estático já a mostra.', reject: 'Foto recusada e apagada.' } as Record<string, string>,
+    ok: { approve: 'Foto aprovada.', main: 'Foto aprovada e publicada como foto principal: o link estático já a mostra.', reject: 'Foto recusada e apagada.', station_approved: 'Posto aprovado: já é público e pode receber fotos.', station_rejected: 'Posto recusado, com as fotos dele que estavam à espera.' } as Record<string, string>,
     errors: {
       stale: 'Esta foto já foi decidida por outra pessoa.',
       panoramax: 'O Panoramax não respondeu. Nada mudou; tenta outra vez.',
       closed: 'A ligação ao Panoramax não está configurada.',
       bad: 'Pedido inválido.',
       publish: 'Mas a cópia para o link estático falhou; a próxima aprovação deste posto tenta outra vez.',
+      station_pending: 'Esta foto é de um posto proposto: aprova primeiro o posto, mais acima.',
     } as Record<string, string>,
     forbidden: 'Esta página é só para moderadores e administradores.',
     back: 'Voltar à conta',
@@ -79,6 +84,8 @@ const T = {
     title: 'Moderation queue',
     intro: `Photos waiting for a decision, oldest first. Approving makes the photo public on Panoramax; rejecting deletes it from Panoramax and from the private storage. Photos more than ${FAR_M} m from the station, or without GPS, may be of another station: check before approving.`,
     empty: 'No photos waiting.',
+    photosH: 'Photos',
+    proposed: 'Proposed station, not approved yet.',
     station: 'Station',
     socket: 'Socket',
     sentBy: 'Sent by',
@@ -91,13 +98,14 @@ const T = {
     unknown: 'unknown',
     approve: 'Approve',
     reject: 'Reject',
-    ok: { approve: 'Photo approved.', main: 'Photo approved and published as the main photo: the static link shows it now.', reject: 'Photo rejected and deleted.' } as Record<string, string>,
+    ok: { approve: 'Photo approved.', main: 'Photo approved and published as the main photo: the static link shows it now.', reject: 'Photo rejected and deleted.', station_approved: 'Station approved: it is public now and can take photos.', station_rejected: 'Station rejected, with its photos that were waiting.' } as Record<string, string>,
     errors: {
       stale: 'Someone else already decided on this photo.',
       panoramax: 'Panoramax did not answer. Nothing changed; try again.',
       closed: 'The Panoramax connection is not configured.',
       bad: 'Invalid request.',
       publish: 'But copying it to the static link failed; the next approval for this station tries again.',
+      station_pending: 'This photo is of a proposed station: approve the station first, above.',
     } as Record<string, string>,
     forbidden: 'This page is only for moderators and admins.',
     back: 'Back to account',
@@ -117,15 +125,17 @@ export interface QueueRow {
   exif_lon: number | null;
   distance_m: number | null;
   created_at: string;
+  station_status?: string;
 }
 
 function card(lang: Lang, r: QueueRow): string {
   const t = T[lang];
-  const warn = r.distance_m === null
+  const proposed = r.station_status === 'pending_review' ? `<p class="notice">${t.proposed}</p>` : '';
+  const warn = proposed + (r.distance_m === null
     ? `<p class="notice">${t.noGps}</p>`
     : r.distance_m > FAR_M
       ? `<p class="notice">${t.far(r.distance_m)}</p>`
-      : `<p>${t.near(r.distance_m)}</p>`;
+      : `<p>${t.near(r.distance_m)}</p>`);
   const gps = r.exif_lat !== null && r.exif_lon !== null
     ? `<a href="https://www.openstreetmap.org/?mlat=${r.exif_lat}&amp;mlon=${r.exif_lon}#map=19/${r.exif_lat}/${r.exif_lon}" target="_blank" rel="noopener">${r.exif_lat.toFixed(5)}, ${r.exif_lon.toFixed(5)}</a>`
     : '—';
@@ -149,13 +159,16 @@ ${warn}
 </article>`;
 }
 
-export function queuePage(lang: Lang, rows: QueueRow[], p: { ok?: string; error?: string }): string {
+export function queuePage(lang: Lang, rows: QueueRow[], p: { ok?: string; error?: string; proposals?: ProposalRow[] }): string {
   const t = T[lang];
-  const parts = [`<h1>${t.title}</h1>`, `<p>${t.intro}</p>`];
+  const parts = [`<h1>${t.title}</h1>`];
   const ok = p.ok ? t.ok[p.ok] : undefined;
   if (ok) parts.push(`<p class="notice" role="status">${ok}</p>`);
   const err = p.error ? t.errors[p.error] : undefined;
   if (err) parts.push(`<p class="notice" role="alert">${esc(err)}</p>`);
+  const proposals = proposalsSection(lang, p.proposals ?? [], DECIDE_ACTION);
+  if (proposals) parts.push(proposals, `<h2>${t.photosH}</h2>`);
+  parts.push(`<p>${t.intro}</p>`);
   if (rows.length === 0) parts.push(`<p>${t.empty}</p>`);
   else {
     parts.push(rows.map((r) => card(lang, r)).join('\n'));
@@ -199,14 +212,16 @@ export async function queueHtml(lang: Lang, request: Request, env: PhotoEnv, hea
   if (!canModerate(user.role)) return page(lang, forbiddenPage(lang), 403, headers);
   const { results } = await db(env).prepare(
     `SELECT p.id, p.station_id, s.name AS station_name, s.operator, p.evse_compact, p.credit,
-            p.taken_at, p.exif_lat, p.exif_lon, p.distance_m, p.created_at
+            p.taken_at, p.exif_lat, p.exif_lon, p.distance_m, p.created_at, s.status AS station_status
        FROM photos p JOIN stations s ON s.id = p.station_id
       WHERE p.status = 'pending'
       ORDER BY p.created_at
       LIMIT ${QUEUE_LIMIT}`,
   ).all<QueueRow>();
   const url = new URL(request.url);
+  const proposals = await pendingProposals(env).catch(() => []);
   return page(lang, queuePage(lang, results ?? [], {
+    proposals,
     ok: url.searchParams.get('ok') ?? undefined,
     error: url.searchParams.get('erro') ?? undefined,
   }), 200, headers);
@@ -243,69 +258,84 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
   const user = await currentUser(request, env).catch(() => null);
   if (!user) return redirect(`/auth/osm/login?next=${encodeURIComponent(queuePath(lang))}`, 303);
   if (!canModerate(user.role)) return noStore('forbidden', 403);
-  const id = form.get('photo');
   const action = form.get('action');
+  if (action === 'approve_station' || action === 'reject_station') {
+    const station = form.get('station');
+    if (typeof station !== 'string') return back('erro=bad');
+    if (action === 'reject_station' && !env.PANORAMAX_TOKEN) return back('erro=closed');
+    const photos = await decideProposal(env, station, action === 'approve_station', user.id, now);
+    if (photos === null) return back('erro=stale');
+    // The station's waiting photos go with it. One that fails stays pending,
+    // shown as a photo of a rejected station: a moderator can reject it again.
+    for (const pid of photos) await rejectPhoto(env, fetcher, pid, user.id, now).catch(() => false);
+    return back(action === 'approve_station' ? 'ok=station_approved' : 'ok=station_rejected');
+  }
+  const id = form.get('photo');
   if (typeof id !== 'string' || (action !== 'approve' && action !== 'reject')) return back('erro=bad');
   if (!env.PANORAMAX_TOKEN) return back('erro=closed');
 
   const photo = await db(env).prepare(
-    `SELECT panoramax_set, station_id, evse_compact FROM photos WHERE id = ? AND status = 'pending'`,
-  ).bind(id).first<{ panoramax_set: string | null; station_id: string; evse_compact: string | null }>();
+    `SELECT p.panoramax_set, p.station_id, p.evse_compact, s.status AS station_status
+       FROM photos p JOIN stations s ON s.id = p.station_id WHERE p.id = ? AND p.status = 'pending'`,
+  ).bind(id).first<{ panoramax_set: string | null; station_id: string; evse_compact: string | null; station_status: string }>();
   if (!photo) return back('erro=stale');
+  // A photo of a proposed station waits for the station: a public photo and
+  // static link of a station that has no public page would make no sense.
+  if (action === 'approve' && photo.station_status === 'pending_review') return back('erro=station_pending');
+  if (action === 'reject') {
+    const r = await rejectPhoto(env, fetcher, id, user.id, now);
+    return back(r === true ? 'ok=reject' : `erro=${r}`);
+  }
 
   const base = env.PANORAMAX_URL ?? PANORAMAX_URL;
   const headers = { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'OlhaOPosto' };
   const set = photo.panoramax_set ? `${base}/api/upload_sets/${encodeURIComponent(photo.panoramax_set)}` : null;
 
-  if (action === 'approve') {
-    if (!set) return back('erro=panoramax');
-    const r = await fetcher(set, {
-      method: 'PATCH',
-      headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify({ visibility: 'anyone' }),
-    }).catch(() => null);
-    if (!r?.ok) return back('erro=panoramax');
-  } else if (set) {
-    // 404: already gone on Panoramax, which is what we want anyway.
-    const r = await fetcher(set, { method: 'DELETE', headers }).catch(() => null);
-    if (!r || (!r.ok && r.status !== 404)) return back('erro=panoramax');
-  }
+  if (!set) return back('erro=panoramax');
+  const r = await fetcher(set, {
+    method: 'PATCH',
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ visibility: 'anyone' }),
+  }).catch(() => null);
+  if (!r?.ok) return back('erro=panoramax');
 
-  const status = action === 'approve' ? 'published' : 'removed';
   const res = await db(env).prepare(
-    `UPDATE photos SET status = ?, approved_by = ?, approved_at = ? WHERE id = ? AND status = 'pending'`,
-  ).bind(status, user.id, now.toISOString(), id).run();
+    `UPDATE photos SET status = 'published', approved_by = ?, approved_at = ? WHERE id = ? AND status = 'pending'`,
+  ).bind(user.id, now.toISOString(), id).run();
   if (res.meta.changes !== 1) return back('erro=stale');
-  if (action === 'approve') {
-    // Award points (Docs/plan.md, *Gamificação*).
-    try {
-      const target = photo.evse_compact ?? photo.station_id;
-      const others = await db(env).prepare(
-        `SELECT COUNT(*) AS n FROM photos WHERE station_id = ? AND evse_compact IS ? AND id <> ? AND status = 'published'`,
-      ).bind(photo.station_id, photo.evse_compact, id).first<{ n: number }>();
-      const isFirst = (others?.n ?? 0) === 0;
-      const month = now.toISOString().slice(0, 7);
-      const stmts = [db(env).prepare(
-        `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 1, 'approved', ?, ?)`,
-      ).bind(user.id, id, month, now.toISOString())];
-      if (isFirst) stmts.push(db(env).prepare(
-        `INSERT INTO points (user_id, photo_id, points, reason, month, created_at) VALUES (?, ?, 3, 'first_photo', ?, ?)`,
-      ).bind(user.id, id, month, now.toISOString()));
-      await env.DB.batch(stmts);
-    } catch {
-      // Points are best-effort; never block an approval.
-    }
-    // Main photo of its socket and station when they have none (src/publish.ts).
-    // The approval stands either way; a failed publish only loses the link.
-    try {
-      const targets = await publishMain(env, id, user.id, fetcher, now);
-      if (targets.length) return back('ok=main');
-    } catch {
-      return back('ok=approve&erro=publish');
-    }
+  // Points go to the author, not to the moderator (src/points.ts).
+  await awardApproval(env.DB as unknown as PointsDb, id, now).catch(() => []);
+  // Main photo of its socket and station when they have none (src/publish.ts).
+  // The approval stands either way; a failed publish only loses the link.
+  try {
+    const targets = await publishMain(env, id, user.id, fetcher, now);
+    if (targets.length) return back('ok=main');
+  } catch {
+    return back('ok=approve&erro=publish');
   }
-  if (action === 'reject' && env.STAGING) {
-    await staging(env).delete([`${id}/main.jpg`, `${id}/thumb.jpg`]).catch(() => {});
+  return back('ok=approve');
+}
+
+// Reject one pending photo: its upload set deleted on Panoramax, the staging
+// copies deleted, the row `removed`. true, or the error code for the page.
+async function rejectPhoto(
+  env: PhotoEnv, fetcher: Fetch, id: string, moderatorId: string, now: Date,
+): Promise<true | 'stale' | 'panoramax'> {
+  const photo = await db(env).prepare(`SELECT panoramax_set FROM photos WHERE id = ? AND status = 'pending'`)
+    .bind(id).first<{ panoramax_set: string | null }>();
+  if (!photo) return 'stale';
+  if (photo.panoramax_set) {
+    const base = env.PANORAMAX_URL ?? PANORAMAX_URL;
+    // 404: already gone on Panoramax, which is what we want anyway.
+    const r = await fetcher(`${base}/api/upload_sets/${encodeURIComponent(photo.panoramax_set)}`, {
+      method: 'DELETE', headers: { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'OlhaOPosto' },
+    }).catch(() => null);
+    if (!r || (!r.ok && r.status !== 404)) return 'panoramax';
   }
-  return back(`ok=${action}`);
+  const res = await db(env).prepare(
+    `UPDATE photos SET status = 'removed', approved_by = ?, approved_at = ? WHERE id = ? AND status = 'pending'`,
+  ).bind(moderatorId, now.toISOString(), id).run();
+  if (res.meta.changes !== 1) return 'stale';
+  if (env.STAGING) await staging(env).delete([`${id}/main.jpg`, `${id}/thumb.jpg`]).catch(() => {});
+  return true;
 }

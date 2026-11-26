@@ -41,7 +41,7 @@ Responsável (RGPD): O Carro Elétrico. Passar para uma associação fica como s
 
 | Host | O que serve hoje | Como |
 | --- | --- | --- |
-| `olhaoposto.ocarroeletrico.com` | Páginas dos postos e pesquisa (pt-PT e inglês), API `/api/v1` só de leitura, política de privacidade, conta e página de envio (desligadas até ao login OSM), `sitemap.xml`, `robots.txt`, `llms.txt` | Worker `olhaoposto` + D1 ([`cloudflare.md`](cloudflare.md), secção 4) |
+| `olhaoposto.ocarroeletrico.com` | Páginas dos postos e pesquisa (pt-PT e inglês), API `/api/v1` (leitura aberta, escrita com sessão ou *token*), privacidade e condições de utilização, login OSM, conta, envio, moderação, ranking, `sitemap.xml`, `robots.txt`, `llms.txt` | Worker `olhaoposto` + D1 ([`cloudflare.md`](cloudflare.md), secção 4) |
 | `pictures.ocarroeletrico.com` | Links estáticos (`/<id>.jpg` e tamanhos): a foto principal de cada posto e tomada, ou `404` | Custom domain do bucket R2 `pictures`, servido pela CDN **sem Worker** ([`cloudflare.md`](cloudflare.md), secção 3) |
 | `panoramax.ocarroeletrico.com` | Servidor Panoramax (API, visualizador, imagens), fora da federação | Zerops, com o bucket R2 `panoramax` como armazenamento ([`infra.md`](infra.md)) |
 
@@ -56,12 +56,13 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
    Pessoas, apps, mapas, agentes
               |
    Worker olhaoposto (olhaoposto.*)        R2 "pictures" (pictures.*)
-   páginas, API só de leitura,             links estáticos pela CDN
-   login OSM, envio, moderação             (fotos principais)
-   sitemap
+   páginas, API, tokens, login OSM,        links estáticos pela CDN
+   envio, postos propostos, moderação,     (fotos principais)
+   pontos e ranking, sitemap
               |
    D1 "pictures": stations, evses,         R2 "pictures-staging"
-   users, sessions, photos                 (privado, cópias até à aprovação)
+   users, sessions, photos, selections,    (privado, cópias até à aprovação)
+   points, api_tokens, review_queue...
               ^
    GitHub Actions, todos os dias:
    ohmigo_chargers.json (NAP dashboard) --> D1
@@ -72,10 +73,10 @@ miss* é uma leitura Classe B no R2 (10 milhões grátis por mês).
      conta de serviço "OlhaOPosto", sem OAuth
 ```
 
-O Worker fala com o Panoramax só no envio, com a conta de serviço
-`OlhaOPosto`: cria um *upload set* escondido por foto. Enquanto o segredo
-`PANORAMAX_TOKEN` não existir, não fala de todo ([`cloudflare.md`](cloudflare.md),
-*Abrir o envio*).
+O Worker fala com o Panoramax com a conta de serviço `OlhaOPosto`: cria um
+*upload set* escondido por foto no envio, torna-o público ao aprovar,
+apaga-o ao recusar, e trata as denúncias dos pedidos de remoção
+([`cloudflare.md`](cloudflare.md), secção 4).
 
 ## Porque o Panoramax
 
@@ -136,35 +137,70 @@ link de tomada.
 
 | Tabela | Colunas principais | Notas |
 | --- | --- | --- |
-| `stations` | `id` (PK, ex. `EZC-AMD-00051`), `code`, `opc`, `operator`, `name`, `address`, `municipality`, `region`, `lat`, `lon`, `source` (`nap`, `community`), `status` (`active`, `missing_from_nap`, `pending_review`, `rejected`), `osm_ref`, `updated_at` | `community` = proposto por utilizador (ainda não há envios) |
+| `stations` | `id` (PK, ex. `EZC-AMD-00051`), `code`, `opc`, `operator`, `name`, `address`, `municipality`, `region`, `lat`, `lon`, `source` (`nap`, `community`), `status` (`active`, `missing_from_nap`, `pending_review`, `rejected`), `osm_ref`, `updated_at` | `community` = proposto por um utilizador (`id` `OOP-…`), `pending_review` até um moderador decidir; o import só mexe em postos `nap` |
 | `evses` | `station_id` (FK) + `point_id` (PK), `evse_id` (forma original com `*`), `evse_compact` (sem `*`, índice simples), `connector`, `max_kw`, `dc`, `status` | Uma linha por ponto/tomada. O `point_id` do MOBI.Data repete-se entre postos |
 | `stations_fts` | Índice FTS5 de `id`, `code`, `name`, `address`, `municipality`, `operator`, `opc` | Para a pesquisa. Só o índice: o texto fica em `stations`, e três *triggers* mantêm-no a par, por isso o import não muda |
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
-| `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `pseudonym`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. Hoje só se escrevem o OSM, o papel `contributor` e as datas; o resto fica para o envio e a moderação |
+| `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `pseudonym`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. O `pseudonym` ainda não se edita |
 | `sessions` | `token_hash` (PK, SHA-256 do *cookie*), `user_id` (FK), `created_at`, `expires_at` | Uma cópia da tabela não abre sessões. As expiradas saem no login seguinte |
 | `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados |
 | `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica |
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP: o link antigo responde `301` para o novo |
-| `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação: +1 approved, +3 first_photo, +2 refresh |
+| `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação (*Pontos e ranking*, abaixo). Uma linha por atribuição; só contam as de fotos `published` |
+| `api_tokens` | `id`, `user_id` (FK), `token_hash` (único, SHA-256), `prefix`, `name`, `scopes`, `created_at`, `expires_at`, `last_used_at`, `revoked_at` | *Tokens* de API: uma cópia da tabela não abre nada |
+| `review_queue` | `id`, `kind` (`new_station`), `station_id` (FK), `payload` (JSON), `submitted_by`, `status` (`pending`, `approved`, `rejected`), `decided_by`, `decided_at`, `note`, `created_at` | O que precisa de um humano e não tem tabela própria: hoje, os postos propostos. As fotos têm o estado em `photos`, e os pedidos de remoção vivem no Panoramax |
 
 ## Site e API
 
 O Worker serve as páginas dos postos em pt-PT (`/postos/{id}`) e em inglês
 (`/en/stations/{id}`), a procura de uma tomada pelo código EVSE
 (`/tomadas/{evse}`, `/en/sockets/{evse}`), a pesquisa de postos (`/pesquisa`,
-`/en/search`, também no formulário da página inicial), a API só de leitura
+`/en/search`, também no formulário da página inicial), a API de leitura
 (`/api/v1/stations?q=`, `/api/v1/stations?lat=&lon=`, `/api/v1/stations/{id}`,
-`/api/v1/evses/{evse}`, `/api/v1/main-photos`), a política de privacidade (`/privacidade`), o
-`sitemap.xml`, o `robots.txt` e o `llms.txt`.
+`/api/v1/evses/{evse}`, `/api/v1/main-photos`, `/api/v1/ranking`), a
+política de privacidade (`/privacidade`), as condições de utilização
+(`/condicoes`), o ranking (`/ranking`), o `sitemap.xml`, o `robots.txt` e o
+`llms.txt`.
 
-Tem também o início de sessão com o OpenStreetMap, a conta (`/conta`) e a
-página de envio (`/enviar`), que prepara a foto no browser (EXIF, posto,
-desfocagem à mão, três tamanhos sem metadados), e o envio
-(`POST /api/v1/photos`), que a guarda escondida no Panoramax e em
-`pictures-staging` à espera de moderação. O login fica desligado até
-existirem os segredos do OSM, e o envio até haver também o token do
-Panoramax. Rotas, cabeçalhos,
-acessibilidade e cache em [`cloudflare.md`](cloudflare.md), secção 4.
+Com o login OSM há a conta (`/conta`: pontos, medalha, sair do ranking,
+*tokens* de API), a página de envio (`/enviar`), a fila de moderação e os
+painéis de administração (`/admin/…`). A escrita na API
+(`POST /api/v1/photos`, `POST /api/v1/stations`,
+`PUT /api/v1/selections/{target}`) aceita a sessão, só a partir do próprio
+site, ou um *token* (`Authorization: Bearer oop_…`) com o âmbito certo. Rotas,
+cabeçalhos, acessibilidade e cache em [`cloudflare.md`](cloudflare.md),
+secção 4.
+
+## Fluxo de envio
+
+Tudo o que mexe na foto original acontece no browser: o servidor nunca
+recebe o original nem os metadados. A página `/enviar`:
+
+1. Abre uma ou várias fotos, JPEG ou HEIC (o HEIC pelo browser ou pelo
+   libheif em WebAssembly), e trata-as uma de cada vez.
+2. Lê o GPS e a data do EXIF e sugere os postos a 500 m. Sem GPS: pesquisa
+   por texto ou mapa (OpenStreetMap, só se a pessoa o abrir). O posto da
+   foto anterior fica sugerido para a seguinte.
+3. Se o posto não existir, propõe-se um posto novo (nome, operador, código,
+   posição), que espera por um moderador com as fotos dele.
+4. Procura caras no dispositivo (MediaPipe, BlazeFace) e pré-desenha as
+   zonas; a pessoa confirma, desliga ou acrescenta zonas, também para as
+   matrículas, e cada zona leva um mosaico.
+5. Gera 2048, 1024 e 400 px sem metadados e envia-os, com a data e o GPS à
+   parte. O Worker volta a verificar tudo, guarda a de 2048 px escondida no
+   Panoramax (com as coordenadas do posto, nunca as do GPS) e as outras em
+   `pictures-staging`.
+
+Contas `trusted` publicam logo quando a foto foi tirada a 300 m ou menos de
+um posto `active`; o resto fica `pending` para a fila (`/admin/fila`), que
+mostra primeiro os postos propostos e avisa das fotos sem GPS ou longe do
+posto. Quem envia aceita as condições de utilização e a licença no primeiro
+envio (`license_accepted_at`).
+
+**O que se faz com o GPS do EXIF.** Sugere o posto e sinaliza fotos longe
+dele (`distance_m`, e o aviso na fila). Fica só na D1, para a moderação; a
+API pública mostra a data, nunca as coordenadas de quem tirou a foto. O
+Panoramax recebe as coordenadas do posto.
 
 ## Links estáticos
 
@@ -179,7 +215,9 @@ Panoramax lhe escreve. Cada cópia leva um XMP com o autor, a licença
 CC BY-SA 4.0 e o link da página do posto (o R2 não manda cabeçalhos
 próprios), sem GPS, e `Cache-Control: public, max-age=86400`. A página do
 posto mostra a foto principal com o crédito, e as miniaturas das tomadas.
-Trocar a principal ainda não existe ([`plan.md`](plan.md)).
+Um moderador ou uma conta `trusted` pode trocar a principal
+(`PUT /api/v1/selections/{target}`): o Worker copia a foto nova por cima das
+três chaves e faz *purge* desses URLs.
 
 | URL (`pictures.ocarroeletrico.com`) | Devolve |
 | --- | --- |
@@ -197,8 +235,24 @@ Trocar a principal ainda não existe ([`plan.md`](plan.md)).
 
 ## Publicação e gestão de fotos
 
-- **Publicação direta:** contas `trusted` publicam logo no envio, quando o posto está `active` e a foto foi tirada a ≤300 m dele. Caso contrário (contributor, sem GPS, >300 m, posto novo) fica `pending` para a fila.
-- **Pontos:** +1 por foto aprovada, +3 pela primeira foto de um alvo, +2 por substituir uma principal com mais de 12 meses. Guardados em `points`; o ranking agrega por utilizador (com opt-out).
-- **Trocar a principal:** `PUT /api/v1/selections/{target}` com `{ "photo": "<id>" }` (trusted/moderator/admin) copia os 3 tamanhos por cima e faz purge de cache. A atribuição de +2 refresh aplica-se quando a principal anterior tinha mais de 12 meses.
-- **Aliases (re-key):** quando o NAP muda o código de um posto, o antigo fica `missing_from_nap`. O moderador cria um alias em `/admin/utilizadores`/`/admin/rekey`; o link antigo responde `301` para o novo.
-- **Ranking:** `/ranking` (e `/en/ranking`) lista os top contribuidores; `/api/v1/ranking?period=month|all`.
+- **Publicação direta:** contas `trusted` publicam logo no envio, quando o posto está `active` e a foto foi tirada a ≤300 m dele. Caso contrário (contributor, sem GPS, >300 m, posto proposto) fica `pending` para a fila.
+- **Trocar a principal:** `PUT /api/v1/selections/{target}` com `{ "photo": "<id>" }` (`trusted`, moderador, administrador; sessão ou *token* `selections:write`) copia os 3 tamanhos por cima e faz *purge* da cache.
+- **Aliases (re-key):** quando o NAP muda o código de um posto, o antigo fica `missing_from_nap`. Um moderador cria o alias em `/admin/postos-fora-do-nap`; o link antigo responde `301` para o novo.
+- **Postos propostos:** aprovados passam a `active` e públicos; recusados passam a `rejected`, com as fotos que esperavam por eles.
+
+## Pontos e ranking
+
+- **Pontos**, só para fotos aprovadas e sempre para o autor da foto: +1 por foto, +3 pela primeira foto de um posto ou tomada, +2 quando a foto passa a principal no lugar de uma com mais de 12 meses. A mesma pessoa no mesmo alvo em 30 dias conta uma vez.
+- **Só fotos publicadas contam:** uma foto ocultada ou retirada (pedido de remoção, batota) deixa de dar pontos sem se apagar nada.
+- **Medalhas**, pelo total de sempre: bronze com 10 pontos, prata com 50, ouro com 200. Sem prémios.
+- **Ranking:** `/ranking` (do mês e de sempre), em tabela, com o nome de crédito, a medalha, as fotos e os pontos; `/api/v1/ranking?period=month|all`. Quem sai do ranking na conta deixa de aparecer, e os pontos continuam a contar para si.
+
+## Tokens de API
+
+Na conta, cada pessoa cria *tokens* (até 5 ativos) com um nome, os âmbitos
+(`photos:write`; `selections:write` só para `trusted`, moderadores e
+administradores) e a validade (30, 90 ou 365 dias). O *token* aparece uma vez;
+a D1 guarda só o hash. Age como a conta, com o papel e os limites dela, lidos
+em cada pedido. O envio pela API é só `mode=clean`: o cliente manda as três
+fotos já desfocadas e sem EXIF, com as coordenadas e a data no JSON, e o
+Worker recusa ficheiros com metadados. Não passa pelo Turnstile.

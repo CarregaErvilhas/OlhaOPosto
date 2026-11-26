@@ -1,13 +1,20 @@
-// Upload page: open the photo, read its EXIF, suggest the station, let the
-// person mark faces and number plates, and re-encode it without metadata.
-// Everything here runs on the device; the only requests are station lookups
-// on our own API, with the GPS rounded to about 100 m first (the Worker logs
-// keep the URL). When uploads are open (canSend), the prepared files go to
-// POST /api/v1/photos, which checks them again; otherwise the page stops at
-// the prepared files.
+// Upload page: open the photos (JPEG or HEIC, one or several), read their
+// EXIF, suggest the station (from the GPS, a map, a search, or a new station
+// the person proposes), look for faces and let the person mark faces and
+// number plates, and re-encode each photo without metadata.
+// Everything that touches the photo runs on the device; the only requests
+// are station lookups on our own API, with the GPS rounded to about 100 m
+// first (the Worker logs keep the URL), and, only if the person opens it,
+// the map tiles from OpenStreetMap. When uploads are open (canSend), the
+// prepared files go to POST /api/v1/photos, which checks them again;
+// otherwise the page stops at the prepared files.
 import { isCleanJpeg, readExif, stripMetadata } from './jpeg.js';
+import { isHeic, readHeicExif } from './heif.js';
 
 const MAX_BYTES = 40 * 1024 * 1024;
+// Below this, the map shows no stations (the nearby API caps at 5 km).
+const MAP_MIN_ZOOM = 13;
+const PT_CENTER = [39.6, -8.0];
 const SIZES = [2048, 1024, 400];
 const QUALITY = 0.85;
 const RADIUS = 500;
@@ -43,6 +50,18 @@ function init(form, M) {
   const zoneSummary = $('zone-summary');
   const sendStatus = $('send-status');
   const result = $('result');
+  const queueEl = $('photo-queue');
+  const nextButton = $('next-photo');
+  const skipButton = $('skip-photo');
+  const detectButton = $('detect');
+  const detectStatus = $('detect-status');
+  const mapOpen = $('map-open');
+  const mapBox = $('map-box');
+  const mapStatus = $('map-status');
+  const locateButton = $('locate');
+  const propose = $('propose');
+  const proposeStatus = $('propose-status');
+  const proposePosition = $('p-position');
 
   /** The photo scaled to the largest size, with EXIF orientation applied. */
   let base = null;
@@ -52,8 +71,20 @@ function init(form, M) {
   let station = null;
   let target = null;
   let lookup = 0;
+  /** Where the chosen station is, for the next photo. */
+  let stationPos = null;
   let urls = [];
   let sent = false;
+  /** The files picked, and which one is open. */
+  let queue = [];
+  let current = -1;
+  /** The station of the last photo sent, suggested for the next one. */
+  let lastStation = null;
+  /** A new station proposed for this photo: { id, name }. */
+  let proposed = null;
+  /** Position for a proposal: the photo's GPS, or the map centre. */
+  let proposeAt = null;
+  let forceProposal = false;
 
   form.hidden = false;
 
@@ -69,40 +100,84 @@ function init(form, M) {
     }
   }
 
-  photo.addEventListener('change', async () => {
+  photo.addEventListener('change', () => {
+    queue = [...(photo.files ?? [])];
+    current = -1;
+    openNext();
+  });
+
+  function showQueue() {
+    queueEl.hidden = queue.length < 2;
+    say(queueEl, current < queue.length ? fill(M.queue, { n: current + 1, all: queue.length }) : M.queueDone);
+    const more = current + 1 < queue.length;
+    nextButton.hidden = !(sent && more);
+    skipButton.hidden = !(more && !sent);
+  }
+
+  nextButton.addEventListener('click', openNext);
+  skipButton.addEventListener('click', openNext);
+
+  async function openNext() {
+    current++;
     reset();
-    const file = photo.files?.[0];
-    if (!file) return;
-    if (file.size > MAX_BYTES) {
-      photo.value = '';
-      return say(photoStatus, M.tooBig);
+    showQueue();
+    if (current >= queue.length) {
+      if (queue.length > 1) photo.focus();
+      return;
     }
+    await openPhoto(queue[current]);
+  }
+
+  // A canvas or bitmap of the photo, upright, and its metadata. HEIC goes to
+  // the browser first (Safari decodes it) and to libheif when that fails.
+  async function open(file) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (isHeic(bytes)) {
+      const m = readHeicExif(bytes);
+      try {
+        return { image: await decode(file), meta: m };
+      } catch {
+        say(photoStatus, M.heic);
+        const { decodeHeic } = await import('./heic.js');
+        return { image: await decodeHeic(bytes), meta: m };
+      }
+    }
+    return { image: await decode(file), meta: readExif(bytes) };
+  }
+
+  async function openPhoto(file) {
+    if (file.size > MAX_BYTES) return say(photoStatus, M.tooBig);
     say(photoStatus, M.reading);
-    let bitmap;
+    let opened;
     try {
-      bitmap = await decode(file);
+      opened = await open(file);
     } catch {
-      photo.value = '';
       return say(photoStatus, M.notJpeg);
     }
-    meta = readExif(new Uint8Array(await file.arrayBuffer()));
-    const scale = Math.min(1, SIZES[0] / Math.max(bitmap.width, bitmap.height));
+    const { image } = opened;
+    meta = opened.meta;
+    const scale = Math.min(1, SIZES[0] / Math.max(image.width, image.height));
     base = document.createElement('canvas');
-    base.width = Math.round(bitmap.width * scale);
-    base.height = Math.round(bitmap.height * scale);
+    base.width = Math.round(image.width * scale);
+    base.height = Math.round(image.height * scale);
     const ctx = base.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(bitmap, 0, 0, base.width, base.height);
-    bitmap.close();
+    ctx.drawImage(image, 0, 0, base.width, base.height);
+    image.close?.();
     preview.width = base.width;
     preview.height = base.height;
     say(photoStatus, '');
     for (const s of sections) s.hidden = false;
     render();
     renderZones();
-    if (M.station) preset(M.station);
+    setProposeAt(meta?.lat != null ? { lat: meta.lat, lon: meta.lon } : mapCentre());
+    const keep = lastStation && (meta?.lat == null || distance(meta.lat, meta.lon, lastStation.lat, lastStation.lon) < RADIUS);
+    if (keep) preset(lastStation.id, M.previous);
+    else if (M.station && current === 0) preset(M.station, M.preset);
     else findNear();
-  });
+    // Saving data: no 15 MB download unless the person asks for it.
+    if (!navigator.connection?.saveData) detect();
+  }
 
   function reset() {
     sent = false;
@@ -111,6 +186,13 @@ function init(form, M) {
     zones = [];
     station = null;
     target = null;
+    proposed = null;
+    forceProposal = false;
+    detectRun++;
+    say(detectStatus, '');
+    say(proposeStatus, '');
+    nextButton.hidden = true;
+    skipButton.hidden = true;
     lookup++;
     for (const s of sections) s.hidden = true;
     stationsBox.hidden = true;
@@ -156,8 +238,8 @@ function init(form, M) {
 
   // ?posto=<id>: the station the link came from goes first; the search and
   // the photo's GPS stay there to pick another. Unknown id: as if absent.
-  async function preset(id) {
-    const ok = await listStations(`/api/v1/stations/${encodeURIComponent(id)}`, M.preset, '', true);
+  async function preset(id, intro) {
+    const ok = await listStations(`/api/v1/stations/${encodeURIComponent(id)}`, intro, '', true);
     if (!ok) findNear();
   }
 
@@ -214,6 +296,16 @@ function init(form, M) {
   stationList.addEventListener('change', (e) => pickStation(e.target.value));
 
   async function pickStation(id) {
+    if (proposed && id === proposed.id) {
+      // Not public yet: the API does not know it. The photo goes on the station in general.
+      station = id;
+      targetList.replaceChildren(choice('target', id, [el('span', {}, M.general)]));
+      targetList.querySelector('input').checked = true;
+      say(targetNote, '');
+      setTarget(id);
+      targetsBox.hidden = false;
+      return;
+    }
     station = id;
     target = null;
     const mine = ++lookup;
@@ -226,6 +318,7 @@ function init(form, M) {
       return;
     }
     if (mine !== lookup || !s) return;
+    stationPos = { id: s.id, lat: s.lat, lon: s.lon };
     const sockets = (s.points ?? []).filter((p) => p.compact);
     targetList.replaceChildren(
       choice('target', s.id, [el('span', {}, M.general)]),
@@ -500,8 +593,13 @@ function init(form, M) {
     }
     if (r.ok) {
       sent = true;
+      if (stationPos && stationPos.id === station) lastStation = stationPos;
       showResult(out, false);
-      return say(sendStatus, M.sent);
+      const body = await r.json().catch(() => ({}));
+      say(sendStatus, body.status === 'published' ? M.sentPublished : M.sent);
+      showQueue();
+      if (!nextButton.hidden) nextButton.focus();
+      return;
     }
     const code = await r.json().then((j) => j.error).catch(() => null);
     say(sendStatus, M.errors[code] ?? M.errors.other);
@@ -519,4 +617,169 @@ function init(form, M) {
     }
     result.hidden = false;
   }
+
+  // ---- Face detection (public/detect.js) ----
+
+  let detectRun = 0;
+
+  async function detect() {
+    if (!base) return;
+    const mine = ++detectRun;
+    detectButton.disabled = true;
+    say(detectStatus, M.detecting);
+    try {
+      const { detectFaces } = await import('./detect.js');
+      const faces = await detectFaces(base);
+      if (mine !== detectRun) return;
+      // Replace the earlier suggestions, keep what the person drew.
+      zones = zones.filter((z) => !z.auto).concat(faces.map((f) => ({ ...f, on: true, auto: true })));
+      render();
+      renderZones();
+      say(detectStatus, faces.length === 0 ? M.detectedNone : faces.length === 1 ? M.detectedOne : fill(M.detected, { n: faces.length }));
+    } catch {
+      if (mine === detectRun) say(detectStatus, M.detectFailed);
+    } finally {
+      if (mine === detectRun) detectButton.disabled = false;
+    }
+  }
+  detectButton.addEventListener('click', detect);
+
+  // ---- Map (Leaflet, OpenStreetMap tiles), only when opened ----
+
+  let map = null;
+  let markers = null;
+  let mapLookup = 0;
+
+  function loadLeaflet() {
+    if (window.L) return Promise.resolve(window.L);
+    const css = el('link', { rel: 'stylesheet', href: '/vendor/leaflet/leaflet.css' });
+    document.head.append(css);
+    return new Promise((ok, fail) => {
+      const s = el('script', { src: '/vendor/leaflet/leaflet.js' });
+      s.onload = () => ok(window.L);
+      s.onerror = () => fail(new Error('leaflet'));
+      document.head.append(s);
+    });
+  }
+
+  mapOpen.addEventListener('click', async () => {
+    if (map) {
+      mapBox.hidden = !mapBox.hidden;
+      if (!mapBox.hidden) map.invalidateSize();
+      return;
+    }
+    say(mapStatus, M.mapLoading);
+    mapBox.hidden = false;
+    let L;
+    try {
+      L = await loadLeaflet();
+    } catch {
+      return say(mapStatus, M.mapFailed);
+    }
+    const start = meta?.lat != null ? [meta.lat, meta.lon] : stationPos ? [stationPos.lat, stationPos.lon] : PT_CENTER;
+    map = L.map('map', { zoomControl: true }).setView(start, start === PT_CENTER ? 7 : 16);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+    markers = L.layerGroup().addTo(map);
+    if (meta?.lat == null) setProposeAt(mapCentre());
+    map.on('moveend', () => {
+      mapStations(L);
+      if (meta?.lat == null) setProposeAt(mapCentre());
+    });
+    mapStations(L);
+  });
+
+  async function mapStations(L) {
+    const mine = ++mapLookup;
+    if (map.getZoom() < MAP_MIN_ZOOM) {
+      markers.clearLayers();
+      return say(mapStatus, M.mapZoom);
+    }
+    const c = map.getCenter();
+    const b = map.getBounds();
+    const radius = Math.min(5000, Math.ceil(map.distance(c, b.getNorthEast())));
+    // Rounded like the photo's GPS: the URL is all the logs see.
+    const path = `/api/v1/stations?lat=${c.lat.toFixed(3)}&lon=${c.lng.toFixed(3)}&radius=${radius}&limit=50`;
+    let body;
+    try {
+      body = await api(path);
+    } catch {
+      if (mine === mapLookup) say(mapStatus, M.failed);
+      return;
+    }
+    if (mine !== mapLookup) return;
+    markers.clearLayers();
+    const rows = body?.results ?? [];
+    for (const s of rows) {
+      const m = L.circleMarker([s.lat, s.lon], { radius: 9, weight: 2, color: '#1F3650', fillColor: '#F2B33D', fillOpacity: 0.9 });
+      m.bindTooltip([s.id, s.name].filter(Boolean).join(' · '));
+      m.on('click', () => preset(s.id, M.preset));
+      markers.addLayer(m);
+    }
+    say(mapStatus, fill(M.mapStations, { n: rows.length }));
+  }
+
+  locateButton.addEventListener('click', () => {
+    if (!navigator.geolocation || !map) return say(mapStatus, M.locateFailed);
+    say(mapStatus, M.locating);
+    navigator.geolocation.getCurrentPosition(
+      (p) => map.setView([p.coords.latitude, p.coords.longitude], 17),
+      () => say(mapStatus, M.locateFailed),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
+  });
+
+  // ---- New station (POST /api/v1/stations, src/proposals.ts) ----
+
+  function mapCentre() {
+    if (!map) return null;
+    const c = map.getCenter();
+    return { lat: c.lat, lon: c.lng };
+  }
+
+  function setProposeAt(p) {
+    proposeAt = p;
+    say(proposePosition, p ? `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}` : '—');
+  }
+
+  $('propose-send').addEventListener('click', async () => {
+    const name = $('p-name').value.trim();
+    const operator = $('p-operator').value.trim();
+    if (name.length < 2 || operator.length < 2 || !proposeAt) return say(proposeStatus, M.proposeNeed);
+    say(proposeStatus, M.proposeSending);
+    let r;
+    try {
+      r = await fetch(`/api/v1/stations${forceProposal ? '?force=1' : ''}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({
+          name, operator, code: $('p-code').value.trim() || null, note: $('p-note').value.trim() || null,
+          lat: proposeAt.lat, lon: proposeAt.lon,
+        }),
+      });
+    } catch {
+      return say(proposeStatus, M.proposeErrors.other);
+    }
+    const body = await r.json().catch(() => ({}));
+    if (r.status === 409 && body.error === 'station_nearby') {
+      forceProposal = true;
+      return say(proposeStatus, fill(M.proposeNearby, { list: body.stations.map((s) => s.id).join(', ') }));
+    }
+    if (!r.ok) return say(proposeStatus, M.proposeErrors[body.error] ?? M.errors[body.error] ?? M.proposeErrors.other);
+    proposed = { id: body.id, name };
+    forceProposal = false;
+    stationList.replaceChildren(choice('station', body.id, [
+      el('strong', {}, body.id),
+      el('span', { className: 'meta' }, `${name} · ${M.proposedStation}`),
+    ]));
+    stationsBox.hidden = false;
+    stationList.querySelector('input').checked = true;
+    pickStation(body.id);
+    propose.open = false;
+    say(proposeStatus, '');
+    say(stationIntro, M.proposeDone);
+  });
+
 }

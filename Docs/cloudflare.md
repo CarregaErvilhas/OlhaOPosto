@@ -219,7 +219,7 @@ ainda têm fotos; o moderador escreve o código do posto novo e cria o alias
 (`POST /admin/rekey`). O link antigo responde `301` para o novo (páginas e
 `/api/v1/stations/{id}`). Migração `0009_station_aliases.sql`.
 
-**Pedidos de remoção** (`/report` e `/en/report`, públicos, com o mesmo nome do Panoramax; os antigos `/takedown` e `/en/takedown` respondem `301`; `/admin/remocoes` e `/en/admin/takedowns`, só moderadores; `src/takedown.ts`).
+**Pedidos de remoção** (`/report` e `/en/report`, públicos, com o mesmo nome do Panoramax; `/admin/remocoes` e `/en/admin/takedowns`, só moderadores; `src/takedown.ts`).
 Assentam nas denúncias do próprio Panoramax (`/api/reports`), sem tabela
 nossa. No Panoramax, uma denúncia por desfocagem em falta, privacidade,
 conteúdo impróprio ou direitos de autor põe logo a foto em `owner-only` (um
@@ -246,7 +246,7 @@ esconder). Se corresponde:
    `panoramax.*` são purgados. As linhas de `selections` só saem depois de a
    purga correr bem: enquanto ficarem, há algo por limpar.
 
-**Cron a cada 10 minutos** (`triggers.crons` no `wrangler.json`, `scheduled`
+**Cron a cada 6 horas** (`triggers.crons` no `wrangler.json`, `scheduled`
 no `src/index.ts`). É um *cron* e não um *webhook* porque o Panoramax não
 avisa ninguém quando chega uma denúncia. Com a regra WAF e o botão do
 visualizador a mandar toda a gente para o formulário, o formulário já oculta

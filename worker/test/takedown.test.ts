@@ -228,17 +228,6 @@ test('takedown: the form stays closed without the purge secrets', async () => {
   assert.equal(status(w), 'published');
 });
 
-test('takedown: the old /takedown addresses move to /report, and its POST still works', async () => {
-  const w = await world({ purge: false });
-  for (const [from, to] of [['/takedown?alvo=X%201', '/report?alvo=X%201'], ['/en/takedown', '/en/report']]) {
-    const res = await worker.fetch(new Request(SITE + from), w.env as never, {} as never);
-    assert.equal(res.status, 301);
-    assert.equal(res.headers.get('location'), to);
-  }
-  // Closed form (no purge secrets), so no network: only the route is checked.
-  const old = await worker.fetch(form('/takedown', { alvo: 'x' }), w.env as never, {} as never);
-  assert.equal(old.headers.get('location'), '/report?erro=bad');
-});
 
 test('takedown: a failed purge keeps the selections, and reconcile finishes the job', async () => {
   const w = await world();

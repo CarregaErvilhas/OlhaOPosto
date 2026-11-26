@@ -124,7 +124,7 @@ const T = {
     due: (h: number) => (h >= 0 ? `Faltam ${h} h` : `Atrasada ${-h} h`),
     hidden: 'Oculta',
     visible: 'Ainda visível',
-    pending: 'Os links estáticos ainda não foram limpos; o sistema tenta outra vez a cada 10 minutos.',
+    pending: 'Os links estáticos ainda não foram limpos; o sistema tenta outra vez a cada 6 horas e sempre que este painel abre.',
     notOurs: 'Não corresponde a nenhuma foto do olh\'o\'posto. Vê-a no Panoramax.',
     sequence: 'Denúncia de uma sequência inteira, não de uma foto: o painel não a trata. Vê-a no visualizador e trata-a pela API do Panoramax com o token da conta de serviço.',
     issues: {
@@ -185,7 +185,7 @@ const T = {
     due: (h: number) => (h >= 0 ? `${h} h left` : `${-h} h overdue`),
     hidden: 'Hidden',
     visible: 'Still visible',
-    pending: 'The static links are not cleared yet; the system tries again every 10 minutes.',
+    pending: 'The static links are not cleared yet; the system tries again every 6 hours and whenever this panel opens.',
     notOurs: 'It matches no olh\'o\'posto photo. See it on Panoramax.',
     sequence: 'A report on a whole sequence, not a photo: this panel cannot handle it. See it in the viewer and handle it through the Panoramax API with the service account token.',
     issues: {

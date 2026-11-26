@@ -106,7 +106,9 @@ const HTML = (redirectOrigin: string | null): Record<string, string> => ({
     "default-src 'none'; style-src 'self'; font-src 'self'; script-src 'self'; img-src 'self'; " +
     `base-uri 'none'; form-action 'self'${redirectOrigin ? ` ${redirectOrigin}` : ''}; frame-ancestors 'none'`,
   'x-content-type-options': 'nosniff',
-  'referrer-policy': 'no-referrer',
+  // Not no-referrer: with it the browser sends `Origin: null` on the form's
+  // POST, and sameOrigin refuses it.
+  'referrer-policy': 'same-origin',
   'strict-transport-security': 'max-age=31536000',
   'cache-control': 'no-store',
 });

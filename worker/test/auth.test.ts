@@ -53,6 +53,8 @@ test('sameOrigin wants our Origin, or a same-origin fetch without one', () => {
   assert.ok(sameOrigin(req({ origin: SITE })));
   assert.ok(!sameOrigin(req({ origin: 'https://evil.example' })));
   assert.ok(!sameOrigin(req({ origin: 'null' })));
+  assert.ok(sameOrigin(req({ origin: 'null', 'sec-fetch-site': 'same-origin' })));
+  assert.ok(!sameOrigin(req({ origin: 'null', 'sec-fetch-site': 'cross-site' })));
   assert.ok(sameOrigin(req({ 'sec-fetch-site': 'same-origin' })));
   assert.ok(!sameOrigin(req({ 'sec-fetch-site': 'cross-site' })));
   assert.ok(!sameOrigin(req({})));

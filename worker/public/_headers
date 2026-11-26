@@ -34,3 +34,6 @@
 /models/*.tflite
   Cache-Control: public, max-age=31536000, immutable
   Content-Type: application/octet-stream
+# The group page's mascots: each site's own art, which may change with a deploy.
+/grupo/*
+  Cache-Control: public, max-age=86400

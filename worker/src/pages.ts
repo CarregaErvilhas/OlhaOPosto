@@ -36,6 +36,7 @@ export const termsPath = (lang: Lang) => (lang === 'pt' ? '/condicoes' : '/en/te
 export const groupPath = (lang: Lang) => (lang === 'pt' ? '/grupo' : '/en/group');
 export const accountPath = (lang: Lang) => (lang === 'pt' ? '/conta' : '/en/account');
 export const uploadPath = (lang: Lang) => (lang === 'pt' ? '/enviar' : '/en/upload');
+export const withoutPhotoPath = (lang: Lang) => (lang === 'pt' ? '/postos/sem-foto' : '/en/stations/without-photo');
 export const rankingPath = (lang: Lang) => (lang === 'pt' ? '/ranking' : '/en/ranking');
 export const socketAnchor =(compact: string) => `#t-${encodeURIComponent(compact)}`;
 
@@ -122,6 +123,7 @@ const T = {
     homeExample: 'Exemplo:',
     homeExampleLink: 'posto EZC-AMD-00051',
     homeApi: 'API:',
+    homeNoPhoto: 'Postos que ainda não têm foto',
     and: 'e',
     searchLabel: 'Procurar um posto',
     searchHint: 'Código do posto ou da tomada, localidade, morada ou operador.',
@@ -235,6 +237,7 @@ const T = {
     homeExample: 'Example:',
     homeExampleLink: 'station EZC-AMD-00051',
     homeApi: 'API:',
+    homeNoPhoto: 'Stations that still have no photo',
     and: 'and',
     searchLabel: 'Find a station',
     searchHint: 'Station or socket code, town, address or operator.',
@@ -310,7 +313,7 @@ const kw = (lang: Lang, v: number | null) =>
 const plug = (lang: Lang, c: string | null) => (c ? CONNECTORS[lang][c] ?? c : T[lang].unknownPlug);
 
 // NAP text on an English page: escaped, and marked as Portuguese.
-const nap = (lang: Lang, v: string) => (lang === 'pt' ? esc(v) : `<span lang="pt-PT">${esc(v)}</span>`);
+export const nap = (lang: Lang, v: string) => (lang === 'pt' ? esc(v) : `<span lang="pt-PT">${esc(v)}</span>`);
 
 // OSM elements as the import stores them (node/123). Anything else is not linked.
 const OSM_ELEMENT = /^(node|way|relation)\/\d+$/;
@@ -679,7 +682,7 @@ export function homePage(lang: Lang): string {
 ${searchForm(lang)}
 <p>${t.homeExample} <a href="${stationPath(lang, 'EZC-AMD-00051')}">${t.homeExampleLink}</a>.</p>
 <p>${t.homeApi} <code>/api/v1/stations?q=</code>, <code>/api/v1/stations/{id}</code> ${t.and} <code>/api/v1/evses/{evse}</code>.</p>
-<p><a href="${rankingPath(lang)}">${lang === 'pt' ? 'Ranking de contribuidores' : 'Contributor ranking'}</a>.</p>
+<p><a href="${withoutPhotoPath(lang)}">${t.homeNoPhoto}</a> · <a href="${rankingPath(lang)}">${lang === 'pt' ? 'Ranking de contribuidores' : 'Contributor ranking'}</a></p>
 </div>`,
   });
 }

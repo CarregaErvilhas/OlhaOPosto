@@ -64,10 +64,15 @@ O código está em `worker/`. O Worker chama-se `olhaoposto` e responde em `olha
 | Pedido | Devolve |
 | --- | --- |
 | `GET /api/v1/stations/{id}` | Posto e pontos (cada um com o `evse` e o `compact`, o código sem `*` que dá o nome ao link estático), cada um com a foto principal (`photo`, ou `null`), com CORS e `max-age=300`. `404` para ids que não existem e para propostas ou postos rejeitados |
+| `GET /api/v1/photos/{id}` | Uma foto publicada (`src/photoapi.ts`): crédito, licença, alvo, posto, tamanhos, id no Panoramax. Com CORS e `max-age=300`. O autor e os moderadores, com *token* ou sessão, veem também as outras (com o estado e o motivo da recusa), sem cache. `404` para as outras |
+| `GET /api/v1/photos.json` | Exportação de todas as fotos publicadas (galeria incluída). A Cache API do Worker guarda-a um dia (`max-age=86400`), como o `sitemap.xml`; remover uma foto faz *purge* deste URL (`EXPORT_URLS` em `src/takedown.ts`) |
+| `GET /api/v1/openapi.json` | A API em OpenAPI 3.1 (`src/openapi.ts`). O teste `test/openapi.test.ts` falha se uma rota de `/api/v1` do `src/index.ts` não estiver lá |
+| `GET /postos/sem-foto`, `/en/stations/without-photo` | Postos públicos sem foto principal, com filtros por concelho e operador e uma ligação ao envio de cada um (`src/nophoto.ts`). Conta os postos por concelho e operador de cada vez (uma leitura da tabela `stations`), com `SEARCH_LIMIT` e `max-age=300` |
 | `GET /api/v1/evses/{evse}` | Tomada pelo código EVSE, com ou sem os `*` (`PT*EZC*E*AMD*00051*1` ou `PTEZCEAMD000511`), e o posto a que pertence, cada um com a foto principal (`photo`, ou `null`). `300` com a lista `candidates` se o código estiver em mais de um posto |
 | `GET /postos/{id}` | Página do posto: tomadas com o código EVSE, links estáticos de cada tamanho para copiar, ligação ao OSM. `404` em HTML como na API |
 | `GET /tomadas/{evse}` | `302` para `/postos/{id}#t-{evse}`, com a tomada marcada; uma página com a lista se o código estiver em mais de um posto. `302` e não `301`, porque um código pode mudar de posto |
 | `GET /api/v1/stations?q=&limit=` | Pesquisa por texto em `stations_fts` (FTS5): cada palavra tem de aparecer, como prefixo, no código, nome, morada, localidade ou operador; sem acentos (`acores` encontra `Açores`). Postos públicos, os melhores primeiro, `limit` até 50 (20 por omissão). `400` sem uma palavra de pelo menos dois caracteres |
+| `GET /api/v1/stations?opc=&municipality=&has_photo=&after=` | Os filtros juntam-se à pesquisa por texto e por proximidade, ou usam-se sozinhos (lista por id, em páginas, com `next`/`after`). `has_photo=false`: postos sem foto principal publicada. `400` `bad_filter` |
 | `GET /api/v1/stations?lat=&lon=&radius=&limit=` | Postos públicos a menos de `radius` metros (500 por omissão, até 5000), do mais perto para o mais longe, cada um com `distance_m`. Usa o índice `stations_lat_lon` (migração `0005`) para uma caixa à volta do ponto e corta o círculo no Worker. `400` com coordenadas em branco ou fora do intervalo, ou com `q` e coordenadas ao mesmo tempo |
 | `GET /pesquisa?q=` | A mesma pesquisa em HTML, 20 resultados, `noindex` e fora do *sitemap*. Um código de posto ou de tomada escrito por inteiro faz `302` para a página dele |
 | `GET /` | Página inicial com a caixa de pesquisa |
@@ -86,6 +91,7 @@ O código está em `worker/`. O Worker chama-se `olhaoposto` e responde em `olha
 | `POST /auth/logout?next=` | Apaga a sessão e faz `303` para o `next`. `403` se o pedido vier de outro site |
 | `POST /api/v1/photos` | Envio de uma foto, com sessão do próprio site ou com um *token* `photos:write` (ver *Envio* e *Tokens de API*). `503` `uploads_closed` se faltar um segredo |
 | `POST /api/v1/stations` | Propor um posto que não está no NAP (`src/proposals.ts`, ver *Postos propostos*), com sessão do próprio site ou *token* `photos:write` |
+| `DELETE /api/v1/photos/{id}` | O autor retira a sua foto, um moderador ou administrador qualquer uma (`src/photoapi.ts`, `removePhoto` em `src/takedown.ts`), com sessão do próprio site ou *token* `photos:write`. Oculta as cópias, purga a cache, apaga o *upload set* no Panoramax e passa a foto a `removed`; uma principal perdida fica em «Sem foto principal». Um moderador pode mandar `{reason, note}` |
 | `PUT /api/v1/selections/{target}` | Escolher a foto principal de um posto ou tomada (`{"photo": "<id>"}`), para `trusted`, moderadores e administradores, com sessão do próprio site ou *token* `selections:write`. Copia os três tamanhos por cima e faz *purge* |
 
 As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os ficheiros de `worker/public/` (CSS, *scripts*, fontes, ícones) são *static assets* do Worker: a Cloudflare serve-os antes de o código correr e não contam para o limite de pedidos. O `public/_headers` dá às fontes um ano de cache (`immutable`): uma fonte nova leva um nome de ficheiro novo. O CSS e os *scripts* (`site.js`, `theme.js`, `upload.js`, `jpeg.js`, `heif.js`, `heic.js`, `detect.js`) e as bibliotecas de `public/vendor/` mantêm o nome, por isso vão com `no-cache`: o browser confirma-os (ETag) em cada página e um deploy nunca junta HTML novo com CSS antigo.
@@ -169,7 +175,7 @@ Se o Panoramax falhar, nada muda. `approved_by` e `approved_at` guardam quem dec
 | --- | --- | --- | --- |
 | `UPLOAD_LIMIT` | conta | 6 por minuto | `POST /api/v1/photos`, antes de ler o corpo; `429` `too_fast` |
 | `LOGIN_LIMIT` | IP | 10 por minuto | `/auth/osm/login` e `/auth/osm/callback` |
-| `SEARCH_LIMIT` | IP | 60 por minuto | `/api/v1/stations` (texto e proximidade), `/pesquisa`, `/en/search` |
+| `SEARCH_LIMIT` | IP | 60 por minuto | `/api/v1/stations` (texto, proximidade e filtros), `/pesquisa`, `/en/search`, `/postos/sem-foto`, `/en/stations/without-photo` |
 | `TAKEDOWN_LIMIT` | IP | 5 por minuto | `POST /report`; volta ao formulário com `erro=limit` |
 
 Acima do limite: `429` com `Retry-After: 60` (JSON na API, uma linha em pt e en nas páginas). Os contadores são por localização da Cloudflare e aproximados: travam scripts e enxurradas, não um ataque espalhado por muitas localizações. O limite exato continua a ser o diário da D1 (50 envios por dia para contribuidores). Se o *binding* faltar ou falhar, o pedido passa. As páginas dos postos não têm limite, para não travar os motores de busca.

@@ -14,7 +14,10 @@ import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { chooseMain } from './publish.ts';
 import { syncCredits } from './credit.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
-import { findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
+import { filterStations, findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
+import { deletePhoto, exportPhotos, getPhoto, optionalCaller } from './photoapi.ts';
+import { openApiSpec } from './openapi.ts';
+import { noPhotoData, noPhotoPage } from './nophoto.ts';
 import { ranking } from './points.ts';
 import {
   PICTURES, SITE, evseChoicePage, homePage, messages, notFoundPage, rankingPage, rankingPath, searchPage, socketAnchor, stationPage, stationPath, type Lang,
@@ -29,7 +32,7 @@ import { PROMOTE_ACTION, lostHtml, promoteMain } from './mains.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
 import {
-  compactCode, ftsQuery, MAX_QUERY, NEAR_MAX_M, parseNear, STATION_ID, type EvseMatch, type SearchRow,
+  API_MAX_RESULTS, compactCode, ftsQuery, hasFilters, MAX_QUERY, NEAR_MAX_M, parseFilters, parseNear, STATION_ID, type EvseMatch, type SearchRow,
 } from './types.ts';
 
 // The API is for apps and agents, not for search results.
@@ -159,6 +162,41 @@ async function stationJson(env: Env, id: string): Promise<Response> {
   });
 }
 
+// GET /api/v1/photos/{id}. A published photo is public; its author and the
+// moderators also read the others, so nothing cached for them is shared.
+async function photoJson(request: Request, env: Env, id: string): Promise<Response> {
+  const user = request.headers.has('authorization') || request.headers.has('cookie') ? await optionalCaller(request, env) : null;
+  const r = await getPhoto(env, id, user);
+  if ('notFound' in r) return notFound();
+  return json(r.photo, 200, r.private ? 'private, no-store' : 'public, max-age=300');
+}
+
+// DELETE /api/v1/photos/{id}: the author, or a moderator (src/photoapi.ts).
+async function deletePhotoJson(request: Request, env: Env & TakedownEnv, id: string): Promise<Response> {
+  const caller = await apiCaller(request, env, 'photos:write');
+  if ('error' in caller) return json({ error: caller.error }, caller.status, 'no-store');
+  let body: { reason?: unknown; note?: unknown } = {};
+  const text = await request.text().catch(() => '');
+  if (text.trim()) {
+    try { body = JSON.parse(text); } catch { return json({ error: 'bad_body' }, 400, 'no-store'); }
+    if (body === null || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'bad_body' }, 400, 'no-store');
+  }
+  const r = await deletePhoto(env, caller.user, id, body);
+  return 'ok' in r ? json({ removed: true }, 200, 'no-store') : json({ error: r.error }, r.status, 'no-store');
+}
+
+// The whole gallery, once a day: the Cache API holds it, and a removal purges
+// it (src/takedown.ts). Like the sitemap, Workers responses are not kept by
+// the CDN on their own.
+async function photosExportJson(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const key = new Request(new URL('/api/v1/photos.json', request.url));
+  const hit = typeof caches === 'undefined' ? undefined : await caches.default.match(key);
+  if (hit) return hit;
+  const res = json(await exportPhotos(env), 200, 'public, max-age=86400');
+  if (typeof caches !== 'undefined') ctx.waitUntil(caches.default.put(key, res.clone()));
+  return res;
+}
+
 const evseBody = (e: EvseMatch) => {
   const at = { stationId: e.station_id, lat: e.lat, lon: e.lon };
   return {
@@ -271,7 +309,6 @@ async function sitemap(request: Request, env: Env, ctx: ExecutionContext): Promi
 }
 
 const PAGE_RESULTS = 20;
-const API_MAX_RESULTS = 50;
 const queryOf = (url: URL) => (url.searchParams.get('q') ?? '').trim().slice(0, MAX_QUERY);
 
 const searchBody = (r: SearchRow) => ({
@@ -291,8 +328,17 @@ function limitOf(url: URL): number {
   return Number.isInteger(asked) ? Math.min(Math.max(asked, 1), API_MAX_RESULTS) : PAGE_RESULTS;
 }
 
-// Two ways in: words (?q=) or a place (?lat=&lon=&radius=), never both.
+// Three ways in: words (?q=), a place (?lat=&lon=&radius=), or the filters
+// alone (?has_photo=false&opc=…). Words and place never combine; the filters
+// narrow any of them.
 async function searchJson(env: Env, url: URL): Promise<Response> {
+  const filters = parseFilters(url.searchParams);
+  if (filters === 'bad') {
+    return json({
+      error: 'bad_filter',
+      detail: 'opc is an operator id, municipality a name, has_photo true or false',
+    }, 400, 'no-store');
+  }
   const near = parseNear(url.searchParams);
   if (near !== null) {
     if (url.searchParams.has('q')) {
@@ -304,17 +350,21 @@ async function searchJson(env: Env, url: URL): Promise<Response> {
         detail: `lat and lon in decimal degrees; radius in whole metres, 1 to ${NEAR_MAX_M}`,
       }, 400, 'no-store');
     }
-    const results = await nearStations(env, near, limitOf(url));
+    const results = await nearStations(env, near, limitOf(url), filters);
     return json({ ...near, results: results.map((r) => ({ ...searchBody(r), distance_m: r.distance_m })) });
   }
   const q = queryOf(url);
   if (!ftsQuery(q)) {
+    if (!q && hasFilters(filters)) {
+      const page = await filterStations(env, filters, limitOf(url), (url.searchParams.get('after') ?? '').slice(0, 64));
+      return json({ results: page.rows.map(searchBody), next: page.next });
+    }
     return json({
       error: 'q_required',
-      detail: 'q needs a word of at least two letters or digits, or search by place with lat and lon',
+      detail: 'q needs a word of at least two letters or digits, or search by place with lat and lon, or give opc, municipality or has_photo',
     }, 400, 'no-store');
   }
-  return json({ q, results: (await searchStations(env, q, limitOf(url))).map(searchBody) });
+  return json({ q, results: (await searchStations(env, q, limitOf(url), filters)).map(searchBody) });
 }
 
 // A typed station or socket code goes straight to its page; anything else is
@@ -392,8 +442,27 @@ export default {
         return setSelection(request, env, ctx, value);
       }
     }
+    if (request.method === 'DELETE') {
+      const m = pathname.match(/^\/api\/v1\/photos\/([^/]+)$/);
+      if (m) {
+        const value = param(m[1]);
+        if (value === null) return notFound();
+        return deletePhotoJson(request, env, value);
+      }
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json({ error: 'method_not_allowed' }, 405, 'no-store');
+    }
+    // Before ROUTES: "sem-foto" would read as a station id.
+    if (pathname === '/postos/sem-foto' || pathname === '/en/stations/without-photo') {
+      if (!(await allowed(env.SEARCH_LIMIT, clientIp(request)))) return tooMany(pathname);
+      const lang: Lang = pathname === '/postos/sem-foto' ? 'pt' : 'en';
+      return html(lang, noPhotoPage(lang, await noPhotoData(env, lang, url)));
+    }
+    const photoRoute = pathname.match(/^\/api\/v1\/photos\/([^/]+)$/);
+    if (photoRoute) {
+      const value = param(photoRoute[1]);
+      return value === null ? notFound() : photoJson(request, env, value);
     }
     for (const [re, handler, bad] of ROUTES) {
       const m = pathname.match(re);
@@ -402,6 +471,8 @@ export default {
       return value === null ? bad() : handler(env, value);
     }
     if (pathname === '/api/v1/main-photos') return mainPhotosJson(env);
+    if (pathname === '/api/v1/photos.json') return photosExportJson(request, env, ctx);
+    if (pathname === '/api/v1/openapi.json') return json(openApiSpec(), 200, 'public, max-age=3600');
     if (pathname === '/api/v1/ranking') return rankingJson(env, url);
     if (pathname === '/api/v1/stations' || pathname === '/pesquisa' || pathname === '/en/search') {
       if (!(await allowed(env.SEARCH_LIMIT, clientIp(request)))) return tooMany(pathname);

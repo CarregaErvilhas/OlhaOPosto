@@ -21,6 +21,7 @@ import { termsPage } from './terms.ts';
 import { proposeStation } from './proposals.ts';
 import { groupPage } from './grupo.ts';
 import { photoLink } from './photolinks.ts';
+import { PROMOTE_ACTION, lostHtml, promoteMain } from './mains.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
 import {
@@ -357,6 +358,7 @@ export default {
     if (request.method === 'POST' && pathname === '/api/v1/stations') return proposeStation(request, env);
     if (request.method === 'POST' && pathname === '/report') return submitTakedown(request, env);
     if (request.method === 'POST' && pathname === TAKEDOWN_DECIDE) return decideTakedown(request, env);
+    if (request.method === 'POST' && pathname === PROMOTE_ACTION) return promoteMain(request, env);
     if (request.method === 'PUT') {
       const m = pathname.match(/^\/api\/v1\/selections\/([^/]+)$/);
       if (m) {
@@ -404,6 +406,8 @@ export default {
     if (pathname === '/en/report') return takedownHtml('en', request, env, TURNSTILE_HEADERS);
     if (pathname === '/admin/remocoes') return takedownsHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/takedowns') return takedownsHtml('en', request, env, HTML_HEADERS);
+    if (pathname === '/admin/sem-principal') return lostHtml('pt', request, env, HTML_HEADERS);
+    if (pathname === '/en/admin/no-main') return lostHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
     if (pathname === '/en/upload') return uploadHtml('en', request, env, UPLOAD_HEADERS);
     if (pathname === '/auth/osm/login' || pathname === '/auth/osm/callback') {

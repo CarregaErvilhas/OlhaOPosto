@@ -263,8 +263,10 @@ esconder). Se corresponde:
    e o `/main-photos` deixam de a mostrar, no máximo 5 minutos de cache), a
    foto no Panoramax passa a `owner-only` (o mesmo que o *trigger* faz), as
    cópias saem do R2 `pictures` e os URLs do `pictures.*` e das imagens do
-   `panoramax.*` são purgados. As linhas de `selections` só saem depois de a
-   purga correr bem: enquanto ficarem, há algo por limpar.
+   `panoramax.*` são purgados. As linhas de `selections` só passam a
+   perdidas (`lost_at`, migração `0014`) depois de a purga correr bem:
+   enquanto não passarem, há algo por limpar. Depois ficam, para a lista
+   «Sem foto principal» (ver abaixo).
 
 **Cron a cada 6 horas** (`triggers.crons` no `wrangler.json`, `scheduled`
 no `src/index.ts`). É um *cron* e não um *webhook* porque o Panoramax não
@@ -272,8 +274,8 @@ avisa ninguém quando chega uma denúncia. Com a regra WAF e o botão do
 visualizador a mandar toda a gente para o formulário, o formulário já oculta
 as cópias na hora, e o cron fica para o que pode falhar a meio:
 
-- Repete as ocultações que deixaram `selections` para trás (o R2 ou a purga
-  falharam). Sem isto, um link estático ficava público até alguém abrir o
+- Repete as ocultações que deixaram linhas de `selections` por marcar como
+  perdidas (o R2 ou a purga falharam). Sem isto, um link estático ficava público até alguém abrir o
   painel, ou até 30 dias na cache.
 - Rede de segurança: lê as denúncias abertas das fotos da conta de serviço
   (`/api/users/me/reports`; é dona de todas, chega para as ler e fechar sem
@@ -292,8 +294,20 @@ volta a preencher os links estáticos que ainda estão vazios. As denúncias de
 uma sequência inteira (só pelo formulário do próprio visualizador, que a
 regra WAF agora bloqueia) não têm botões: o cron não as segue e tratam-se
 pela API do Panoramax com o token da conta de serviço. O prazo é de 72 horas; o painel
-mostra o tempo que falta. Ainda não se promove outra foto aprovada a
-principal quando uma é ocultada.
+mostra o tempo que falta.
+
+**Sem foto principal** (`/admin/sem-principal` e `/en/admin/no-main`, só
+moderadores e administradores, e no fim da fila de moderação e do painel de
+remoções quando há alguma; `src/mains.ts`). Os postos e tomadas cuja
+principal foi ocultada ou removida (`selections.lost_at`), cada um com uma
+galeria das outras fotos publicadas do mesmo alvo (miniaturas do
+`pictures-staging`) e um botão de escolha por foto. «Tornar principal»
+(`POST /admin/principal`, mesma origem) chama o `chooseMain` do
+`src/publish.ts`, o mesmo do `PUT /api/v1/selections/{target}`: copia os três
+tamanhos, faz *purge* e limpa o `lost_at`. Só aceita alvos ainda sem
+principal (um segundo moderador no mesmo alvo fica a saber que já foi
+escolhida). Sem outras fotos, a página diz que o alvo fica sem principal até
+chegar uma nova. Nada passa a principal sozinho.
 
 **O formulário fica fechado** (mostra o email) enquanto faltarem os
 segredos do Turnstile, da purga ou o `PANORAMAX_TOKEN`: sem purga, a foto

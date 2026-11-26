@@ -144,7 +144,7 @@ link de tomada.
 | `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `pseudonym`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. O `pseudonym` ainda não se edita |
 | `sessions` | `token_hash` (PK, SHA-256 do *cookie*), `user_id` (FK), `created_at`, `expires_at` | Uma cópia da tabela não abre sessões. As expiradas saem no login seguinte |
 | `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados |
-| `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica |
+| `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at`, `lost_at` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica. `lost_at` marca um alvo que perdeu a principal (migração `0014`), para o distinguir de um que nunca teve |
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP: o link antigo responde `301` para o novo |
 | `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação (*Pontos e ranking*, abaixo). Uma linha por atribuição; só contam as de fotos `published` |
 | `api_tokens` | `id`, `user_id` (FK), `token_hash` (único, SHA-256), `prefix`, `name`, `scopes`, `created_at`, `expires_at`, `last_used_at`, `revoked_at` | *Tokens* de API: uma cópia da tabela não abre nada |
@@ -218,6 +218,20 @@ posto mostra a foto principal com o crédito, e as miniaturas das tomadas.
 Um moderador ou uma conta `trusted` pode trocar a principal
 (`PUT /api/v1/selections/{target}`): o Worker copia a foto nova por cima das
 três chaves e faz *purge* desses URLs.
+
+Quando a principal é ocultada ou removida (pedido de remoção), as três
+chaves saem logo do `pictures` e o link passa a `404`: a privacidade vem
+primeiro. A seguinte **nunca passa a principal sozinha**, porque pode estar
+mal desfocada, ser de outra tomada ou simplesmente pior. A linha de
+`selections` fica, com `lost_at` preenchido e `published_at` a `NULL`, e o
+alvo aparece na lista «Sem foto principal» (`/admin/sem-principal`, e no fim
+da fila de moderação e do painel de remoções; `src/mains.ts`), com as outras
+fotos publicadas do mesmo alvo: do posto em geral para um posto, dessa
+tomada para uma tomada. Um moderador ou administrador escolhe uma e carrega
+em «Tornar principal» (`POST /admin/principal`, que usa o mesmo caminho do
+`PUT /api/v1/selections/{target}`). Sem escolha, o link fica `404`. Uma foto
+nova desse alvo, quando aprovada, preenche-o como a qualquer alvo sem
+principal; o mesmo faz a própria foto, se o moderador a mantiver.
 
 | URL (`pictures.ocarroeletrico.com`) | Devolve |
 | --- | --- |

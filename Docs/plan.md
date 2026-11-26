@@ -19,7 +19,6 @@ daqui fica feita, sai deste documento e passa para lá.
    - detetor de matrículas no browser (ver *Desfocagem*);
    - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
    - página de crédito `/p/{photo_id}` e pseudónimo no perfil (ver *Crédito*);
-   - promover a foto aprovada seguinte a principal quando uma principal é ocultada ou retirada;
    - o autor ver os seus envios e o motivo de uma recusa (ver *Moderação*);
    - link manual "acrescentar ao OSM";
    - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
@@ -53,7 +52,6 @@ E uma coluna para o motivo de uma recusa em `photos` (hoje fica só o estado `re
 
 A primeira foto aprovada de cada alvo já é publicada, e a principal já se troca ([`arquitetura.md`](arquitetura.md), *Links estáticos*). Falta:
 
-- **Passar a principal à seguinte** quando a foto é ocultada ou retirada (pedido de remoção): hoje as três chaves saem do `pictures` e o link passa a `404`; deve passar a seguinte foto aprovada do mesmo alvo, se houver.
 - **Página de crédito** `olhaoposto.ocarroeletrico.com/p/{photo_id}`, com o autor, a data e a licença. Hoje o XMP aponta para a página do posto.
 - **Fotos externas** (MapComplete, Commons): só na galeria, nunca a principal. Ver abaixo.
 

@@ -387,6 +387,17 @@ table.users th { font-weight: 600; color: var(--muted); font-size: 0.875rem; }
 .queue-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 .queue-actions form { margin: 0; }
 @media (max-width: 560px) { .queue-item { grid-template-columns: minmax(0, 1fr); } }
+
+/* Admin: targets without a main photo */
+.lost-item { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.lost-item p { margin: 0 0 6px; }
+.lost-item fieldset { border: 0; margin: 12px 0; padding: 0; min-width: 0; }
+.lost-item legend { font-weight: 600; padding: 0; margin-bottom: 8px; }
+.lost-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.lost-choice { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 0.875rem; }
+.lost-choice:has(input:checked) { border-color: var(--accent); outline: 2px solid var(--accent); }
+.lost-choice img { width: 100%; height: auto; border-radius: 6px; display: block; background: var(--line); }
+.lost-choice input { min-width: 24px; min-height: 24px; margin: 0; }
 .muted { color: var(--muted); }
 
 /* Station main photo */

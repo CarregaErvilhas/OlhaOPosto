@@ -49,6 +49,7 @@ function world(opts: { evse?: string | null; taken?: string[]; hd?: Uint8Array |
     const s = {
       bind(...x: unknown[]) { a = x; return s; },
       async first() {
+        if (sql.includes('FROM selections')) return null;   // no lost rows here (test/mains.test.ts has them)
         return { id: 'p1', station_id: 'EZC-AMD-00051', evse_compact: opts.evse === undefined ? 'PTEZCEAMD000511' : opts.evse, credit: 'Ana', panoramax_id: 'pic-1' };
       },
       async run() {

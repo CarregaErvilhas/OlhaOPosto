@@ -143,7 +143,7 @@ Já existem `GET /stations?q=` (pesquisa por texto), `GET /stations?lat=&lon=&ra
 | `PUT /selections/{target}` | Escolher a foto principal de um posto ou tomada | `trusted` |
 | `POST /stations` | Propor posto novo (vai para a fila) | `photos:write` |
 | `DELETE /photos/{id}` | Retirar uma foto (autor ou moderador) | sessão/token |
-| `POST /takedown` | Pedido de remoção por privacidade, sem login | Turnstile |
+| `POST /report` | Pedido de remoção por privacidade, sem login | Turnstile |
 
 **Tokens para scripts e agentes** (fase 3). Cada utilizador gera *personal access tokens* na sua página, com âmbitos (`photos:read`, `photos:write`, `selections:write`) e validade. Envio com `Authorization: Bearer <token>`. Na D1 guarda-se só o hash. Os limites de envio são os da conta, não do token.
 

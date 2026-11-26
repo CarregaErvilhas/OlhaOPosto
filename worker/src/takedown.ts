@@ -7,13 +7,16 @@
 // is our copies: the static links in pictures.*, the edge cache in front of
 // both hosts, and the photo's row in D1. This file keeps those in step:
 //
-//   - /takedown: a form with Turnstile (Panoramax's POST has none). It turns
+//   - /report: a form with Turnstile (Panoramax's POST has none). It turns
 //     a code or link into the Panoramax picture, files the report, and hides
 //     our copies straight away. No contact is asked: the service account is
 //     not a Panoramax admin, so it could never read or delete it.
-//   - reconcile(): run by the cron and by the panel. It hides our copies of
-//     every picture with an open auto-hide report, whoever filed it (this form
-//     or the viewer's report button), and retries any hide that half-failed.
+//   - reconcile(): run by the cron and by the panel. It retries any hide
+//     that half-failed (a failed R2 delete or purge would otherwise leave a
+//     static link up for weeks), and hides our copies of every picture with
+//     an open auto-hide report that did not come from this form. The WAF
+//     rule and the viewer's Report button send everyone here, so that second
+//     part is only a safety net.
 //   - /admin/remocoes: the open reports on our pictures. The service account
 //     owns every picture, which is enough to read and close their reports.
 //     Remove deletes the upload set (the report goes with it, ON DELETE
@@ -42,7 +45,7 @@ export interface TakedownEnv extends PublishEnv {
 
 export const TAKEDOWN_ACTION = 'takedown';   // Turnstile action, checked on siteverify
 export const REPORT_HEADER = 'x-olhaoposto-report';
-export const takedownFormPath = (lang: Lang) => (lang === 'pt' ? '/takedown' : '/en/takedown');
+export const takedownFormPath = (lang: Lang) => (lang === 'pt' ? '/report' : '/en/report');
 export const takedownsPath = (lang: Lang) => (lang === 'pt' ? '/admin/remocoes' : '/en/admin/takedowns');
 export const TAKEDOWN_DECIDE = '/admin/remocao';
 export const DEADLINE_H = 72;
@@ -419,7 +422,7 @@ export function takedownHtml(lang: Lang, request: Request, env: PublishEnv, head
   }), 200, headers);
 }
 
-// POST /takedown (both languages; the form says which page to go back to).
+// POST /report (both languages; the form says which page to go back to).
 export async function submitTakedown(request: Request, env: TakedownEnv, fetcher: Fetch = fetch): Promise<Response> {
   if (!sameOrigin(request)) return noStore('forbidden', 403);
   let form: FormData;

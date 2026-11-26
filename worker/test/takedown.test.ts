@@ -125,7 +125,7 @@ const form = (path: string, fields: Record<string, string>) =>
     body: new URLSearchParams(fields),
   });
 const ask = (asked: string, extra: Record<string, string> = {}) =>
-  form('/takedown', { alvo: asked, motivo: 'face', 'cf-turnstile-response': 'tok', lang: 'pt', ...extra });
+  form('/report', { alvo: asked, motivo: 'face', 'cf-turnstile-response': 'tok', lang: 'pt', ...extra });
 const decide = (w: World, id: string, action: string, lang = 'pt') =>
   decideTakedown(form('/admin/remocao', { denuncia: id, action, lang }), w.env, w.fetcher, NOW);
 const status = (w: World) =>
@@ -164,7 +164,7 @@ test('station API: photo on the station and on each socket, null where none', as
   assert.equal(body.photo.sizes.full.maxPx, 2048);
   assert.equal(body.photo.page, `${SITE}/postos/EZC-AMD-00051`);
   assert.equal(body.photo.panoramax, `https://panoramax.ocarroeletrico.com/viewer?focus=map&map=19/38.5/-9.25&pic=${PIC}`);
-  assert.equal(body.photo.takedown, `${SITE}/takedown?alvo=EZC-AMD-00051`);
+  assert.equal(body.photo.report, `${SITE}/report?alvo=EZC-AMD-00051`);
   assert.equal(body.points[0].photo.page, `${SITE}/postos/EZC-AMD-00051#t-PTEZCEAMD000511`);
   assert.equal(body.points[1].photo, null);
 });
@@ -188,7 +188,7 @@ test('takedown: report filed anonymously, our copies hidden at once, with purges
   const w = await world({ key: true });
   const res = await submitTakedown(ask(`${SITE}/postos/EZC-AMD-00051`, { motivo: 'plate', detalhes: 'a matrícula' }), w.env, w.fetcher);
   assert.equal(res.status, 303);
-  assert.equal(res.headers.get('location'), '/takedown?ok=1');
+  assert.equal(res.headers.get('location'), '/report?ok=1');
   const post = w.calls.find((c) => c.url === 'https://pano.test/api/reports')!;
   assert.equal(post.headers.authorization, undefined);             // anonymous: we stay the owner, not the reporter
   assert.equal(post.headers['x-olhaoposto-report'], 'waf-key');
@@ -221,11 +221,23 @@ test('takedown: every reason maps to an issue Panoramax hides at once', async ()
 
 test('takedown: the form stays closed without the purge secrets', async () => {
   const w = await world({ purge: false });
-  const page = await (await worker.fetch(new Request(`${SITE}/takedown`), w.env as never, {} as never)).text();
+  const page = await (await worker.fetch(new Request(`${SITE}/report`), w.env as never, {} as never)).text();
   assert.ok(page.includes('info@ocarroeletrico.com') && !page.includes('cf-turnstile'));
   const res = await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher);
-  assert.equal(res.headers.get('location'), '/takedown?erro=bad');
+  assert.equal(res.headers.get('location'), '/report?erro=bad');
   assert.equal(status(w), 'published');
+});
+
+test('takedown: the old /takedown addresses move to /report, and its POST still works', async () => {
+  const w = await world({ purge: false });
+  for (const [from, to] of [['/takedown?alvo=X%201', '/report?alvo=X%201'], ['/en/takedown', '/en/report']]) {
+    const res = await worker.fetch(new Request(SITE + from), w.env as never, {} as never);
+    assert.equal(res.status, 301);
+    assert.equal(res.headers.get('location'), to);
+  }
+  // Closed form (no purge secrets), so no network: only the route is checked.
+  const old = await worker.fetch(form('/takedown', { alvo: 'x' }), w.env as never, {} as never);
+  assert.equal(old.headers.get('location'), '/report?erro=bad');
 });
 
 test('takedown: a failed purge keeps the selections, and reconcile finishes the job', async () => {
@@ -244,20 +256,20 @@ test('takedown: a second request for a hidden photo files nothing new', async ()
   const w = await world();
   await submitTakedown(ask('PTEZCEAMD000511'), w.env, w.fetcher);
   const res = await submitTakedown(ask('ptezceamd000511'), w.env, w.fetcher);
-  assert.equal(res.headers.get('location'), '/takedown?ok=2');
+  assert.equal(res.headers.get('location'), '/report?ok=2');
   // The station link (the API's and the figcaption's) finds it too, though
   // hiding cleared the station's selection.
   const byStation = await submitTakedown(ask(`${SITE}/postos/EZC-AMD-00051`), w.env, w.fetcher);
-  assert.equal(byStation.headers.get('location'), '/takedown?ok=2');
+  assert.equal(byStation.headers.get('location'), '/report?ok=2');
   const viaPano = await submitTakedown(ask(`https://panoramax.ocarroeletrico.com/viewer?pic=${PIC}`), w.env, w.fetcher);
-  assert.equal(viaPano.headers.get('location'), '/takedown?ok=2');
+  assert.equal(viaPano.headers.get('location'), '/report?ok=2');
   assert.equal(w.reports.size, 1);
 });
 
 test('takedown: an unknown code is told so, and Panoramax is not called', async () => {
   const w = await world();
   const res = await submitTakedown(ask('XYZ-NOPE-1'), w.env, w.fetcher);
-  assert.equal(res.headers.get('location'), '/takedown?erro=notfound');
+  assert.equal(res.headers.get('location'), '/report?erro=notfound');
   assert.equal(status(w), 'published');
   assert.deepEqual(w.calls.map((c) => c.url), ['https://challenges.cloudflare.com/turnstile/v0/siteverify']);
 });
@@ -266,7 +278,7 @@ test('takedown: Panoramax down, nothing hidden and the person is asked to retry'
   const w = await world();
   w.pano.down = true;
   const res = await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher);
-  assert.equal(res.headers.get('location'), '/takedown?erro=panoramax');
+  assert.equal(res.headers.get('location'), '/report?erro=panoramax');
   assert.equal(status(w), 'published');
   assert.equal(w.r2.size, 6);
 });
@@ -275,17 +287,17 @@ test('takedown: a Turnstile token made for the upload form is refused', async ()
   const w = await world();
   w.setAction('upload');
   const res = await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher);
-  assert.equal(res.headers.get('location'), '/takedown?erro=turnstile');
+  assert.equal(res.headers.get('location'), '/report?erro=turnstile');
   assert.equal(status(w), 'published');
   assert.equal(w.reports.size, 0);
 });
 
 test('takedown: cross-site posts and missing reasons are refused', async () => {
   const w = await world();
-  const cross = new Request(`${SITE}/takedown`, { method: 'POST', headers: { origin: 'https://evil.test' }, body: new URLSearchParams({ alvo: 'x' }) });
+  const cross = new Request(`${SITE}/report`, { method: 'POST', headers: { origin: 'https://evil.test' }, body: new URLSearchParams({ alvo: 'x' }) });
   assert.equal((await submitTakedown(cross, w.env, w.fetcher)).status, 403);
   const res = await submitTakedown(ask('EZC-AMD-00051', { motivo: 'boredom' }), w.env, w.fetcher);
-  assert.equal(res.headers.get('location'), '/takedown?erro=bad');
+  assert.equal(res.headers.get('location'), '/report?erro=bad');
 });
 
 test('takedown page: closed without Turnstile, escaped prefill, no contact field', () => {

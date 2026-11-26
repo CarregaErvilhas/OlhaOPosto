@@ -173,4 +173,4 @@ def test_viewer_report_button_opens_our_form(base_url):
             }"""
         )
         browser.close()
-    assert url == "https://olhaoposto.ocarroeletrico.com/takedown?alvo=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    assert url == "https://olhaoposto.ocarroeletrico.com/report?alvo=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"

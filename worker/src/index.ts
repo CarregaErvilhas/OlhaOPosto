@@ -349,7 +349,8 @@ export default {
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
     if (request.method === 'POST' && pathname === '/api/v1/photos') return submitPhoto(request, env, ctx);
-    if (request.method === 'POST' && pathname === '/takedown') return submitTakedown(request, env);
+    // /takedown was the form's first address: forms already open still post there.
+    if (request.method === 'POST' && (pathname === '/report' || pathname === '/takedown')) return submitTakedown(request, env);
     if (request.method === 'POST' && pathname === TAKEDOWN_DECIDE) return decideTakedown(request, env);
     if (request.method === 'PUT') {
       const m = pathname.match(/^\/api\/v1\/selections\/([^/]+)$/);
@@ -389,9 +390,12 @@ export default {
     if (pathname === '/en/admin/users') return usersHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/admin/postos-fora-do-nap' || pathname === '/admin/aliases' || pathname === '/admin/rekeys' || pathname === '/admin/rekey') return aliasesHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/stations-missing' || pathname === '/en/admin/aliases' || pathname === '/en/admin/rekeys' || pathname === '/en/admin/rekey') return aliasesHtml('en', request, env, HTML_HEADERS);
-    // The takedown form loads Turnstile, like the upload page.
-    if (pathname === '/takedown') return takedownHtml('pt', request, env, UPLOAD_HEADERS);
-    if (pathname === '/en/takedown') return takedownHtml('en', request, env, UPLOAD_HEADERS);
+    // The removal form loads Turnstile, like the upload page.
+    if (pathname === '/report') return takedownHtml('pt', request, env, UPLOAD_HEADERS);
+    if (pathname === '/en/report') return takedownHtml('en', request, env, UPLOAD_HEADERS);
+    if (pathname === '/takedown' || pathname === '/en/takedown') {
+      return new Response(null, { status: 301, headers: { location: pathname.replace(/takedown$/, 'report') + url.search } });
+    }
     if (pathname === '/admin/remocoes') return takedownsHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/takedowns') return takedownsHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
@@ -413,8 +417,9 @@ export default {
     const lang: Lang = pathname.startsWith('/en/') ? 'en' : 'pt';
     return pageNotFound(lang, messages(lang).noPage);
   },
-  // Every 10 minutes (wrangler.json): our copies follow Panoramax's reports,
-  // including those filed from its viewer (src/takedown.ts).
+  // Every 10 minutes (wrangler.json): retries the hides that half-failed, and
+  // follows any auto-hide report that did not come from our form
+  // (src/takedown.ts).
   async scheduled(_event: ScheduledController, env: Env & TakedownEnv, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(reconcile(env, fetch));
   },

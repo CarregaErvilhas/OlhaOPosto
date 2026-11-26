@@ -100,7 +100,7 @@
 				viewer._showReportForm = function () {
 					var meta = this.psv && this.psv.getPictureMetadata();
 					var pt = /^pt\b/i.test(navigator.language || "");
-					var url = FORM + (pt ? "/takedown" : "/en/takedown") +
+					var url = FORM + (pt ? "/report" : "/en/report") +
 						(meta && meta.id ? "?alvo=" + encodeURIComponent(meta.id) : "");
 					state.last = url;
 					window.open(url, "_blank", "noopener");

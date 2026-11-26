@@ -11,8 +11,8 @@ export const LICENSE = 'CC-BY-SA-4.0';
 export const LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/';
 export const SIZE_PX = { thumb: 400, main: 1024, full: 2048 } as const;
 
-export const takedownPath = (target?: string) =>
-  `/takedown${target ? `?alvo=${encodeURIComponent(target)}` : ''}`;
+export const reportPath = (target?: string) =>
+  `/report${target ? `?alvo=${encodeURIComponent(target)}` : ''}`;
 
 export interface PhotoLink {
   target: string;
@@ -23,7 +23,7 @@ export interface PhotoLink {
   sizes: Record<keyof typeof SIZE_PX, { url: string; maxPx: number }>;
   page: string;
   panoramax: string | null;
-  takedown: string;
+  report: string;
 }
 
 export function photoLink(p: {
@@ -53,6 +53,6 @@ export function photoLink(p: {
     panoramax: p.panoramaxId
       ? `${PANORAMAX_URL}/viewer?focus=map&map=19/${p.lat}/${p.lon}&pic=${encodeURIComponent(p.panoramaxId)}`
       : null,
-    takedown: SITE + takedownPath(p.target),
+    report: SITE + reportPath(p.target),
   };
 }

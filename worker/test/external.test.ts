@@ -35,6 +35,9 @@ test('toExternalPhotos: Panoramax and Commons become references, the rest is lef
     pano('22222222-2222-2222-2222-222222222222', { license: undefined }),                  // no licence
     pano('33333333-3333-3333-3333-333333333333', { src: 'https://evil.test/x.jpg' }),      // thumbnail elsewhere
     pano('44444444-4444-4444-4444-444444444444', { page: 'http://api.panoramax.xyz/#pic=44444444-4444-4444-4444-444444444444' }),
+    pano('77777777-7777-7777-7777-777777777777', { page: 'https://evilpanoramax.xyz/#pic=77777777-7777-7777-7777-777777777777' }),
+    { src: 'photos/c2.jpg', credit: 'X', license: 'CC0', page: 'https://commons.wikimedia.org.evil.test/wiki/File:X.jpg' },
+    { src: 'photos/c3.jpg', credit: 'X', license: 'CC0', page: 'https://evilwikimedia.org/wiki/File:X.jpg' },
     pano(PANO_UUID),                                                                        // repeated
   ]));
   assert.deepEqual(rows.map((r) => [r.origin, r.external_ref]), [

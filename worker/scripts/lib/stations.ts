@@ -123,6 +123,9 @@ export const THUMB_BASE = 'https://nap.ocarroeletrico.com/';
 const THUMB_SRC = /^photos\/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp)$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Our own pages and Panoramax server: those photos are ours, not external.
+// Exact hosts only: a lookalike such as evilwikimedia.org must not pass.
+const COMMONS_HOST = 'commons.wikimedia.org';
+const PANORAMAX_HOSTS = new Set(['panoramax.xyz', 'panoramax.openstreetmap.fr', 'panoramax.ign.fr']);
 const OWN_HOSTS = new Set(['olhaoposto.ocarroeletrico.com', 'panoramax.ocarroeletrico.com']);
 
 const url = (v: unknown): URL | null => {
@@ -166,11 +169,11 @@ export function toExternalPhotos(feed: Feed, ownPanoramax: ReadonlySet<string> =
       if (OWN_HOSTS.has(page.hostname) || (map && OWN_HOSTS.has(map.hostname))) continue;
       let origin: ExternalPhotoRow['origin'];
       let ref: string | null;
-      if (page.hostname.endsWith('wikimedia.org') || page.hostname.endsWith('wikipedia.org')) {
+      if (page.hostname === COMMONS_HOST) {
         origin = 'commons';
         const file = /\/wiki\/(File:[^?#]+)/.exec(page.pathname)?.[1] ?? page.searchParams.get('title');
         ref = file ? decodeURIComponent(file).replace(/_/g, ' ') : null;
-      } else if (page.hostname.includes('panoramax')) {
+      } else if (PANORAMAX_HOSTS.has(page.hostname) || page.hostname.endsWith('.panoramax.xyz')) {
         origin = 'osm_panoramax';
         ref = panoramaxUuid(page);
         if (ref && ownPanoramax.has(ref)) continue;

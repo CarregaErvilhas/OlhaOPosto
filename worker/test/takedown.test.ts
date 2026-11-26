@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { tokenHash } from '../src/auth.ts';
 import worker from '../src/index.ts';
 import { chooseMain } from '../src/publish.ts';
-import { decideTakedown, parseAsked, submitTakedown, takedownPage, takedownsPage, type TakedownEnv, type TakedownRow } from '../src/takedown.ts';
+import { decideTakedown, parseAsked, reconcile, submitTakedown, takedownPage, takedownsHtml, takedownsPage, type PanelItem, type Report, type TakedownEnv } from '../src/takedown.ts';
 import { d1 } from './d1.ts';
 
 const SITE = 'https://olhaoposto.ocarroeletrico.com';
@@ -23,8 +23,11 @@ function jpeg(width: number, height: number): Uint8Array {
   ]);
 }
 
-// A station with two sockets; the station and the first socket have a main photo.
-async function world(opts: { purge?: boolean; photo?: boolean } = {}) {
+
+// A station with two sockets; the station and the first socket have a main
+// photo. Panoramax is faked with its report rules: the trigger hides the
+// picture for AUTO_HIDE issues, and deleting the upload set takes its reports.
+async function world(opts: { purge?: boolean; photo?: boolean; key?: boolean } = {}) {
   const db = d1();
   db.sql.exec(`
     INSERT INTO stations (id, code, opc, operator, name, lat, lon, status, updated_at)
@@ -47,15 +50,50 @@ async function world(opts: { purge?: boolean; photo?: boolean } = {}) {
   const r2 = new Set(['PTEZCEAMD000511.jpg', 'PTEZCEAMD000511.thumb.jpg', 'PTEZCEAMD000511.full.jpg',
     'EZC-AMD-00051.jpg', 'EZC-AMD-00051.thumb.jpg', 'EZC-AMD-00051.full.jpg']);
   const staging = new Map([[`${PHOTO}/main.jpg`, jpeg(1024, 768)], [`${PHOTO}/thumb.jpg`, jpeg(400, 300)]]);
-  const calls: { url: string; method: string; body?: string }[] = [];
+  const calls: { url: string; method: string; body?: string; headers: Record<string, string> }[] = [];
+  const reports = new Map<string, Report>();
+  const pano = { visibility: 'anyone', down: false, purgeFails: false };
   let action = 'takedown';
+  let n = 0;
   const fetcher = async (url: string, init?: RequestInit) => {
     const body = typeof init?.body === 'string' ? init.body : undefined;
-    calls.push({ url, method: init?.method ?? 'GET', body });
+    const method = init?.method ?? 'GET';
+    calls.push({ url, method, body, headers: { ...(init?.headers as Record<string, string> | undefined) } });
     if (url.includes('siteverify')) {
       return Response.json({ success: true, hostname: 'olhaoposto.ocarroeletrico.com', action });
     }
+    if (url.includes('purge_cache')) return new Response('{}', { status: pano.purgeFails ? 500 : 200 });
     if (url.endsWith('/hd.jpg')) return new Response(jpeg(2048, 1536));
+    if (!url.startsWith('https://pano.test/')) return new Response('{}');
+    if (pano.down) return new Response('down', { status: 503 });
+    const path = new URL(url).pathname;
+    if (method === 'POST' && path === '/api/reports') {
+      const b = JSON.parse(body!) as { issue: string; picture_id: string; reporter_comments?: string };
+      const auto = ['blur_missing', 'inappropriate', 'privacy', 'copyright'].includes(b.issue);
+      if (auto) pano.visibility = 'owner-only';
+      const r: Report = { id: `00000000-0000-0000-0000-00000000000${++n}`, issue: b.issue, picture_id: b.picture_id,
+        status: auto ? 'open_autofix' : 'open', ts_opened: '2026-11-25T11:00:00+00:00', reporter_comments: b.reporter_comments };
+      reports.set(r.id, r);
+      return Response.json(r);
+    }
+    if (method === 'GET' && path === '/api/users/me/reports') {
+      return Response.json({ reports: [...reports.values()].filter((r) => ['open', 'open_autofix', 'waiting'].includes(r.status)) });
+    }
+    const rep = path.match(/^\/api\/reports\/(.+)$/);
+    if (rep) {
+      const r = reports.get(rep[1]);
+      if (!r) return new Response('{}', { status: 404 });
+      if (method === 'PATCH') Object.assign(r, JSON.parse(body!));
+      return Response.json(r);
+    }
+    if (method === 'PATCH' && path === `/api/pictures/${PIC}`) {
+      pano.visibility = (JSON.parse(body!) as { visibility: string }).visibility;
+      return Response.json({});
+    }
+    if (method === 'DELETE' && path === '/api/upload_sets/set-1') {
+      for (const [id, r] of reports) if (r.picture_id === PIC) reports.delete(id);
+      return new Response(null, { status: 204 });
+    }
     return new Response('{}');
   };
   const env = {
@@ -64,6 +102,7 @@ async function world(opts: { purge?: boolean; photo?: boolean } = {}) {
     PANORAMAX_URL: 'https://pano.test',
     TURNSTILE_SITEKEY: 'site',
     TURNSTILE_SECRET: 'secret',
+    ...(opts.key ? { PANORAMAX_REPORT_KEY: 'waf-key' } : {}),
     ...(opts.purge === false ? {} : { CF_ZONE_ID: 'zone', CF_CACHE_PURGE_TOKEN: 'purge' }),
     PICTURES: {
       async put(k: string) { r2.add(k); },
@@ -75,8 +114,9 @@ async function world(opts: { purge?: boolean; photo?: boolean } = {}) {
       async delete(keys: string[]) { for (const k of keys) staging.delete(k); },
     },
   } as unknown as TakedownEnv;
-  return { db, env, r2, staging, calls, fetcher, setAction: (a: string) => { action = a; } };
+  return { db, env, r2, staging, calls, fetcher, reports, pano, setAction: (a: string) => { action = a; } };
 }
+type World = Awaited<ReturnType<typeof world>>;
 
 const form = (path: string, fields: Record<string, string>) =>
   new Request(SITE + path, {
@@ -86,8 +126,15 @@ const form = (path: string, fields: Record<string, string>) =>
   });
 const ask = (asked: string, extra: Record<string, string> = {}) =>
   form('/takedown', { alvo: asked, motivo: 'face', 'cf-turnstile-response': 'tok', lang: 'pt', ...extra });
-const status = (w: Awaited<ReturnType<typeof world>>) =>
+const decide = (w: World, id: string, action: string, lang = 'pt') =>
+  decideTakedown(form('/admin/remocao', { denuncia: id, action, lang }), w.env, w.fetcher, NOW);
+const status = (w: World) =>
   (w.db.sql.prepare('SELECT status FROM photos WHERE id = ?').get(PHOTO) as { status: string }).status;
+const selections = (w: World) =>
+  w.db.sql.prepare('SELECT target FROM selections ORDER BY target').all().map((r) => r.target);
+// A report filed straight on Panoramax, as the viewer's button does.
+const viewerReport = (w: World, issue: string) =>
+  w.fetcher('https://pano.test/api/reports', { method: 'POST', body: JSON.stringify({ issue, picture_id: PIC }) });
 
 // --- What people type ---
 
@@ -137,133 +184,169 @@ test('EVSE API: socket and station photos; a socket without one is still found',
 
 // --- The public form ---
 
-test('takedown: hidden at once in D1, pictures.* and Panoramax, with purges', async () => {
-  const w = await world();
-  const res = await submitTakedown(ask(`${SITE}/postos/EZC-AMD-00051`, { contacto: 'a@b.pt' }), w.env, w.fetcher, NOW);
+test('takedown: report filed anonymously, our copies hidden at once, with purges', async () => {
+  const w = await world({ key: true });
+  const res = await submitTakedown(ask(`${SITE}/postos/EZC-AMD-00051`, { motivo: 'plate', detalhes: 'a matrícula' }), w.env, w.fetcher);
   assert.equal(res.status, 303);
   assert.equal(res.headers.get('location'), '/takedown?ok=1');
+  const post = w.calls.find((c) => c.url === 'https://pano.test/api/reports')!;
+  assert.equal(post.headers.authorization, undefined);             // anonymous: we stay the owner, not the reporter
+  assert.equal(post.headers['x-olhaoposto-report'], 'waf-key');
+  assert.deepEqual(JSON.parse(post.body!), {
+    issue: 'blur_missing', picture_id: PIC, reporter_comments: `[plate] ${SITE}/postos/EZC-AMD-00051\na matrícula`,
+  });
   assert.equal(status(w), 'hidden');
+  assert.equal(w.pano.visibility, 'owner-only');
+  const patch = w.calls.find((c) => c.method === 'PATCH')!;
+  assert.deepEqual([patch.url, patch.body], [`https://pano.test/api/pictures/${PIC}`, '{"visibility":"owner-only"}']);
   assert.equal(w.r2.size, 0);
-  assert.equal((w.db.sql.prepare('SELECT count(*) n FROM selections').get() as { n: number }).n, 0);
-  const patch = w.calls.find((c) => c.method === 'PATCH');
-  assert.deepEqual([patch?.url, patch?.body], ['https://pano.test/api/upload_sets/set-1', '{"visibility":"owner-only"}']);
+  assert.deepEqual(selections(w), []);
   const purge = JSON.parse(w.calls.find((c) => c.url.includes('purge_cache'))!.body!).files as string[];
   assert.equal(purge.length, 9);
   assert.ok(purge.includes('https://pictures.ocarroeletrico.com/EZC-AMD-00051.full.jpg'));
   assert.ok(purge.includes(`https://panoramax.ocarroeletrico.com/api/pictures/${PIC}/sd.jpg`));
-  const row = w.db.sql.prepare('SELECT * FROM takedowns').get() as Record<string, unknown>;
-  assert.equal(row.photo_id, PHOTO);
-  assert.equal(row.contact, 'a@b.pt');
-  assert.equal(row.hide_failed, null);
   // The API stops showing it.
   const api = await (await worker.fetch(new Request(`${SITE}/api/v1/stations/EZC-AMD-00051`), w.env as never, {} as never)).json() as Record<string, any>;
   assert.equal(api.photo, null);
   assert.equal(api.points[0].photo, null);
 });
 
+test('takedown: every reason maps to an issue Panoramax hides at once', async () => {
+  for (const motivo of ['face', 'plate', 'property', 'copyright', 'other']) {
+    const w = await world();
+    await submitTakedown(ask('EZC-AMD-00051', { motivo }), w.env, w.fetcher);
+    assert.equal([...w.reports.values()][0].status, 'open_autofix', motivo);
+  }
+});
+
 test('takedown: the form stays closed without the purge secrets', async () => {
   const w = await world({ purge: false });
   const page = await (await worker.fetch(new Request(`${SITE}/takedown`), w.env as never, {} as never)).text();
   assert.ok(page.includes('info@ocarroeletrico.com') && !page.includes('cf-turnstile'));
-  const res = await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher, NOW);
+  const res = await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher);
   assert.equal(res.headers.get('location'), '/takedown?erro=bad');
   assert.equal(status(w), 'published');
 });
 
-test('takedown: a failed purge is recorded for moderators, the photo still hidden', async () => {
+test('takedown: a failed purge keeps the selections, and reconcile finishes the job', async () => {
   const w = await world();
-  const failing = async (url: string, init?: RequestInit) =>
-    url.includes('purge_cache') ? new Response('{}', { status: 500 }) : w.fetcher(url, init);
-  await submitTakedown(ask('EZC-AMD-00051'), w.env, failing, NOW);
+  w.pano.purgeFails = true;
+  await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher);
   assert.equal(status(w), 'hidden');
-  const row = w.db.sql.prepare('SELECT hide_failed FROM takedowns').get() as { hide_failed: string };
-  assert.deepEqual(JSON.parse(row.hide_failed), ['purge']);
+  assert.equal(w.r2.size, 0);
+  assert.deepEqual(selections(w), ['EZC-AMD-00051', 'PTEZCEAMD000511']);   // still to clear
+  w.pano.purgeFails = false;
+  await reconcile(w.env, w.fetcher);
+  assert.deepEqual(selections(w), []);
 });
 
-test('takedown: a second request by code finds the photo the first one hid', async () => {
+test('takedown: a second request for a hidden photo files nothing new', async () => {
   const w = await world();
-  await submitTakedown(ask('PTEZCEAMD000511'), w.env, w.fetcher, NOW);
-  await submitTakedown(ask('ptezceamd000511'), w.env, w.fetcher, NOW);
-  const rows = w.db.sql.prepare('SELECT photo_id FROM takedowns').all() as { photo_id: string }[];
-  assert.deepEqual(rows.map((r) => r.photo_id), [PHOTO, PHOTO]);
+  await submitTakedown(ask('PTEZCEAMD000511'), w.env, w.fetcher);
+  const res = await submitTakedown(ask('ptezceamd000511'), w.env, w.fetcher);
+  assert.equal(res.headers.get('location'), '/takedown?ok=2');
+  const viaPano = await submitTakedown(ask(`https://panoramax.ocarroeletrico.com/viewer?pic=${PIC}`), w.env, w.fetcher);
+  assert.equal(viaPano.headers.get('location'), '/takedown?ok=2');
+  assert.equal(w.reports.size, 1);
 });
 
-test('takedown: unknown code gets the same answer, recorded without a photo', async () => {
+test('takedown: an unknown code is told so, and Panoramax is not called', async () => {
   const w = await world();
-  const res = await submitTakedown(ask('XYZ-NOPE-1'), w.env, w.fetcher, NOW);
-  assert.equal(res.headers.get('location'), '/takedown?ok=1');
+  const res = await submitTakedown(ask('XYZ-NOPE-1'), w.env, w.fetcher);
+  assert.equal(res.headers.get('location'), '/takedown?erro=notfound');
   assert.equal(status(w), 'published');
   assert.deepEqual(w.calls.map((c) => c.url), ['https://challenges.cloudflare.com/turnstile/v0/siteverify']);
-  assert.equal((w.db.sql.prepare('SELECT photo_id FROM takedowns').get() as { photo_id: unknown }).photo_id, null);
+});
+
+test('takedown: Panoramax down, nothing hidden and the person is asked to retry', async () => {
+  const w = await world();
+  w.pano.down = true;
+  const res = await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher);
+  assert.equal(res.headers.get('location'), '/takedown?erro=panoramax');
+  assert.equal(status(w), 'published');
+  assert.equal(w.r2.size, 6);
 });
 
 test('takedown: a Turnstile token made for the upload form is refused', async () => {
   const w = await world();
   w.setAction('upload');
-  const res = await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher, NOW);
+  const res = await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher);
   assert.equal(res.headers.get('location'), '/takedown?erro=turnstile');
   assert.equal(status(w), 'published');
-  assert.equal((w.db.sql.prepare('SELECT count(*) n FROM takedowns').get() as { n: number }).n, 0);
+  assert.equal(w.reports.size, 0);
 });
 
 test('takedown: cross-site posts and missing reasons are refused', async () => {
   const w = await world();
   const cross = new Request(`${SITE}/takedown`, { method: 'POST', headers: { origin: 'https://evil.test' }, body: new URLSearchParams({ alvo: 'x' }) });
-  assert.equal((await submitTakedown(cross, w.env, w.fetcher, NOW)).status, 403);
-  const res = await submitTakedown(ask('EZC-AMD-00051', { motivo: 'boredom' }), w.env, w.fetcher, NOW);
+  assert.equal((await submitTakedown(cross, w.env, w.fetcher)).status, 403);
+  const res = await submitTakedown(ask('EZC-AMD-00051', { motivo: 'boredom' }), w.env, w.fetcher);
   assert.equal(res.headers.get('location'), '/takedown?erro=bad');
 });
 
-test('takedown page: closed without Turnstile, escaped prefill when open', () => {
+test('takedown page: closed without Turnstile, escaped prefill, no contact field', () => {
   assert.ok(takedownPage('pt', { open: false }).includes('info@ocarroeletrico.com'));
   const open = takedownPage('en', { open: true, sitekey: 'k', asked: '"><script>' });
   assert.ok(open.includes('data-action="takedown"'));
   assert.ok(!open.includes('"><script>'));
+  assert.ok(!open.includes('type="email"'));
+  assert.ok(takedownPage('pt', { open: true, sitekey: 'k', ok: '2' }).includes('já está oculta'));
+});
+
+// --- Reports filed on Panoramax directly ---
+
+test('reconcile: a viewer report that hid the picture clears our copies; others wait', async () => {
+  const w = await world();
+  await viewerReport(w, 'mislocated');
+  await reconcile(w.env, w.fetcher);
+  assert.equal(status(w), 'published');
+  assert.equal(w.r2.size, 6);
+  await viewerReport(w, 'privacy');
+  await reconcile(w.env, w.fetcher);
+  assert.equal(status(w), 'hidden');
+  assert.equal(w.r2.size, 0);
+  assert.deepEqual(selections(w), []);
+});
+
+test('reconcile: Panoramax unreadable is not taken as "no reports"', async () => {
+  const w = await world();
+  await viewerReport(w, 'privacy');
+  w.pano.down = true;
+  await reconcile(w.env, w.fetcher);
+  assert.equal(status(w), 'published');   // nothing invented; the next run catches it
 });
 
 // --- Moderator decisions ---
 
-test('remove: Panoramax set deleted, every open request for the photo closed, contacts cleared', async () => {
+test('remove: copies cleared, upload set deleted (its reports with it), staging emptied', async () => {
   const w = await world();
-  await submitTakedown(ask('EZC-AMD-00051', { contacto: 'a@b.pt' }), w.env, w.fetcher, NOW);
-  await submitTakedown(ask(`https://panoramax.ocarroeletrico.com/viewer?pic=${PIC}`), w.env, w.fetcher, NOW);
-  const ids = w.db.sql.prepare('SELECT id, photo_id FROM takedowns').all() as { id: string; photo_id: string }[];
-  assert.deepEqual(ids.map((r) => r.photo_id), [PHOTO, PHOTO]);   // the second one finds it hidden
+  await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher);
+  const [id] = w.reports.keys();
   w.calls.length = 0;
-  const res = await decideTakedown(form('/admin/remocao', { pedido: ids[0].id, action: 'remove', lang: 'pt' }), w.env, w.fetcher, NOW);
+  const res = await decide(w, id, 'remove');
   assert.equal(res.headers.get('location'), '/admin/remocoes?ok=remove');
-  assert.deepEqual(w.calls.map((c) => [c.method, c.url]), [['DELETE', 'https://pano.test/api/upload_sets/set-1']]);
+  assert.ok(w.calls.some((c) => c.method === 'DELETE' && c.url === 'https://pano.test/api/upload_sets/set-1'));
   assert.equal(status(w), 'removed');
   assert.equal(w.staging.size, 0);
-  const rows = w.db.sql.prepare('SELECT status, contact, decided_by FROM takedowns').all();
-  assert.deepEqual(rows.map((r) => ({ ...r })), [
-    { status: 'removed', contact: null, decided_by: 'mod' }, { status: 'removed', contact: null, decided_by: 'mod' },
-  ]);
-  // A second click on the same request is stale.
-  const again = await decideTakedown(form('/admin/remocao', { pedido: ids[1].id, action: 'restore', lang: 'pt' }), w.env, w.fetcher, NOW);
-  assert.equal(again.headers.get('location'), '/admin/remocoes?erro=stale');
+  assert.equal(w.reports.size, 0);
+  // A second click on the same report is stale.
+  assert.equal((await decide(w, id, 'keep')).headers.get('location'), '/admin/remocoes?erro=stale');
 });
 
-test('restore: set public again, photo published, empty static links refilled', async () => {
+test('keep: reports closed first, picture public, photo published, empty links refilled', async () => {
   const w = await world();
-  await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher, NOW);
-  const { id } = w.db.sql.prepare('SELECT id FROM takedowns').get() as { id: string };
-  w.calls.length = 0;
-  const res = await decideTakedown(form('/admin/remocao', { pedido: id, action: 'restore', lang: 'en' }), w.env, w.fetcher, NOW);
-  assert.equal(res.headers.get('location'), '/en/admin/takedowns?ok=restore');
-  assert.deepEqual([w.calls[0].method, w.calls[0].body], ['PATCH', '{"visibility":"anyone"}']);
+  await submitTakedown(ask('EZC-AMD-00051'), w.env, w.fetcher);
+  await viewerReport(w, 'copyright');
+  const [id] = w.reports.keys();
+  const res = await decide(w, id, 'keep', 'en');
+  assert.equal(res.headers.get('location'), '/en/admin/takedowns?ok=keep');
+  assert.deepEqual([...w.reports.values()].map((r) => r.status), ['closed_ignored', 'closed_ignored']);
+  assert.equal(w.pano.visibility, 'anyone');
   assert.equal(status(w), 'published');
   assert.equal(w.r2.size, 6);
-  const targets = w.db.sql.prepare('SELECT target FROM selections ORDER BY target').all().map((r) => r.target);
-  assert.deepEqual(targets, ['EZC-AMD-00051', 'PTEZCEAMD000511']);
-});
-
-test('close: a request that matched nothing is closed without touching photos', async () => {
-  const w = await world();
-  await submitTakedown(ask('XYZ-NOPE-1'), w.env, w.fetcher, NOW);
-  const { id } = w.db.sql.prepare('SELECT id FROM takedowns').get() as { id: string };
-  const res = await decideTakedown(form('/admin/remocao', { pedido: id, action: 'close', lang: 'pt' }), w.env, w.fetcher, NOW);
-  assert.equal(res.headers.get('location'), '/admin/remocoes?ok=close');
+  assert.deepEqual(selections(w), ['EZC-AMD-00051', 'PTEZCEAMD000511']);
+  // The next cron run leaves it alone.
+  await reconcile(w.env, w.fetcher);
   assert.equal(status(w), 'published');
 });
 
@@ -272,7 +355,7 @@ test('the admin panel is for moderators only', async () => {
   w.db.sql.exec(`UPDATE users SET role = 'trusted'`);
   const res = await worker.fetch(new Request(`${SITE}/admin/remocoes`, { headers: { cookie: '__Host-oop_session=t' } }), w.env as never, {} as never);
   assert.equal(res.status, 403);
-  const post = await decideTakedown(form('/admin/remocao', { pedido: 'x', action: 'close', lang: 'pt' }), w.env, w.fetcher, NOW);
+  const post = await decide(w, '00000000-0000-0000-0000-000000000001', 'keep');
   assert.equal(post.status, 403);
 });
 
@@ -289,38 +372,37 @@ test('chooseMain publishes a socket photo on the socket target', async () => {
   assert.deepEqual(await chooseMain(w.env, 'EZC-AMD-00051', PHOTO, 'mod', w.fetcher, NOW), []);
 });
 
-test('admin panel: anonymous text escaped, the right buttons per request, overdue shown', () => {
+test('admin panel: report text escaped, buttons only for our photos, overdue shown', () => {
   const evil = `<script>alert("x")</script>'`;
-  const row = (extra: Partial<TakedownRow>): TakedownRow => ({
-    id: 'k1', asked: evil, photo_id: PHOTO, reason: 'face', details: evil, contact: `${evil}@x.pt`, status: 'open',
-    hide_failed: null, created_at: '2026-11-21T12:00:00.000Z', decided_at: null, station_id: 'EZC-AMD-00051',
-    station_name: evil, evse_compact: 'PTEZCEAMD000511', photo_status: 'hidden', ...extra,
+  const report = (extra: Partial<Report>): Report => ({
+    id: 'r1', issue: 'privacy', status: 'open_autofix', picture_id: PIC, ts_opened: '2026-11-21T12:00:00+00:00',
+    reporter_comments: evil, ...extra,
   });
-  const html = takedownsPage('pt', [
-    row({}),
-    row({ id: 'k2', photo_id: null, station_id: null, created_at: '2026-11-25T11:00:00.000Z' }),
-    row({ id: 'k3', hide_failed: '["purge"]', created_at: '2026-11-25T11:00:00.000Z' }),
-  ], [], {}, NOW);
+  const photo = { id: PHOTO, station_id: 'EZC-AMD-00051', station_name: evil, evse_compact: 'PTEZCEAMD000511', status: 'hidden', uncleared: 0 };
+  const items: PanelItem[] = [
+    { report: report({}), photo },
+    { report: report({ id: 'r2', picture_id: null, sequence_id: PIC, ts_opened: '2026-11-25T11:00:00+00:00' }), photo: null },
+    { report: report({ id: 'r3', issue: 'mislocated', ts_opened: '2026-11-25T11:00:00+00:00' }), photo: null },
+    { report: report({ id: 'r4', ts_opened: '2026-11-25T11:00:00+00:00' }), photo: { ...photo, uncleared: 2 } },
+  ];
+  const html = takedownsPage('pt', items, {}, NOW);
   assert.ok(!html.includes('<script>alert'));
   assert.ok(html.includes('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;&#39;'));
-  const article = (id: string) => html.split('<article').find((a) => a.includes(`value="${id}"`))!;
-  assert.ok(article('k1').includes('value="remove"') && article('k1').includes('value="restore"'));
-  assert.ok(!article('k1').includes('value="retry"') && !article('k1').includes('value="close"'));
-  assert.ok(article('k1').includes('Atrasado 24 h'));
-  assert.ok(article('k2').includes('value="close"') && !article('k2').includes('value="remove"'));
-  assert.ok(article('k2').includes('Faltam 71 h'));
-  assert.ok(article('k3').includes('value="retry"') && article('k3').includes('limpeza da cache'));
+  const article = (n: number) => html.split('<article').slice(1)[n];
+  assert.ok(article(0).includes('value="remove"') && article(0).includes('value="keep"'));
+  assert.ok(article(0).includes('Atrasada 24 h') && article(0).includes('Privacidade'));
+  assert.ok(article(1).includes('sequência') && !article(1).includes('value="remove"'));
+  assert.ok(article(2).includes('Não corresponde') && article(2).includes('Faltam 71 h'));
+  assert.ok(article(3).includes('ainda não foram limpos'));
+  assert.ok(takedownsPage('en', null, {}, NOW).includes('Could not read the reports'));
 });
 
-test('decided requests older than 2 years are deleted, open ones never', async () => {
+test('admin panel page: lists the open reports and reconciles first', async () => {
   const w = await world();
-  w.db.sql.exec(`
-    INSERT INTO takedowns (id, asked, reason, status, created_at, decided_at) VALUES
-      ('old', 'x', 'other', 'closed', '2024-01-01T00:00:00.000Z', '2024-01-02T00:00:00.000Z'),
-      ('recent', 'x', 'other', 'closed', '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z'),
-      ('open', 'x', 'other', 'open', '2024-01-01T00:00:00.000Z', NULL);
-  `);
-  await submitTakedown(ask('XYZ-NOPE-1'), w.env, w.fetcher, NOW);
-  const ids = w.db.sql.prepare(`SELECT id FROM takedowns WHERE id IN ('old', 'recent', 'open') ORDER BY id`).all().map((r) => r.id);
-  assert.deepEqual(ids, ['open', 'recent']);
+  await viewerReport(w, 'privacy');
+  const res = await takedownsHtml('pt', new Request(`${SITE}/admin/remocoes`, { headers: { cookie: '__Host-oop_session=t' } }), w.env, {}, w.fetcher, NOW);
+  assert.equal(res.status, 200);
+  assert.equal(status(w), 'hidden');
+  const html = await res.text();
+  assert.ok(html.includes('value="remove"') && html.includes('Privacidade'));
 });

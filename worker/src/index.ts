@@ -16,7 +16,7 @@ import {
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
 import { photoLink } from './photolinks.ts';
-import { TAKEDOWN_DECIDE, decideTakedown, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
+import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
 import {
   compactCode, ftsQuery, MAX_QUERY, NEAR_MAX_M, parseNear, STATION_ID, type EvseMatch, type SearchRow,
@@ -412,5 +412,10 @@ export default {
     if (pathname.startsWith('/api/')) return notFound();
     const lang: Lang = pathname.startsWith('/en/') ? 'en' : 'pt';
     return pageNotFound(lang, messages(lang).noPage);
+  },
+  // Every 10 minutes (wrangler.json): our copies follow Panoramax's reports,
+  // including those filed from its viewer (src/takedown.ts).
+  async scheduled(_event: ScheduledController, env: Env & TakedownEnv, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(reconcile(env, fetch));
   },
 } satisfies ExportedHandler<Env & TakedownEnv>;

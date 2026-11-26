@@ -22,6 +22,9 @@
       "migrations_dir": "migrations"
     }
   ],
+  "triggers": {
+    "crons": ["*/10 * * * *"]
+  },
   "observability": {
     "enabled": true
   },

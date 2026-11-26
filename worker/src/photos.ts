@@ -13,7 +13,7 @@
 // staging bucket is bound, so this can ship before uploads open.
 import { isCleanJpeg, jpegSize } from '../public/jpeg.js';
 import { currentUser, loginEnabled, page, type AuthEnv, type Db, type Waiter } from './auth.ts';
-import { apiCaller } from './tokens.ts';
+import { apiCaller, type ApiSigner } from './tokens.ts';
 import { proposedBy } from './proposals.ts';
 import { PANORAMAX_URL, type Lang } from './pages.ts';
 import { distanceM, FAR_M, STATION_ID } from './types.ts';
@@ -56,7 +56,7 @@ const SIZES = {
   thumb: { max: 400, bytes: 500_000 },
 } as const;
 type SizeName = keyof typeof SIZES;
-const MAX_BODY = 9_000_000;
+export const MAX_BODY = 9_000_000;
 const MIN_SIDE = 100;
 
 export const uploadsOpen = (env: PhotoEnv) =>
@@ -222,15 +222,19 @@ async function sendToPanoramax(
   return pictureId;
 }
 
+// `signedIn` is for callers that have already checked who is sending (the
+// MCP server, src/mcp.ts, with an OAuth grant or a token): everything after
+// the sign-in check is the same.
 export async function submitPhoto(
   request: Request, env: PhotoEnv, ctx: Waiter, fetcher: Fetch = fetch, now = new Date(),
+  signedIn?: ApiSigner,
 ): Promise<Response> {
   if (!uploadsOpen(env)) return reply(503, { error: 'uploads_closed' });
   // A bearer token with photos:write (scripts and agents, src/tokens.ts), or
   // the session cookie from our own upload page. The cookie is SameSite=Lax,
   // which still lets another site post a form here; apiCaller's origin check
   // closes that, as on /auth/logout.
-  const caller = await apiCaller(request, env, 'photos:write', now);
+  const caller = signedIn ?? await apiCaller(request, env, 'photos:write', now);
   if ('error' in caller) return reply(caller.status, { error: caller.error });
   const { user, viaToken } = caller;
   // Before the body is read: a burst of uploads from one account is a script.

@@ -206,3 +206,40 @@ export async function withoutPhotoFacets(env: Env): Promise<{ total: number; mun
     operators: [...op.values()].sort(byLabel),
   };
 }
+
+export interface MissingSocket {
+  station_id: string;
+  name: string | null;
+  municipality: string | null;
+  operator: string | null;
+  evse_id: string;
+  evse_compact: string;
+  connector: string | null;
+  max_kw: number | null;
+}
+
+// Sockets with a NAP EVSE code (they have a static link) and no main photo
+// yet, on active stations, for the MCP campaigns (src/mcp.ts). Keyset paging
+// on (station id, point id) as in filterStations.
+export async function socketsWithoutPhoto(
+  env: Env, filters: StationFilters, limit: number, after = '',
+): Promise<{ rows: MissingSocket[]; next: string | null }> {
+  const f = filterSql({ ...filters, hasPhoto: undefined });
+  const { results } = await env.DB.prepare(
+    `SELECT e.station_id, s.name, s.municipality, s.operator, e.evse_id, e.evse_compact, e.connector, e.max_kw,
+            e.station_id || '|' || e.point_id AS cursor
+       FROM evses e JOIN stations s ON s.id = e.station_id
+      WHERE s.status = 'active' AND e.evse_compact IS NOT NULL AND e.status = 'active'
+        AND e.station_id || '|' || e.point_id > ?${f.sql}
+        AND NOT EXISTS (SELECT 1 FROM selections sel JOIN photos ph ON ph.id = sel.photo_id
+          WHERE sel.target = e.evse_compact AND sel.station_id = e.station_id
+            AND sel.published_at IS NOT NULL AND ph.status = 'published')
+      ORDER BY e.station_id, e.point_id
+      LIMIT ?`,
+  ).bind(after, ...f.binds, limit + 1).all<MissingSocket & { cursor: string }>();
+  const page = results.slice(0, limit);
+  return {
+    rows: page.map(({ cursor: _c, ...r }) => r),
+    next: results.length > limit ? page[page.length - 1].cursor : null,
+  };
+}

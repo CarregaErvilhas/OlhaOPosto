@@ -28,7 +28,7 @@ test('third-party text never reaches the page unescaped', () => {
   assert.ok(!page.includes('<script>alert'));
   assert.ok(page.includes('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;&#39;&amp;'));
   // The only script tags are ours.
-  assert.deepEqual(page.match(/<script[^>]*>/g), ['<script src="/theme.js">', '<script src="/install.js" defer>', '<script src="/site.js" defer>']);
+  assert.deepEqual(page.match(/<script[^>]*>/gi), ['<script src="/theme.js">', '<script src="/install.js" defer>', '<script src="/site.js" defer>']);
 });
 
 test('station page: static links, socket anchors, pt-PT power', () => {

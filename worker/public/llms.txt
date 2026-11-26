@@ -44,5 +44,5 @@ Writes need a personal access token, created by a signed-in person on their acco
 - [Sitemap](https://olhaoposto.ocarroeletrico.com/sitemap.xml)
 - [The group](https://olhaoposto.ocarroeletrico.com/en/group) (pt-PT: /grupo): the other sites of the same community (prices, live status, the law), with their code.
 - [Privacy policy](https://olhaoposto.ocarroeletrico.com/en/privacy) (pt-PT: /privacidade)
-- [Terms of use](https://olhaoposto.ocarroeletrico.com/en/terms) (pt-PT: /termos): what uploaders and API token holders agree to
+- [Terms of use](https://olhaoposto.ocarroeletrico.com/en/terms) (pt-PT: /condicoes): what uploaders and API token holders agree to
 - [Ask for a photo to be removed](https://olhaoposto.ocarroeletrico.com/en/report) (pt-PT: /report): no account; the photo is hidden at once and a moderator decides within 72 hours. Each API `photo` has a prefilled `report` link.

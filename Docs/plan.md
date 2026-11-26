@@ -4,7 +4,7 @@ Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`
 
 Este documento só tem o que ainda não existe. O que já está a funcionar
 (servidor Panoramax, import dos postos, páginas, pesquisa, API de leitura e de
-escrita com *tokens*, login OSM, termos e privacidade, o envio com HEIC, mapa,
+escrita com *tokens*, login OSM, condições de utilização e privacidade, o envio com HEIC, mapa,
 postos propostos e deteção de caras, a moderação, os pedidos de remoção, a
 troca da foto principal, os aliases, os pontos e o ranking) está em
 [`arquitetura.md`](arquitetura.md), com a operação em

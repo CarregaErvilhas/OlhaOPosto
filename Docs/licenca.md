@@ -19,7 +19,7 @@ Quem envia uma foto aceita estas condições uma vez, ao entrar, e declara que �
 
 **Atribuição.** O autor e a licença vão nos metadados (XMP) das cópias públicas, que apontam para a página do posto, onde está o crédito. Uma página de crédito por foto (`/p/{photo_id}`) está no [`plan.md`](plan.md).
 
-Quem envia aceita também os [termos de utilização](https://olhaoposto.ocarroeletrico.com/termos) (`worker/src/terms.ts`), que repetem estas condições.
+Quem envia aceita também as [condições de utilização](https://olhaoposto.ocarroeletrico.com/condicoes) (`worker/src/terms.ts`), que repetem estas regras.
 
 **Fotos de outras origens.** As fotos referenciadas a partir do OSM, do Wikimedia Commons ou de outro servidor Panoramax mantêm a licença e o autor de origem.
 

@@ -31,7 +31,7 @@ export const socketPath = (lang: Lang, evse: string) =>
   `${lang === 'pt' ? '/tomadas/' : '/en/sockets/'}${encodeURIComponent(evse)}`;
 export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/search');
 export const privacyPath = (lang: Lang) => (lang === 'pt' ? '/privacidade' : '/en/privacy');
-export const termsPath = (lang: Lang) => (lang === 'pt' ? '/termos' : '/en/terms');
+export const termsPath = (lang: Lang) => (lang === 'pt' ? '/condicoes' : '/en/terms');
 export const groupPath = (lang: Lang) => (lang === 'pt' ? '/grupo' : '/en/group');
 export const accountPath = (lang: Lang) => (lang === 'pt' ? '/conta' : '/en/account');
 export const uploadPath = (lang: Lang) => (lang === 'pt' ? '/enviar' : '/en/upload');
@@ -57,7 +57,7 @@ const T = {
     footerData: 'Fotos CC BY-SA 4.0 · Dados dos postos: NAP Portugal (MOBI.E) e © contribuidores do OpenStreetMap (ODbL)',
     footerCode: 'Código (MIT)',
     footerPrivacy: 'Privacidade',
-    footerTerms: 'Termos',
+    footerTerms: 'Condições',
     footerGroup: 'O grupo',
     ogImageAlt: `Pic, a mascote do ${BRAND}`,
     inNap: 'No NAP',

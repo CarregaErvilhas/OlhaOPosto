@@ -386,7 +386,7 @@ export default {
     if (pathname === '/en') return new Response(null, { status: 301, headers: { location: '/en/' } });
     if (pathname === '/privacidade') return html('pt', privacyPage('pt'));
     if (pathname === '/en/privacy') return html('en', privacyPage('en'));
-    if (pathname === '/termos') return html('pt', termsPage('pt'));
+    if (pathname === '/condicoes') return html('pt', termsPage('pt'));
     if (pathname === '/en/terms') return html('en', termsPage('en'));
     if (pathname === '/grupo') return html('pt', groupPage('pt'));
     if (pathname === '/en/group') return html('en', groupPage('en'));

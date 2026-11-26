@@ -57,7 +57,7 @@ const T = {
     check2: 'Vão à parte, só para a moderação e nunca publicados: a data e o GPS da foto.',
     check3: 'Tamanhos gerados: 2048, 1024 e 400 px.',
     okPrivacy: 'Confirmo que não há caras nem matrículas legíveis.',
-    okLicense: `Tirei esta foto, aceito os <a href="${termsPath('pt')}" target="_blank" rel="noopener">termos de utilização</a> e publico-a sob CC BY-SA 4.0, com autorização para dados derivados em ODbL.`,
+    okLicense: `Tirei esta foto, aceito as <a href="${termsPath('pt')}" target="_blank" rel="noopener">condições de utilização</a> e publico-a sob CC BY-SA 4.0, com autorização para dados derivados em ODbL.`,
     prepare: 'Preparar a foto',
     send: 'Enviar a foto',
     next: 'Foto seguinte',

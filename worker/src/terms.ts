@@ -20,10 +20,10 @@ const LINKS = {
 
 export const TERMS: Record<Lang, { title: string; description: string; body: string }> = {
   pt: {
-    title: `Termos de utilização · ${BRAND}`,
+    title: `Condições de utilização · ${BRAND}`,
     description: `O que aceitas ao enviar fotos ou propor postos no ${BRAND}: licença, privacidade, moderação e uso da API.`,
-    body: `<h1>Termos de utilização</h1>
-<p>Para ver o site e usar a API de leitura não precisas de conta nem de aceitar nada. Estes termos aplicam-se a quem inicia sessão e envia fotos, propõe postos ou usa um <i>token</i> de API. Ao enviar a primeira foto, aceitas estes termos e guardamos a data em que o fizeste.</p>
+    body: `<h1>Condições de utilização</h1>
+<p>Para ver o site e usar a API de leitura não precisas de conta nem de aceitar nada. Estas condições aplicam-se a quem inicia sessão e envia fotos, propõe postos ou usa um <i>token</i> de API. Ao enviar a primeira foto, aceitas estas condições e guardamos a data em que o fizeste.</p>
 
 <h2>As tuas fotos</h2>
 <ul>
@@ -50,7 +50,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <h2>Moderação</h2>
 <ul>
 <li>Cada foto de uma conta nova fica escondida até um moderador a aprovar. As contas promovidas à mão a <i>trusted</i> publicam direto quando a foto foi tirada a menos de 300 m de um posto ativo.</li>
-<li>Os moderadores podem recusar, ocultar ou apagar qualquer foto, e mudar ou retirar o papel de qualquer conta, sem aviso prévio, quando estes termos não forem cumpridos.</li>
+<li>Os moderadores podem recusar, ocultar ou apagar qualquer foto, e mudar ou retirar o papel de qualquer conta, sem aviso prévio, quando estas condições não forem cumpridas.</li>
 <li>Qualquer pessoa pode pedir a remoção de uma foto no <a href="${takedownFormPath('pt')}">formulário de remoção</a>. A foto fica oculta logo e um moderador decide em ${DEADLINE_H} horas.</li>
 <li>Para retirar uma foto tua, escreve para ${mail}.</li>
 </ul>
@@ -60,7 +60,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 
 <h2><i>Tokens</i> de API</h2>
 <ul>
-<li>Na tua <a href="${accountPath('pt')}">conta</a> podes criar <i>tokens</i> para enviar fotos ou escolher fotos principais por programa. Um <i>token</i> age em teu nome, com o teu papel e os teus limites, e o que se envia com ele segue estes termos.</li>
+<li>Na tua <a href="${accountPath('pt')}">conta</a> podes criar <i>tokens</i> para enviar fotos ou escolher fotos principais por programa. Um <i>token</i> age em teu nome, com o teu papel e os teus limites, e o que se envia com ele segue estas condições.</li>
 <li>O <i>token</i> só aparece uma vez. Guarda-o como uma palavra-passe e revoga-o na conta se o perderes.</li>
 <li>Fotos enviadas pela API já vêm desfocadas e sem metadados: o programa que usas faz o que a página de envio faria. O servidor recusa fotos com EXIF.</li>
 <li>Usa a API com moderação. Os limites de pedidos podem mudar, e um <i>token</i> usado para abusos é revogado.</li>
@@ -70,7 +70,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <p>O ${BRAND} é um projeto comunitário e gratuito. Os dados dos postos vêm do NAP Portugal (MOBI.E) e do OpenStreetMap e podem estar errados ou desatualizados. O serviço pode parar, mudar ou perder dados sem aviso. Na medida em que a lei o permite, não respondemos por danos causados pelo uso do site, da API ou das fotos.</p>
 
 <h2>Alterações e contacto</h2>
-<p>Quando estes termos mudarem, a versão nova fica nesta página e aplica-se aos envios seguintes. As versões anteriores estão no <a href="${LINKS.history}">histórico do código</a>. Dúvidas: ${mail}. A lei aplicável é a portuguesa.</p>
+<p>Quando estas condições mudarem, a versão nova fica nesta página e aplica-se aos envios seguintes. As versões anteriores estão no <a href="${LINKS.history}">histórico do código</a>. Dúvidas: ${mail}. A lei aplicável é a portuguesa.</p>
 <p><a href="${uploadPath('pt')}">Enviar fotos</a> · <a href="${privacyPath('pt')}">Privacidade</a> · <a href="${homePath('pt')}">Início</a></p>`,
   },
   en: {

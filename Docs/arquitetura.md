@@ -183,7 +183,7 @@ Há postos com uma foto que alguém pôs no OSM (`panoramax=`, `wikimedia_common
 
 ## Crédito
 
-O crédito de uma foto é o nome de quem a enviou: por defeito o nome no OSM; se a pessoa escolher um **pseudónimo** («nome a mostrar», na conta), esse. Vai em todo o lado: nas páginas dos postos, no ranking, na API (`photos.credit`), na etiqueta `OlhaOPosto|author` do Panoramax e no XMP das três cópias em `pictures`. O `uploader_id` fica sempre, para a moderação.
+O crédito de uma foto é o nome de quem a enviou: por defeito o nome no OSM; se a pessoa escolher um **pseudónimo** («nome a mostrar», na conta), esse. Vai em todo o lado: nas páginas dos postos, no ranking, na API (`photos.credit`), na etiqueta `OlhaOPosto|author` do Panoramax (que o nosso servidor mostra como autor da foto, `infra.md`, «Autor das fotos no Panoramax») e no XMP das três cópias em `pictures`. O `uploader_id` fica sempre, para a moderação.
 
 - **Regras** (`src/credit.ts`): de 2 a 40 caracteres depois de normalizar (NFC, espaços colapsados, sem caracteres de controlo nem invisíveis); letras, números, espaços e pontuação simples (`. , ' ’ ( ) ! ? & + _ -`); nada que pareça um link (`://`, `www.`, `palavra.palavra`); alguns nomes reservados (o do site, `admin`, `moderador`…).
 - **Unicidade:** não pode ser igual ao nome OSM nem ao pseudónimo de outra conta, comparando sem acentos, maiúsculas, espaços nem pontuação (`João Silva` = `joao_silva`). O próprio nome OSM, noutra grafia, é da pessoa. Um índice único em `pseudonym_key` apanha dois pedidos ao mesmo tempo.

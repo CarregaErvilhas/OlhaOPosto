@@ -52,7 +52,8 @@ jobs:
         run: npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker-dist"
 
   # The Panoramax customisations (panoramax/map_override.py: photos on the map
-  # from zoom 7) against the geovisio in requirements.txt and the web viewer
+  # from zoom 7; panoramax/author_override.py: the photo's author as its
+  # producer) against the geovisio in requirements.txt and the web viewer
   # in panoramax/viewer/package.json. A Dependabot bump of either that breaks
   # them fails here, with what broke and what to do (Docs/infra.md, «Mapa:
   # fotos de uma só foto»).

@@ -132,6 +132,14 @@ O `apply()` confirma primeiro tudo aquilo de que depende e só depois muda o que
 
 Correr os testes à mão: `pip install -r requirements.txt -r requirements-test.txt`, `python -m playwright install chromium` e `python -m pytest tests` dentro de `panoramax/`. No macOS, o `pyexiv2` do PyPI não carrega; os testes não o usam, por isso basta um módulo `pyexiv2` vazio no `PYTHONPATH`. O `tests/make_fixture.py` refaz o tile de teste.
 
+### Autor das fotos no Panoramax
+
+**O problema.** O geovisio dá como produtor de cada foto a conta que a enviou (`providers` e `geovisio:producer` no STAC), e o visualizador mostra-o como «Author». Todas as fotos do olh'o'posto entram pela conta de serviço, por isso todas apareciam como sendo da `OlhaOPosto`, e não de quem as tirou. A CC BY-SA pede o crédito ao autor.
+
+**O que mudámos** (`panoramax/author_override.py`, chamado pelo `wsgi.py`): o item STAC de uma foto com a etiqueta `OlhaOPosto|author` passa a ter esse nome como único produtor, em `providers` e em `geovisio:producer`. Lê-se a cada pedido, por isso vale para as fotos já enviadas e segue as mudanças de crédito, que o Worker escreve nessa etiqueta (`arquitetura.md`, *Crédito*). Não se usa o EXIF `Artist`, que o geovisio também lista como produtor: fica gravado no envio e um pseudónimo posterior deixaria lá o nome antigo. Fotos sem a etiqueta ficam como no Panoramax. As sequências (`/api/collections`) continuam com a conta: cada uma tem uma só foto.
+
+Como no mapa: o `apply()` confirma primeiro as suposições (o `dbPictureToStacItem` e as três rotas que o chamam: os itens de uma coleção, uma foto e a pesquisa); se não baterem, o `pano` arranca com o Panoramax sem alterações e o registo diz `author_override not applied`. O teste de drift (`tests/test_author_override.py`) corre no mesmo job e falha também se o geovisio deixar de pôr a conta como produtor, caso em que o módulo pode já não fazer falta.
+
 Os `startCommands` correm em bash (visto no primeiro deploy): o `geovisio:create_api()` sem aspas dava `syntax error near unexpected token '('`. Caracteres especiais do shell vão entre aspas simples.
 
 **Verificações:** `readinessCheck` e `healthCheck` em `/api/configuration`, sem autenticação.
@@ -195,7 +203,7 @@ DELETE FROM tokens WHERE account_id = (SELECT id FROM accounts WHERE name = 'Olh
 
 Para revogar e emitir um novo, basta voltar a correr o script. Trocar o `FLASK_SECRET_KEY` invalida todos os tokens do servidor de uma vez.
 
-**Crédito por foto (ponto 5 do ensaio):** o STAC mostra sempre `providers: OlhaOPosto` e `geovisio:producer: OlhaOPosto` (o nome da conta). O autor só fica na etiqueta `OlhaOPosto|author=`. Por isso o crédito é dado pelo olh'o'posto e pelo XMP das cópias em `pictures.*` (`arquitetura.md`, *Links estáticos*).
+**Crédito por foto (ponto 5 do ensaio):** o Panoramax dá como produtor a conta que envia (`OlhaOPosto`). O autor vai na etiqueta `OlhaOPosto|author=`, e o `author_override.py` põe-no como produtor no STAC (secção 3, «Autor das fotos no Panoramax»). Fora do Panoramax, o crédito está no olh'o'posto e no XMP das cópias em `pictures.*` (`arquitetura.md`, *Links estáticos*).
 
 ### Acesso de admin
 
@@ -311,7 +319,7 @@ zcli push -P <project-id> --service-id <id-do-pano> --setup pano
 ### Atualizar o Panoramax
 
 1. Ler o [changelog](https://gitlab.com/panoramax/server/api/-/blob/develop/CHANGELOG.md) entre as versões, à procura de migrações e variáveis novas ou retiradas (o `config_app.py` recusa arrancar com algumas antigas).
-2. Mudar `geovisio==` no `requirements.in`. O Dependabot abre o PR (ecossistema `pip`, pasta `/panoramax`). O job `panoramax` do PR testa as nossas alterações ao mapa (secção 3, «Mapa: fotos de uma só foto»). Depois de mudar o `requirements.in`, regenerar o lock (`requirements.txt`, secção 3) e fazer commit dos dois.
+2. Mudar `geovisio==` no `requirements.in`. O Dependabot abre o PR (ecossistema `pip`, pasta `/panoramax`). O job `panoramax` do PR testa as nossas alterações ao mapa e ao autor (secção 3, «Mapa: fotos de uma só foto» e «Autor das fotos no Panoramax»). Depois de mudar o `requirements.in`, regenerar o lock (`requirements.txt`, secção 3) e fazer commit dos dois.
 3. Se a versão nova trouxer migrações: fazer um backup da `db` antes, e fazer o deploy com `deploy.temporaryShutdown: true` (alguns segundos sem serviço em vez de um container antigo a falar com um schema novo). O rolling deploy não reverte uma migração com commit (secção 3); voltar atrás é restaurar o backup.
 
 ---
@@ -326,7 +334,7 @@ Os seis pontos do ensaio da fase 1, mais os que saíram ao preparar a configura�
 | 2 | R2 como `FS_URL` | **Passa.** Original em `data/permanent/`, tamanhos em `data/derivatives/`; apagar limpa o bucket (secção 5) |
 | 3 | Foto isolada com etiquetas, pela API | **Passa.** Um upload set com `no_split` dá uma coleção com uma foto; as três etiquetas ficam na foto |
 | 4 | `owner-only` e passar a `anyone` ao aprovar | **Passa.** Sem token, 404 na coleção, no item e nas imagens, e o `/api/search` vem vazio. Um `PATCH /api/upload_sets/<id>` com `{"visibility": "anyone"}` passa tudo a 200. A foto em si fica `anyone`: quem esconde é a coleção (vale a mais restritiva) |
-| 5 | Crédito por foto (autor ≠ conta de serviço) | **Não passa.** O STAC mostra sempre a conta de serviço (`OlhaOPosto`) como produtor; o autor só na etiqueta. Fica a alternativa do `plan.md` (*Publicação dos links estáticos*) |
+| 5 | Crédito por foto (autor ≠ conta de serviço) | **Não passa sem alteração.** O STAC mostra a conta de serviço (`OlhaOPosto`) como produtor; o autor só na etiqueta. Resolvido com o `author_override.py` (secção 3, «Autor das fotos no Panoramax») |
 | 6 | Consumo de recursos dentro do orçamento | **Por medir.** Ler o consumo na GUI e fazer a conta mensal |
 | 7 | O pip instala o `geovisio` no `ubuntu/python@3.14` | **Passa.** Todas as dependências com hashes, sem compilar nada |
 | 8 | `run.base: ubuntu/python@3.14` é aceite | **Passa.** Python 3.14.6, Ubuntu 24.04 |

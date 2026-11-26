@@ -1,6 +1,6 @@
 // The privacy policy, in European Portuguese and English. Fixed text, no
 // database strings, so it is plain markup. Keep it true to the code: when the
-// Worker starts keeping something new (photos, GPS, API tokens), this page
+// Worker starts keeping something new (photos, GPS, API tokens, OAuth grants), this page
 // changes in the same PR, before it goes live.
 // pages.ts never imports this file (its footer uses privacyPath from there),
 // so there is no import cycle.
@@ -62,6 +62,9 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2><i>Tokens</i> de API</h2>
 <p>Se criares um <i>token</i> de API na tua conta, guardamos o nome que lhe dás, o que pode fazer, as datas de criação, de validade e do último uso (no máximo uma vez por hora), e só uma impressão digital (<i>hash</i>) do <i>token</i>, que não serve para o usar. O <i>token</i> em claro aparece-te uma vez e não fica connosco. Um <i>token</i> revogado ou expirado apaga-se quando crias o seguinte, e todos se apagam com a conta. Os envios feitos com um <i>token</i> não passam pelo Turnstile e guardam-se como os outros envios.</p>
+
+<h2>Agentes ligados (MCP)</h2>
+<p>Se ligares um assistente de IA ao servidor MCP (<code>/mcp</code>) e o autorizares, guardamos o registo da aplicação (o nome e os endereços de retorno que ela própria indica), a autorização (a tua conta, a aplicação, o que pode fazer e a data) e os <i>tokens</i> que ela recebe, que valem uma hora e se renovam enquanto a usares. Os <i>tokens</i> ficam só como impressão digital (<i>hash</i>) e o que liga a autorização à tua conta fica cifrado. Tudo isto fica num armazenamento chave-valor da Cloudflare (Workers KV), não na base de dados dos postos. Uma autorização que não se use durante 30 dias caduca; desligar o agente na tua conta apaga-a logo, com os <i>tokens</i> dela. O registo de uma aplicação apaga-se ao fim de 90 dias (a aplicação regista-se de novo quando voltar). Ler pelo MCP não precisa de conta e não guarda nada, como a API. O que um agente envia guarda-se como os outros envios.</p>
 
 <h2>Pedidos de remoção</h2>
 <p>Se uma foto te mostra a ti, a tua matrícula ou a tua casa, ou é uma foto tua publicada sem autorização, podes pedir que a retiremos no <a href="${takedownFormPath('pt')}">formulário de remoção</a>, sem conta e sem deixar contacto. A foto fica oculta logo que o pedido chega (no site, nos links estáticos e no Panoramax) e um moderador decide em ${DEADLINE_H} horas se a apaga de vez ou a mantém.</p>
@@ -125,6 +128,9 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 
 <h2>API tokens</h2>
 <p>If you create an API token on your account page, we keep the name you give it, what it can do, the dates it was created, expires and was last used (at most once an hour), and only a fingerprint (hash) of the token, which cannot be used to sign in. The token in clear is shown to you once and not kept by us. A revoked or expired token is deleted when you create the next one, and all of them are deleted with the account. Uploads made with a token skip Turnstile and are kept like any other upload.</p>
+
+<h2>Connected agents (MCP)</h2>
+<p>If you connect an AI assistant to the MCP server (<code>/mcp</code>) and authorise it, we keep the application's registration (the name and return addresses it gives itself), the authorisation (your account, the application, what it can do and the date) and the tokens it receives, which last an hour and renew while you use it. Tokens are kept only as a fingerprint (hash) and the link to your account is encrypted. All of this is in a Cloudflare key-value store (Workers KV), not in the stations database. An authorisation unused for 30 days expires; disconnecting the agent on your account page deletes it at once, with its tokens. An application's registration is deleted after 90 days (the application registers again when it comes back). Reading through MCP needs no account and keeps nothing, like the API. What an agent uploads is kept like any other upload.</p>
 
 <h2>Removal requests</h2>
 <p>If a photo shows you, your number plate or your home, or is a photo of yours published without your permission, you can ask us to take it down with the <a href="${takedownFormPath('en')}">removal form</a>, without an account and without leaving a contact. The photo is hidden as soon as the request arrives (on the site, the static links and Panoramax), and a moderator decides within ${DEADLINE_H} hours whether to delete it for good or keep it.</p>

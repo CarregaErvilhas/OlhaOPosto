@@ -30,6 +30,14 @@ Writes need a personal access token, created by a signed-in person on their acco
 - `POST /api/v1/stations` (`photos:write`): propose a station missing from the NAP, JSON `{"name", "operator", "code"?, "lat", "lon", "note"?}`. 409 `station_nearby` with the stations within 60 m; repeat with `?force=1` if it is another one. 201 `{id, status: "pending_review"}`; its photos wait for a moderator with it.
 - `PUT /api/v1/selections/{target}` (`selections:write`): JSON `{"photo": "<photo id>"}` makes that published photo the main photo of the station or socket.
 
+## MCP server
+
+Remote MCP server named `OlhaOPosto` at `https://olhaoposto.ocarroeletrico.com/mcp` (Streamable HTTP, stateless). The same data and rules as the API, as tools with English descriptions; every photo result carries its credit, licence and `attribution`.
+
+- Read, no sign-in: `search_stations` (words, a point and radius, or filters: `operator`, `municipality`, `has_photo`), `get_station` (station id or EVSE code: sockets and their photos), `get_photo_link` (one static link and its attribution), `list_missing_photos` (stations or sockets without a photo, for campaigns), `list_main_photos`, `get_ranking`.
+- Write, signed in: `submit_photo` (three clean JPEG sizes, base64 or https URLs, `photos:write`), `propose_station` (`photos:write`), `set_primary_photo` (`selections:write`, trusted accounts and moderators).
+- Sign-in: OAuth 2.1 with dynamic client registration (metadata at `/.well-known/oauth-protected-resource/mcp`); the person signs in with OpenStreetMap once and chooses what the agent may do. A call to a write tool without sign-in gets the 401 challenge. An API token (`Authorization: Bearer oop_…`) also works. Either way the agent acts as the person, with their current role and limits, and can be disconnected on the account page.
+
 ## Static photo links
 
 - `https://pictures.ocarroeletrico.com/{station id}.jpg` (1024 px), `.thumb.jpg` (400 px), `.full.jpg` (2048 px).
@@ -45,5 +53,5 @@ Writes need a personal access token, created by a signed-in person on their acco
 - [Sitemap](https://olhaoposto.ocarroeletrico.com/sitemap.xml)
 - [The group](https://olhaoposto.ocarroeletrico.com/en/group) (pt-PT: /grupo): the other sites of the same community (prices, live status, the law), with their code.
 - [Privacy policy](https://olhaoposto.ocarroeletrico.com/en/privacy) (pt-PT: /privacidade)
-- [Terms of use](https://olhaoposto.ocarroeletrico.com/en/terms) (pt-PT: /condicoes): what uploaders and API token holders agree to
+- [Terms of use](https://olhaoposto.ocarroeletrico.com/en/terms) (pt-PT: /condicoes): what uploaders, API token holders and connected agents agree to
 - [Ask for a photo to be removed](https://olhaoposto.ocarroeletrico.com/en/report) (pt-PT: /report): no account; the photo is hidden at once and a moderator decides within 72 hours. Each API `photo` has a prefilled `report` link.

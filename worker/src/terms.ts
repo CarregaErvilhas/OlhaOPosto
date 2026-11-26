@@ -23,7 +23,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
     title: `Condições de utilização · ${BRAND}`,
     description: `O que aceitas ao enviar fotos ou propor postos no ${BRAND}: licença, privacidade, moderação e uso da API.`,
     body: `<h1>Condições de utilização</h1>
-<p>Para ver o site e usar a API de leitura não precisas de conta nem de aceitar nada. Estas condições aplicam-se a quem inicia sessão e envia fotos, propõe postos ou usa um <i>token</i> de API. Ao enviar a primeira foto, aceitas estas condições e guardamos a data em que o fizeste.</p>
+<p>Para ver o site e usar a API de leitura não precisas de conta nem de aceitar nada. Estas condições aplicam-se a quem inicia sessão e envia fotos, propõe postos, usa um <i>token</i> de API ou liga um agente pelo MCP. Ao enviar a primeira foto, aceitas estas condições e guardamos a data em que o fizeste.</p>
 
 <h2>As tuas fotos</h2>
 <ul>
@@ -58,12 +58,13 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <h2>Pontos e ranking</h2>
 <p>As fotos aprovadas dão pontos e entram no <a href="/ranking">ranking</a>. Os pontos servem só para medalhas no site: não dão prémios nem direitos. Podes sair do ranking na tua <a href="${accountPath('pt')}">conta</a>. Pontos ganhos com batota (fotos repetidas, de outro posto ou de outra pessoa) são retirados.</p>
 
-<h2><i>Tokens</i> de API</h2>
+<h2><i>Tokens</i> de API e agentes</h2>
 <ul>
 <li>Na tua <a href="${accountPath('pt')}">conta</a> podes criar <i>tokens</i> para enviar fotos ou escolher fotos principais por programa. Um <i>token</i> age em teu nome, com o teu papel e os teus limites, e o que se envia com ele segue estas condições.</li>
 <li>O <i>token</i> só aparece uma vez. Guarda-o como uma palavra-passe e revoga-o na conta se o perderes.</li>
 <li>Fotos enviadas pela API já vêm desfocadas e sem metadados: o programa que usas faz o que a página de envio faria. O servidor recusa fotos com EXIF.</li>
 <li>Usa a API com moderação. Os limites de pedidos podem mudar, e um <i>token</i> usado para abusos é revogado.</li>
+<li>Um agente de IA que ligues pelo servidor MCP (<code>/mcp</code>) é tratado como um <i>token</i>: age em teu nome, com o teu papel e os teus limites, só pode o que escolheste ao autorizá-lo, e o que envia segue estas condições, como se fosses tu a enviar. Desliga-o na conta quando deixares de o usar.</li>
 </ul>
 
 <h2>Sem garantias</h2>
@@ -77,7 +78,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
     title: `Terms of use · ${BRAND}`,
     description: `What you agree to when you upload photos or propose stations on ${BRAND}: licence, privacy, moderation and API use.`,
     body: `<h1>Terms of use</h1>
-<p>You need no account and agree to nothing to browse the site or use the read-only API. These terms apply to people who sign in and upload photos, propose stations or use an API token. When you send your first photo, you accept these terms and we keep the date you did.</p>
+<p>You need no account and agree to nothing to browse the site or use the read-only API. These terms apply to people who sign in and upload photos, propose stations, use an API token or connect an agent through MCP. When you send your first photo, you accept these terms and we keep the date you did.</p>
 
 <h2>Your photos</h2>
 <ul>
@@ -112,12 +113,13 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <h2>Points and ranking</h2>
 <p>Approved photos earn points and enter the <a href="/en/ranking">ranking</a>. Points are only for medals on the site: they carry no prizes or rights. You can leave the ranking from your <a href="${accountPath('en')}">account</a>. Points earned by cheating (repeated photos, photos of another station or by someone else) are taken away.</p>
 
-<h2>API tokens</h2>
+<h2>API tokens and agents</h2>
 <ul>
 <li>On your <a href="${accountPath('en')}">account</a> page you can create tokens to upload photos or choose main photos from a program. A token acts on your behalf, with your role and your limits, and what is sent with it follows these terms.</li>
 <li>The token is shown only once. Keep it like a password and revoke it from your account if you lose it.</li>
 <li>Photos sent through the API arrive already blurred and without metadata: the program you use does what the upload page would. The server refuses photos with EXIF.</li>
 <li>Use the API in moderation. Request limits may change, and a token used for abuse is revoked.</li>
+<li>An AI agent you connect through the MCP server (<code>/mcp</code>) is treated like a token: it acts on your behalf, with your role and your limits, can only do what you chose when you authorised it, and what it sends follows these terms as if you sent it. Disconnect it on your account page when you stop using it.</li>
 </ul>
 
 <h2>No warranty</h2>

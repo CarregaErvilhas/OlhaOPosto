@@ -133,8 +133,9 @@ export async function tokenUser(db: TokenDb, token: string, now = new Date()): P
 // scope; without one, the session cookie works only from our own pages
 // (the same-origin check that /auth/logout uses). viaToken tells the caller
 // to skip what only a browser can do (Turnstile).
+export type ApiSigner = { user: SessionUser; viaToken: boolean };
 export type ApiCaller =
-  | { user: SessionUser; viaToken: boolean }
+  | ApiSigner
   | { error: 'sign_in_required' | 'missing_scope' | 'cross_site'; status: 401 | 403 };
 
 export async function apiCaller(request: Request, env: AuthEnv, scope: Scope, now = new Date()): Promise<ApiCaller> {

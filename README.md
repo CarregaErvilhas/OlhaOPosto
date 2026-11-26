@@ -23,7 +23,7 @@ O link nunca muda. Muda só a foto para onde aponta.
 
 | Componente | Onde | O que faz |
 | --- | --- | --- |
-| Site, API, MCP (`olhaoposto.ocarroeletrico.com`) | Cloudflare Worker + D1 | Postos, envios, moderação, ranking, API `/api/v1` |
+| Site, API, MCP (`olhaoposto.ocarroeletrico.com`) | Cloudflare Worker + D1 | Postos, envios, moderação, ranking, API `/api/v1`, servidor MCP `/mcp` |
 | Links estáticos (`pictures.ocarroeletrico.com`) | Bucket R2 `pictures`, sem Worker | Serve `/<id>.jpg` e tamanhos pela CDN |
 | Servidor Panoramax (`panoramax.ocarroeletrico.com`) | Zerops (Python + PostgreSQL/PostGIS), imagens no R2 | Guarda as fotos, os tamanhos e os metadados |
 
@@ -34,7 +34,7 @@ O que já existe está em [`Docs/arquitetura.md`](Docs/arquitetura.md); o que fa
 | Caminho | Conteúdo |
 | --- | --- |
 | [`Docs/arquitetura.md`](Docs/arquitetura.md) | O que está a funcionar: objetivos, princípios, domínios, postos e tomadas, links estáticos |
-| [`Docs/plan.md`](Docs/plan.md) | O que falta construir: fases, envio, moderação, login, API, MCP, OSM |
+| [`Docs/plan.md`](Docs/plan.md) | O que falta construir: fases, envio, moderação, login, API, OSM |
 | [`Docs/licenca.md`](Docs/licenca.md) | Licenças do código, das fotos e das fontes |
 | [`Docs/infra.md`](Docs/infra.md) | Infraestrutura do servidor Panoramax: serviços, segredos, R2, DNS, deploy, ensaio |
 | [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do olh'o'posto: buckets R2, cache, CORS, Worker e rotas, login, página de envio, D1 e import |

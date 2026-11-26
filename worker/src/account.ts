@@ -1,6 +1,6 @@
 // The account page (/conta, /en/account): who is signed in, the name their
 // photos are credited with, their points and medal, leaving the ranking, and
-// their API tokens. The page itself is in
+// their API tokens and the agents connected to the MCP server. The page itself is in
 // pages.ts (accountPage); this file reads D1 for the signed-in parts and
 // handles the one POST they share (ACCOUNT_ACTION).
 import { currentUser, loginEnabled, page, sameOrigin, type AuthEnv } from './auth.ts';
@@ -10,6 +10,7 @@ import {
 } from './credit.ts';
 import type { PublishEnv } from './publish.ts';
 import { MEDALS, myPoints, setRankingOptOut, type MyPoints, type PointsDb } from './points.ts';
+import type { AgentGrant, AgentGrants } from './mcpauth.ts';
 import {
   MAX_ACTIVE, TTL_DAYS, createToken, listTokens, parseNewToken, revokeToken, scopesFor, type TokenDb, type TokenRow,
 } from './tokens.ts';
@@ -50,7 +51,13 @@ const T = {
     never: 'nunca usado',
     shownOnce: 'O teu token novo. Copia-o agora: não volta a aparecer.',
     max: `Podes ter até ${MAX_ACTIVE} tokens ativos.`,
+    agentsH: 'Agentes ligados (MCP)',
+    agentsIntro: `Assistentes de IA que autorizaste a usar o servidor MCP (<code>/mcp</code>) em teu nome, com o teu papel e os teus limites. Ler não precisa de autorização; desligar um agente apaga a autorização e os tokens dele.`,
+    agentsNone: 'Nenhum agente ligado.',
+    agentSince: 'Ligado em',
+    disconnect: 'Desligar',
     ok: {
+      agent_revoked: 'Agente desligado.',
       revoked: 'Token revogado.', ranking_out: 'Saíste do ranking.', ranking_in: 'Voltaste ao ranking.',
       credit: 'Nome guardado. As fotos já publicadas atualizam-se nas horas seguintes.',
     } as Record<string, string>,
@@ -102,7 +109,13 @@ const T = {
     never: 'never used',
     shownOnce: 'Your new token. Copy it now: it will not be shown again.',
     max: `You can have up to ${MAX_ACTIVE} active tokens.`,
+    agentsH: 'Connected agents (MCP)',
+    agentsIntro: `AI assistants you authorised to use the MCP server (<code>/mcp</code>) on your behalf, with your role and your limits. Reading needs no authorisation; disconnecting an agent deletes its authorisation and its tokens.`,
+    agentsNone: 'No agents connected.',
+    agentSince: 'Connected on',
+    disconnect: 'Disconnect',
     ok: {
+      agent_revoked: 'Agent disconnected.',
       revoked: 'Token revoked.', ranking_out: 'You left the ranking.', ranking_in: 'You are back in the ranking.',
       credit: 'Name saved. Photos already published are updated over the next few hours.',
     } as Record<string, string>,
@@ -206,6 +219,21 @@ ${scopes.map((s, i) => `<p class="check"><input type="checkbox" id="scope-${i}" 
   return parts.join('\n');
 }
 
+function agentsSection(lang: Lang, rows: AgentGrant[]): string {
+  const t = T[lang];
+  const item = (g: AgentGrant) => `<li class="token-item">
+<div><strong lang="">${esc(g.client)}</strong></div>
+<div class="hint">${g.scopes.map((s) => `<code>${esc(s)}</code>`).join(', ') || '—'} · ${t.agentSince} ${day(g.createdAt)}</div>
+<form method="post" action="${ACCOUNT_ACTION}">${hidden('lang', lang)}${hidden('action', 'revoke_grant')}${hidden('grant', g.id)}
+<button type="submit" class="button secondary">${t.disconnect}</button></form>
+</li>`;
+  return `<section class="card account-section" aria-labelledby="h-agents">
+<h2 id="h-agents">${t.agentsH}</h2>
+<p>${t.agentsIntro}</p>
+${rows.length ? `<ul class="plain-list tokens">${rows.map(item).join('\n')}</ul>` : `<p>${t.agentsNone}</p>`}
+</section>`;
+}
+
 interface Notes {
   ok?: string;
   error?: string;
@@ -214,6 +242,7 @@ interface Notes {
 
 async function render(
   lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>, notes: Notes, status = 200, now = new Date(),
+  agents?: AgentGrants,
 ) {
   const enabled = loginEnabled(env);
   // A D1 hiccup (or a missing migration) reads as signed out, never as a 500.
@@ -222,24 +251,29 @@ async function render(
   if (user) {
     const t = T[lang];
     const db = env.DB as unknown as PointsDb & TokenDb & CreditDb;
-    const [credit, points, tokens] = await Promise.all([
+    const [credit, points, tokens, grants] = await Promise.all([
       creditState(db, user.id).catch(() => null),
       myPoints(db, user.id).catch(() => null),
       listTokens(db, user.id).catch(() => null),
+      agents ? agents.list(user.id).catch(() => null) : Promise.resolve(null),
     ]);
     const msgs = [
       notes.ok && t.ok[notes.ok] ? `<p class="notice" role="status">${t.ok[notes.ok]}</p>` : '',
       notes.error && t.errors[notes.error] ? `<p class="notice" role="alert">${t.errors[notes.error]}</p>` : '',
     ].join('');
-    sections = msgs + (credit ? creditSection(lang, credit, now) : '') + (points ? pointsSection(lang, points) : '') + (tokens ? tokensSection(lang, user.role, tokens, notes.fresh) : '');
+    sections = msgs + (credit ? creditSection(lang, credit, now) : '') + (points ? pointsSection(lang, points) : '') + (tokens ? tokensSection(lang, user.role, tokens, notes.fresh) : '')
+      + (grants ? agentsSection(lang, grants) : '');
   }
   const loginError = notes.error && !user ? notes.error : undefined;
   return page(lang, accountPage(lang, { user, enabled, error: loginError, sections }), status, headers);
 }
 
-export async function accountHtml(lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>, now = new Date()) {
+// `agents`: the OAuth grants of the MCP server (src/oauth.ts), when OAuth is on.
+export async function accountHtml(
+  lang: Lang, request: Request, env: AuthEnv, headers: Record<string, string>, now = new Date(), agents?: AgentGrants,
+) {
   const q = new URL(request.url).searchParams;
-  return render(lang, request, env, headers, { ok: q.get('ok') ?? undefined, error: q.get('erro') ?? undefined }, 200, now);
+  return render(lang, request, env, headers, { ok: q.get('ok') ?? undefined, error: q.get('erro') ?? undefined }, 200, now, agents);
 }
 
 const back = (lang: Lang, q: string, anchor = 'h-tokens') =>
@@ -249,7 +283,7 @@ const back = (lang: Lang, q: string, anchor = 'h-tokens') =>
 // rejoin the ranking. Only from our own pages (sameOrigin).
 export async function accountAction(
   request: Request, env: PublishEnv, headers: Record<string, string>,
-  ctx?: { waitUntil(p: Promise<unknown>): void }, now = new Date(), fetcher: typeof fetch = fetch,
+  ctx?: { waitUntil(p: Promise<unknown>): void }, now = new Date(), fetcher: typeof fetch = fetch, agents?: AgentGrants,
 ) {
   if (!sameOrigin(request)) return new Response('forbidden', { status: 403, headers: { 'cache-control': 'no-store' } });
   let form: FormData;
@@ -278,13 +312,19 @@ export async function accountAction(
     const ok = await revokeToken(db, user.id, String(form.get('token') ?? ''), now);
     return back(lang, ok ? 'ok=revoked' : 'erro=stale');
   }
+  if (action === 'revoke_grant' && agents) {
+    // revokeGrant only touches a grant of this user.
+    const id = String(form.get('grant') ?? '');
+    const ok = /^[A-Za-z0-9_-]{1,64}$/.test(id) && await agents.revoke(id, user.id).then(() => true, () => false);
+    return back(lang, ok ? 'ok=agent_revoked' : 'erro=stale', 'h-agents');
+  }
   if (action === 'create_token') {
     const t = parseNewToken(form, user.role);
     if (typeof t === 'string') return back(lang, `erro=${t}`);
     const made = await createToken(db, user.id, t, now);
     if (made === 'too_many') return back(lang, 'erro=too_many');
     // The token goes in this response only: never in a URL, a log or a redirect.
-    return render(lang, request, env, headers, { fresh: made.token });
+    return render(lang, request, env, headers, { fresh: made.token }, 200, now, agents);
   }
   return back(lang, 'erro=bad');
 }

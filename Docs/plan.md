@@ -2,7 +2,7 @@
 
 Diagrama e ecrãs: `Design/Fluxo-panoramax.html` e `Design/Ecras-panoramax.html`.
 
-Este documento só tem o que ainda não existe. O que já está a funcionar (servidor Panoramax, import dos postos, páginas, pesquisa, API de leitura e de escrita com *tokens*, login OSM, condições de utilização e privacidade, o envio com HEIC, mapa, postos propostos e deteção de caras, a moderação, os pedidos de remoção, a troca da foto principal, os aliases, os pontos, o ranking e o pseudónimo) está em [`arquitetura.md`](arquitetura.md), com a operação em [`cloudflare.md`](cloudflare.md) e [`infra.md`](infra.md). Quando uma parte daqui fica feita, sai deste documento e passa para lá.
+Este documento só tem o que ainda não existe. O que já está a funcionar (servidor Panoramax, import dos postos, páginas, pesquisa, API de leitura e de escrita com *tokens*, login OSM, condições de utilização e privacidade, o envio com HEIC, mapa, postos propostos e deteção de caras, a moderação, os pedidos de remoção, a troca da foto principal, os aliases, os pontos, o ranking, o pseudónimo e o servidor MCP) está em [`arquitetura.md`](arquitetura.md), com a operação em [`cloudflare.md`](cloudflare.md) e [`infra.md`](infra.md). Quando uma parte daqui fica feita, sai deste documento e passa para lá.
 
 ## Fases
 
@@ -13,7 +13,7 @@ Este documento só tem o que ainda não existe. O que já está a funcionar (ser
 - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
 - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
 - entrada na federação, depois da conversa com a comunidade.
-3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), servidor MCP, o resto da API (OpenAPI, `GET /photos/{id}`, `DELETE /photos/{id}`, filtros), exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
+3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade), o resto da API (OpenAPI, `GET /photos/{id}`, `DELETE /photos/{id}`, filtros), exportação `photos.json` lida pelo NAP dashboard e pelo ohmigo, listas de postos sem foto.
 4. **Desfocagem no servidor**, quando houver uma GPU a um custo razoável.
 
 ## Panoramax: etiquetas e federação
@@ -80,9 +80,9 @@ Outras alternativas a procurar: por exemplo, convidar o autor a reenviar a foto 
 
 Na fase 3, o refresh do NAP dashboard lê a exportação `olhaoposto.ocarroeletrico.com/api/v1/photos.json` como uma fonte nova do `charger_photos.py`, incluindo as fotos por tomada. As miniaturas continuam a ser copiadas para `/photos/` do próprio site, para o browser de quem lê não pedir nada a terceiros. O ohmigo recebe-as pelo `ohmigo_chargers.json`. Antes disso, as fotos do olh'o'posto podem chegar pelo OSM (`panoramax=`), mas o `charger_photos.py` só resolve UUIDs pela pesquisa federada (`api.panoramax.xyz`): até o servidor entrar na federação, é preciso que também pergunte a `panoramax.ocarroeletrico.com/api` (tarefa da fase 2).
 
-## API, MCP e llms.txt
+## API e llms.txt
 
-A camada de serviço no Worker serve a página, a API REST e, mais tarde, o servidor MCP, para as regras (validação, licença, desfocagem, moderação) serem as mesmas para pessoas e para agentes. O que já existe está em [`api.md`](api.md).
+A camada de serviço no Worker serve a página, a API REST e o servidor MCP ([`arquitetura.md`](arquitetura.md), *Servidor MCP*), para as regras (validação, licença, desfocagem, moderação) serem as mesmas para pessoas e para agentes. O que já existe está em [`api.md`](api.md).
 
 ### API REST (`/api/v1`)
 
@@ -95,25 +95,9 @@ Falta descrevê-la em OpenAPI 3.1 em `/api/v1/openapi.json`, e:
 | `GET /photos.json` | Exportação diária completa | — |
 | `DELETE /photos/{id}` | Retirar uma foto (autor ou moderador) | sessão/token |
 
-### Servidor MCP (`/mcp`)
-
-Servidor MCP remoto no mesmo Worker, com o transporte *Streamable HTTP*. A Cloudflare dá o `McpAgent` (Agents SDK) e o `workers-oauth-provider` para o OAuth que os clientes MCP esperam ([guia](https://developers.cloudflare.com/agents/guides/build-mcp-server)). O OAuth do MCP reutiliza o login OSM: o utilizador autoriza o agente uma vez e o token herda o papel da conta. Nome do servidor: `OlhaOPosto`.
-
-| Ferramenta | Faz | Auth |
-| --- | --- | --- |
-| `search_stations` | Por texto, coordenadas e raio, operador ou `has_photo=false` | — |
-| `get_station` | Posto, EVSE, fotos e links | — |
-| `get_photo_link` | Link estático de um posto ou tomada (com tamanho) e a atribuição pronta a colar | — |
-| `list_missing_photos` | Postos ou tomadas sem foto num concelho ou operador, para campanhas | — |
-| `submit_photo` | Envio a partir de URL ou base64, em `mode=clean` | `photos:write` |
-| `propose_station` | Posto novo para revisão | `photos:write` |
-| `set_primary_photo` | Escolher a foto principal | `moderator` |
-
-As ferramentas de leitura funcionam sem login, para qualquer assistente poder mostrar fotos de um posto. O ohmigo pode incluir o link estático de cada posto nas respostas; não é preciso juntar os dois servidores.
-
 ### llms.txt
 
-O `/llms.txt` já descreve as páginas, a API de leitura e de escrita, os links estáticos e as licenças. Falta acrescentar o MCP quando existir, uma página `.md` para cada parte (o que a [proposta](https://llmstxt.org/) pede para os links), e o cabeçalho `Link: </llms.txt>; rel="describedby"; type="text/markdown"` nas páginas HTML.
+O `/llms.txt` já descreve as páginas, a API de leitura e de escrita, o servidor MCP, os links estáticos e as licenças, e as páginas HTML apontam para ele no cabeçalho `Link`. Falta uma página `.md` para cada parte (o que a [proposta](https://llmstxt.org/) pede para os links).
 
 ## Crédito
 

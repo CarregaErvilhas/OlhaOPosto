@@ -134,3 +134,95 @@ export async function nearStations(env: Env, q: NearQuery, limit: number): Promi
     .slice(0, limit);
 }
 
+
+// --- filters: operator, municipality and "has a main photo" ---
+// The MCP tools (src/mcp.ts) browse stations without words or a place, for
+// campaigns ("stations without a photo in Sintra"). A full scan of the
+// public stations (about 9k rows), so the callers cap the results.
+
+export interface StationFilter {
+  // NAP operator id (EZC3), the id prefix (EZC) or part of the operator's name.
+  operator?: string | null;
+  municipality?: string | null;
+  // true: only stations with a published main photo; false: only without.
+  hasPhoto?: boolean | null;
+  // Only stations still in the NAP: a campaign has no use for the others.
+  activeOnly?: boolean;
+}
+
+const HAS_MAIN = `EXISTS (SELECT 1 FROM selections sel JOIN photos p ON p.id = sel.photo_id
+  WHERE sel.target = s.id AND sel.published_at IS NOT NULL AND p.status = 'published')`;
+
+function filterSql(f: StationFilter, first: number): { where: string; binds: unknown[] } {
+  const where: string[] = [f.activeOnly ? `s.status = 'active'` : `s.status IN ('active', 'missing_from_nap')`];
+  const binds: unknown[] = [];
+  let n = first;
+  const op = f.operator?.trim();
+  if (op) {
+    where.push(`(upper(s.opc) = upper(?${n}) OR s.id LIKE ?${n + 1} OR s.operator LIKE ?${n + 2})`);
+    binds.push(op, `${op.replace(/[%_]/g, '')}-%`, `%${op.replace(/[%_]/g, '')}%`);
+    n += 3;
+  }
+  const town = f.municipality?.trim();
+  if (town) {
+    where.push(`s.municipality = ?${n} COLLATE NOCASE`);
+    binds.push(town);
+    n += 1;
+  }
+  if (f.hasPhoto === true) where.push(HAS_MAIN);
+  if (f.hasPhoto === false) where.push(`NOT ${HAS_MAIN}`);
+  return { where: where.join(' AND '), binds };
+}
+
+export async function browseStations(env: Env, f: StationFilter, limit: number, offset = 0): Promise<SearchRow[]> {
+  const { where, binds } = filterSql(f, 1);
+  const { results } = await env.DB.prepare(
+    `SELECT s.id, s.name, s.opc, s.operator, s.address, s.municipality, s.region, s.lat, s.lon, s.status
+       FROM stations s WHERE ${where}
+      ORDER BY s.municipality, s.id
+      LIMIT ${Math.trunc(limit)} OFFSET ${Math.trunc(offset)}`,
+  ).bind(...binds).all<SearchRow>();
+  return results;
+}
+
+// Does a search result match the filter? For words and places, whose own
+// queries stay as they are: the filter runs on what they found.
+export async function matchesFilter<R extends SearchRow>(env: Env, rows: R[], f: StationFilter): Promise<R[]> {
+  if (!rows.length || (!f.operator?.trim() && !f.municipality?.trim() && f.hasPhoto == null && !f.activeOnly)) return rows;
+  const ids = rows.map((r) => r.id);
+  const { where, binds } = filterSql(f, ids.length + 1);
+  const { results } = await env.DB.prepare(
+    `SELECT s.id FROM stations s WHERE s.id IN (${ids.map((_, i) => `?${i + 1}`).join(', ')}) AND ${where}`,
+  ).bind(...ids, ...binds).all<{ id: string }>();
+  const keep = new Set(results.map((r) => r.id));
+  return rows.filter((r) => keep.has(r.id));
+}
+
+export interface MissingSocket {
+  station_id: string;
+  name: string | null;
+  municipality: string | null;
+  operator: string | null;
+  evse_id: string;
+  evse_compact: string;
+  connector: string | null;
+  max_kw: number | null;
+}
+
+// Sockets with a NAP EVSE code (they have a static link) and no main photo
+// yet, on active stations. Only codes that are not repeated elsewhere would
+// be ideal, but a repeated code still names a real socket of this station.
+export async function socketsWithoutPhoto(env: Env, f: StationFilter, limit: number, offset = 0): Promise<MissingSocket[]> {
+  const { where, binds } = filterSql({ ...f, hasPhoto: null }, 1);
+  const { results } = await env.DB.prepare(
+    `SELECT e.station_id, s.name, s.municipality, s.operator, e.evse_id, e.evse_compact, e.connector, e.max_kw
+       FROM evses e JOIN stations s ON s.id = e.station_id
+      WHERE ${where} AND e.evse_compact IS NOT NULL AND e.status = 'active'
+        AND NOT EXISTS (SELECT 1 FROM selections sel JOIN photos p ON p.id = sel.photo_id
+          WHERE sel.target = e.evse_compact AND sel.station_id = e.station_id
+            AND sel.published_at IS NOT NULL AND p.status = 'published')
+      ORDER BY s.municipality, e.station_id, e.point_id
+      LIMIT ${Math.trunc(limit)} OFFSET ${Math.trunc(offset)}`,
+  ).bind(...binds).all<MissingSocket>();
+  return results;
+}

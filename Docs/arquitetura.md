@@ -141,10 +141,10 @@ link de tomada.
 | `evses` | `station_id` (FK) + `point_id` (PK), `evse_id` (forma original com `*`), `evse_compact` (sem `*`, índice simples), `connector`, `max_kw`, `dc`, `status` | Uma linha por ponto/tomada. O `point_id` do MOBI.Data repete-se entre postos |
 | `stations_fts` | Índice FTS5 de `id`, `code`, `name`, `address`, `municipality`, `operator`, `opc` | Para a pesquisa. Só o índice: o texto fica em `stations`, e três *triggers* mantêm-no a par, por isso o import não muda |
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
-| `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `pseudonym`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. O `pseudonym` ainda não se edita |
+| `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `osm_key`, `pseudonym`, `pseudonym_key` (único), `pseudonym_changed_at`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. Os `*_key` são os nomes sem acentos, maiúsculas nem pontuação, para a unicidade do pseudónimo (*Crédito*, abaixo) |
 | `sessions` | `token_hash` (PK, SHA-256 do *cookie*), `user_id` (FK), `created_at`, `expires_at` | Uma cópia da tabela não abre sessões. As expiradas saem no login seguinte |
-| `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados |
-| `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica |
+| `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `author_tag_old`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados. `author_tag_old`: a etiqueta de autor que falta trocar no Panoramax depois de uma mudança de crédito |
+| `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at`, `credit_pending` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica. `credit_pending`: as três cópias ainda têm o crédito antigo no XMP |
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP: o link antigo responde `301` para o novo |
 | `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação (*Pontos e ranking*, abaixo). Uma linha por atribuição; só contam as de fotos `published` |
 | `api_tokens` | `id`, `user_id` (FK), `token_hash` (único, SHA-256), `prefix`, `name`, `scopes`, `created_at`, `expires_at`, `last_used_at`, `revoked_at` | *Tokens* de API: uma cópia da tabela não abre nada |
@@ -162,8 +162,8 @@ política de privacidade (`/privacidade`), os termos de utilização
 (`/termos`), o ranking (`/ranking`), o `sitemap.xml`, o `robots.txt` e o
 `llms.txt`.
 
-Com o login OSM há a conta (`/conta`: pontos, medalha, sair do ranking,
-*tokens* de API), a página de envio (`/enviar`), a fila de moderação e os
+Com o login OSM há a conta (`/conta`: nome a mostrar, pontos, medalha, sair do
+ranking, *tokens* de API), a página de envio (`/enviar`), a fila de moderação e os
 painéis de administração (`/admin/…`). A escrita na API
 (`POST /api/v1/photos`, `POST /api/v1/stations`,
 `PUT /api/v1/selections/{target}`) aceita a sessão, só a partir do próprio
@@ -246,6 +246,37 @@ três chaves e faz *purge* desses URLs.
 - **Só fotos publicadas contam:** uma foto ocultada ou retirada (pedido de remoção, batota) deixa de dar pontos sem se apagar nada.
 - **Medalhas**, pelo total de sempre: bronze com 10 pontos, prata com 50, ouro com 200. Sem prémios.
 - **Ranking:** `/ranking` (do mês e de sempre), em tabela, com o nome de crédito, a medalha, as fotos e os pontos; `/api/v1/ranking?period=month|all`. Quem sai do ranking na conta deixa de aparecer, e os pontos continuam a contar para si.
+
+## Crédito
+
+O crédito de uma foto é o nome de quem a enviou: por defeito o nome no OSM;
+se a pessoa escolher um **pseudónimo** («nome a mostrar», na conta), esse.
+Vai em todo o lado: nas páginas dos postos, no ranking, na API
+(`photos.credit`), na etiqueta `OlhaOPosto|author` do Panoramax e no XMP das
+três cópias em `pictures`. O `uploader_id` fica sempre, para a moderação.
+
+- **Regras** (`src/credit.ts`): de 2 a 40 caracteres depois de normalizar
+  (NFC, espaços colapsados, sem caracteres de controlo nem invisíveis);
+  letras, números, espaços e pontuação simples (`. , ' ’ ( ) ! ? & + _ -`);
+  nada que pareça um link (`://`, `www.`, `palavra.palavra`); alguns nomes
+  reservados (o do site, `admin`, `moderador`…).
+- **Unicidade:** não pode ser igual ao nome OSM nem ao pseudónimo de outra
+  conta, comparando sem acentos, maiúsculas, espaços nem pontuação (`João
+  Silva` = `joao_silva`). O próprio nome OSM, noutra grafia, é da pessoa. Um
+  índice único em `pseudonym_key` apanha dois pedidos ao mesmo tempo.
+- **Uma mudança por dia** (24 horas desde a última, `pseudonym_changed_at`),
+  contando também voltar ao nome OSM.
+- **Mudar o crédito** escreve numa transação o nome novo em `users`, o
+  `photos.credit` de todas as fotos da pessoa e as marcas do que falta
+  refazer: `selections.credit_pending` (as cópias de cada foto principal) e
+  `photos.author_tag_old` (a etiqueta no Panoramax). Um primeiro lote corre
+  logo a seguir (`waitUntil`) e o *cron* de 6 em 6 horas continua até não
+  haver marcas. As cópias reescrevem-se no próprio `pictures` (só o XMP muda,
+  com escrita condicional pelo *etag*, para não pisar uma principal nova) e
+  são purgadas; a etiqueta troca-se com um `PATCH /api/pictures/{id}` que
+  apaga o valor antigo e o novo e acrescenta o novo, por isso repetir é
+  inofensivo. As cópias que outras pessoas já fizeram ficam com o nome
+  antigo, e o histórico de etiquetas do Panoramax guarda-o.
 
 ## Tokens de API
 

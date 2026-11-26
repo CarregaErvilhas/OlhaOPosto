@@ -34,6 +34,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <h2>Ao iniciar sessão</h2>
 <p>A conta é a do OpenStreetMap. No OpenStreetMap autorizas o ${BRAND} a ler as preferências da conta, e recebemos só o número e o nome da conta. Não recebemos o teu email nem a tua palavra-passe, e não podemos editar o mapa em teu nome. Essa autorização serve uma vez e é revogada logo a seguir.</p>
 <p>Guardamos o número e o nome da conta no OpenStreetMap (o nome atualiza-se em cada início de sessão), o teu papel no site (por exemplo, contribuidor) e as datas de criação da conta e do último início de sessão. Quando um moderador ou administrador muda o teu papel, guardamos quem o mudou e quando. Moderadores e administradores veem o nome, o papel e a data do último início de sessão de cada conta, para gerir os papéis.</p>
+<p>Se escolheres na tua <a href="${accountPath('pt')}">conta</a> um nome a mostrar (pseudónimo), guardamos esse nome, uma versão dele sem acentos nem maiúsculas para não deixar outra pessoa usar um nome igual, e a data da última mudança, para só permitir uma por dia. O pseudónimo passa a ser o teu nome no site e o crédito das tuas fotos, em vez do nome no OpenStreetMap, e é público como ele. Ao mudá-lo, ou ao voltares ao nome do OpenStreetMap, trocamos o nome de autor nas tuas fotos, no Panoramax e nos links estáticos; o nome antigo fica no histórico de etiquetas do Panoramax. O fundamento é prestar o serviço que pedes (artigo 6.º, n.º 1, alínea b) do RGPD).</p>
 <p>Usamos dois <i>cookies</i>, ambos necessários para iniciar sessão, por isso não pedimos consentimento:</p>
 <ul>
 <li><code>__Host-oop_oauth</code>: dura 10 minutos, enquanto passas pelo OpenStreetMap;</li>
@@ -48,7 +49,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>Se propuseres um posto novo, guardamos o que escreveste (nome, operador, código, posição e nota), quem o propôs e quando, e a decisão do moderador. Até ser aprovado, não é público e só a moderação o vê; aprovado, o nome, o operador, o código e a posição ficam públicos como os dos outros postos, sem o teu nome.</p>
 <p>Quando enviares, recebemos os três tamanhos e, à parte, a data e o GPS exato da foto, se os tiver. Guardamos:</p>
 <ul>
-<li>a foto de 2048 px no nosso servidor Panoramax, com as coordenadas do posto (nunca as do GPS da foto), a data da foto e o teu nome no OpenStreetMap como autor;</li>
+<li>a foto de 2048 px no nosso servidor Panoramax, com as coordenadas do posto (nunca as do GPS da foto), a data da foto e o teu nome de autor (o nome no OpenStreetMap ou o teu pseudónimo);</li>
 <li>as versões de 1024 e 400 px num armazenamento privado;</li>
 <li>na nossa base de dados: o posto ou a tomada, a data e o GPS da foto, a distância ao posto, o nome de autor, quem enviou, quando, e a data em que aceitaste a licença e os <a href="${termsPath('pt')}">termos</a>.</li>
 </ul>
@@ -96,6 +97,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <h2>When you sign in</h2>
 <p>The account is your OpenStreetMap account. On OpenStreetMap you allow ${BRAND} to read your account preferences, and we receive only the account number and name. We do not receive your email or your password, and we cannot edit the map on your behalf. That permission is used once and revoked straight away.</p>
 <p>We keep your OpenStreetMap account number and name (the name is refreshed at each sign-in), your role on the site (for example, contributor) and the dates the account was created and last signed in. When a moderator or admin changes your role, we keep who changed it and when. Moderators and admins see each account’s name, role and last sign-in date, to manage roles.</p>
+<p>If you choose a display name (pseudonym) on your <a href="${accountPath('en')}">account</a> page, we keep that name, a version of it without accents or case so nobody else can use the same name, and the date of the last change, to allow only one a day. The pseudonym becomes your name on the site and the credit on your photos, instead of your OpenStreetMap name, and it is public like that one. When you change it, or go back to your OpenStreetMap name, we swap the author name on your photos, on Panoramax and in the static links; the old name stays in Panoramax’s tag history. The legal basis is providing the service you ask for (GDPR Article 6(1)(b)).</p>
 <p>We use two cookies, both needed to sign in, so we do not ask for consent:</p>
 <ul>
 <li><code>__Host-oop_oauth</code>: lasts 10 minutes, while you go through OpenStreetMap;</li>
@@ -110,7 +112,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>If you propose a new station, we keep what you wrote (name, operator, code, position and note), who proposed it and when, and the moderator’s decision. Until it is approved, it is not public and only the moderators see it; once approved, its name, operator, code and position are public like those of the other stations, without your name.</p>
 <p>When you send a photo, we receive the three sizes and, separately, the photo’s date and exact GPS, if it has them. We keep:</p>
 <ul>
-<li>the 2048 px photo on our Panoramax server, with the station’s coordinates (never the photo’s GPS), the photo’s date and your OpenStreetMap name as the author;</li>
+<li>the 2048 px photo on our Panoramax server, with the station’s coordinates (never the photo’s GPS), the photo’s date and your author name (your OpenStreetMap name or your pseudonym);</li>
 <li>the 1024 and 400 px versions in private storage;</li>
 <li>in our database: the station or socket, the photo’s date and GPS, the distance to the station, the author name, who sent it, when, and the date you accepted the licence and the <a href="${termsPath('en')}">terms</a>.</li>
 </ul>

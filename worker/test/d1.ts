@@ -18,12 +18,30 @@ export function d1() {
       async first<T>() { return (sql.prepare(query).get(...(args as never[])) ?? null) as T | null; },
       async all<T>() { return { results: sql.prepare(query).all(...(args as never[])) as T[] }; },
       async run() { const r = sql.prepare(query).run(...(args as never[])); return { meta: { changes: Number(r.changes) } }; },
+      // For batch: the rows and the changes, as D1 returns for each statement.
+      step() {
+        const st = sql.prepare(query);
+        if (st.columns().length) return { results: st.all(...(args as never[])), meta: { changes: 0 } };
+        const r = st.run(...(args as never[]));
+        return { results: [], meta: { changes: Number(r.changes) } };
+      },
     };
     return s;
   };
   return {
     sql,
     prepare,
-    async batch(stmts: { all(): Promise<unknown> }[]) { return Promise.all(stmts.map((s) => s.all())); },
+    // One transaction, like D1: a statement that throws undoes the others.
+    async batch(stmts: { step(): unknown }[]) {
+      sql.exec('BEGIN');
+      try {
+        const out = stmts.map((s) => s.step());
+        sql.exec('COMMIT');
+        return out;
+      } catch (err) {
+        sql.exec('ROLLBACK');
+        throw err;
+      }
+    },
   };
 }

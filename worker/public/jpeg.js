@@ -137,6 +137,22 @@ export function isCleanJpeg(b) {
 const TYPE_SIZE = /** @type {Record<number, number>} */ ({ 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 });
 
 /**
+ * The same fields from a bare TIFF block (Exif in an HEIC file, public/heic.js).
+ * @param {Uint8Array} t
+ * @returns {PhotoMeta}
+ */
+export function readExifTiff(t) {
+  /** @type {PhotoMeta} */
+  const out = { lat: null, lon: null, takenAt: null, orientation: null };
+  try {
+    readTiff(t, out);
+  } catch {
+    // Keep whatever was read before the damage.
+  }
+  return out;
+}
+
+/**
  * The EXIF fields the upload uses. Fields that are missing or malformed come
  * back as null; this never throws on a bad file.
  * @param {Uint8Array} b

@@ -14,6 +14,7 @@
 import { isCleanJpeg, jpegSize } from '../public/jpeg.js';
 import { currentUser, loginEnabled, page, type AuthEnv, type Db, type Waiter } from './auth.ts';
 import { apiCaller } from './tokens.ts';
+import { proposedBy } from './proposals.ts';
 import { PANORAMAX_URL, type Lang } from './pages.ts';
 import { distanceM, FAR_M, STATION_ID } from './types.ts';
 import { TURNSTILE_ACTION, presetStation, uploadPage } from './upload.ts';
@@ -161,11 +162,15 @@ interface StationTarget {
   evse_id: string | null;
 }
 
-async function findTarget(db: Db, meta: PhotoMeta): Promise<StationTarget | null> {
+// A public station, or a station this person proposed that still waits for
+// a moderator (src/proposals.ts): its photos wait with it.
+async function findTarget(env: PhotoEnv, meta: PhotoMeta, userId: string): Promise<StationTarget | null> {
+  const db = env.DB;
   const station = await db.prepare(
-    `SELECT lat, lon, status FROM stations WHERE id = ? AND status IN ('active', 'missing_from_nap')`,
+    `SELECT lat, lon, status FROM stations WHERE id = ? AND status IN ('active', 'missing_from_nap', 'pending_review')`,
   ).bind(meta.station).first<{ lat: number; lon: number; status: string }>();
   if (!station) return null;
+  if (station.status === 'pending_review' && !(await proposedBy(env, meta.station, userId))) return null;
   if (meta.target === meta.station) return { ...station, evse_id: null };
   const socket = await db.prepare(
     'SELECT evse_id FROM evses WHERE station_id = ? AND evse_compact = ? LIMIT 1',
@@ -264,7 +269,7 @@ export async function submitPhoto(
     return reply(400, { error: 'bad_photo' });
   }
 
-  const target = await findTarget(env.DB, meta);
+  const target = await findTarget(env, meta, user.id);
   if (!target) return reply(400, { error: 'bad_target' });
 
   const dayStart = `${now.toISOString().slice(0, 10)}T00:00:00.000Z`;

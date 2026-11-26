@@ -2,7 +2,7 @@
 
 > Community photos of EV charging stations and sockets in Portugal, with one stable static photo link per station and per socket, keyed by the official NAP Portugal (MOBI.E) codes.
 
-Pages are in European Portuguese, with English under /en/. Station and socket data come from NAP Portugal (MOBI.E), matched to OpenStreetMap, and are refreshed daily. Photo uploads are not open yet, so most static links still return 404.
+Pages are in European Portuguese, with English under /en/. Station and socket data come from NAP Portugal (MOBI.E), matched to OpenStreetMap, and are refreshed daily. Photo uploads are open and moderated; stations without an approved photo return 404 on their static link.
 
 ## Pages
 
@@ -19,7 +19,15 @@ Read-only JSON, open CORS, no key.
 - `GET /api/v1/stations?lat={deg}&lon={deg}&radius={metres, default 500, max 5000}&limit={1-50}`: public stations near a point, nearest first, each with `distance_m`. Use either `q` or `lat`/`lon`, not both.
 - `GET /api/v1/main-photos`: every published main photo (station or socket) with its credit, the three sizes on pictures.ocarroeletrico.com, the station page and the Panoramax picture id. Licence CC BY-SA 4.0: credit the author.
 - `GET /api/v1/evses/{EVSE code}`: the socket and its station, each with `photo` (or `null`) as above. 300 with `candidates` when the NAP lists the same code at more than one station, 404 when unknown.
-- `GET /api/v1/ranking?period=month|all`: top contributors by points (month = current month, UTC).
+- `GET /api/v1/ranking?period=month|all`: top contributors (`rank`, `name`, `points`, `photos`, `medal`), month = current month, UTC.
+
+## Writing with a token
+
+Writes need a personal access token, created by a signed-in person on their account page (`/conta` or `/en/account`), sent as `Authorization: Bearer oop_…`. A token acts as that person, with their role and limits, under the [terms of use](https://olhaoposto.ocarroeletrico.com/en/terms). Scopes: `photos:write`, `selections:write` (trusted accounts and moderators only).
+
+- `POST /api/v1/photos` (`photos:write`): multipart with three clean JPEGs, already blurred and without any metadata: `full` (longest side ≤ 2048 px), `main` (≤ 1024), `thumb` (≤ 400), all the same picture; and `meta`, JSON: `{"station": "<station id>", "target": "<station id or compact EVSE code>", "taken_at": "2026-11-20T10:15:00Z" | null, "exif_lat": number | null, "exif_lon": number | null, "license": true, "no_people": true}`. The GPS is for moderators only and is never published. 201 `{id, status}`: `pending` until a moderator approves it, `published` for trusted accounts on site. Files with EXIF are refused.
+- `POST /api/v1/stations` (`photos:write`): propose a station missing from the NAP, JSON `{"name", "operator", "code"?, "lat", "lon", "note"?}`. 409 `station_nearby` with the stations within 60 m; repeat with `?force=1` if it is another one. 201 `{id, status: "pending_review"}`; its photos wait for a moderator with it.
+- `PUT /api/v1/selections/{target}` (`selections:write`): JSON `{"photo": "<photo id>"}` makes that published photo the main photo of the station or socket.
 
 ## Static photo links
 

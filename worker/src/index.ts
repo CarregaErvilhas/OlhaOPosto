@@ -18,6 +18,7 @@ import {
 } from './pages.ts';
 import { privacyPage } from './privacy.ts';
 import { termsPage } from './terms.ts';
+import { proposeStation } from './proposals.ts';
 import { photoLink } from './photolinks.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
@@ -46,13 +47,25 @@ const HTML_HEADERS = {
   'strict-transport-security': 'max-age=31536000',
 };
 
-// The upload page also asks our API for stations (connect-src), shows the
-// prepared photo from a blob: URL and loads Turnstile (its script and its
-// iframe). Only that page gets these.
+// The upload page also asks our API for stations (connect-src; also the
+// HEIC decoder and face model files, fetched from /vendor/ and /models/),
+// shows the prepared photo from a blob: URL, loads Turnstile (its script and
+// its iframe), compiles WebAssembly (libheif for HEIC, MediaPipe for faces:
+// 'wasm-unsafe-eval' allows compiling wasm, not eval of JavaScript) and,
+// only when the person opens the map, shows OpenStreetMap tiles. Only that
+// page gets these.
 const UPLOAD_HEADERS = {
   ...HTML_HEADERS,
   'content-security-policy': HTML_HEADERS['content-security-policy']
-    .replace("img-src 'self'", "img-src 'self' blob:")
+    .replace("img-src 'self'", "img-src 'self' blob: https://tile.openstreetmap.org")
+    .replace("default-src 'none';", "default-src 'none'; connect-src 'self'; frame-src https://challenges.cloudflare.com;")
+    .replace("script-src 'self'", "script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com"),
+};
+
+// The removal form loads Turnstile, like the upload page, and nothing else.
+const TURNSTILE_HEADERS = {
+  ...HTML_HEADERS,
+  'content-security-policy': HTML_HEADERS['content-security-policy']
     .replace("default-src 'none';", "default-src 'none'; connect-src 'self'; frame-src https://challenges.cloudflare.com;")
     .replace("script-src 'self'", "script-src 'self' https://challenges.cloudflare.com"),
 };
@@ -340,6 +353,7 @@ export default {
     if (request.method === 'POST' && pathname === DECIDE_ACTION) return decide(request, env);
     if (request.method === 'POST' && (pathname === ALIAS_ACTION || pathname === '/admin/alias' || pathname === '/admin/rekeys' || pathname === '/admin/aliases')) return rekey(request, env);
     if (request.method === 'POST' && pathname === '/api/v1/photos') return submitPhoto(request, env, ctx);
+    if (request.method === 'POST' && pathname === '/api/v1/stations') return proposeStation(request, env);
     if (request.method === 'POST' && pathname === '/report') return submitTakedown(request, env);
     if (request.method === 'POST' && pathname === TAKEDOWN_DECIDE) return decideTakedown(request, env);
     if (request.method === 'PUT') {
@@ -383,8 +397,8 @@ export default {
     if (pathname === '/admin/postos-fora-do-nap' || pathname === '/admin/aliases' || pathname === '/admin/rekeys' || pathname === '/admin/rekey') return aliasesHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/stations-missing' || pathname === '/en/admin/aliases' || pathname === '/en/admin/rekeys' || pathname === '/en/admin/rekey') return aliasesHtml('en', request, env, HTML_HEADERS);
     // The removal form loads Turnstile, like the upload page.
-    if (pathname === '/report') return takedownHtml('pt', request, env, UPLOAD_HEADERS);
-    if (pathname === '/en/report') return takedownHtml('en', request, env, UPLOAD_HEADERS);
+    if (pathname === '/report') return takedownHtml('pt', request, env, TURNSTILE_HEADERS);
+    if (pathname === '/en/report') return takedownHtml('en', request, env, TURNSTILE_HEADERS);
     if (pathname === '/admin/remocoes') return takedownsHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/takedowns') return takedownsHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);

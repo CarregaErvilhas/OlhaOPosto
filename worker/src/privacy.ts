@@ -23,7 +23,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
     title: `Privacidade · ${BRAND}`,
     description: `Que dados o ${BRAND} trata, porquê, durante quanto tempo e como pedir que os apaguemos.`,
     body: `<h1>Privacidade</h1>
-<p>O ${BRAND} mostra fotos e dados dos postos de carregamento em Portugal. Para ver o site não precisas de conta. Não há anúncios, análise de tráfego nem nada de terceiros nas páginas.</p>
+<p>O ${BRAND} mostra fotos e dados dos postos de carregamento em Portugal. Para ver o site não precisas de conta. Não há anúncios, análise de tráfego nem nada de terceiros nas páginas, salvo o que se diz abaixo para o envio de fotos.</p>
 <p><strong>Responsável:</strong> O Carro Elétrico / Fernando Miguel, ${mail}.</p>
 
 <h2>Ao visitar o site</h2>
@@ -43,7 +43,9 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>Ao iniciar sessão passas pelo site do OpenStreetMap, que trata os teus dados segundo a <a href="${LINKS.osmf}">política de privacidade da OpenStreetMap Foundation</a>.</p>
 
 <h2>Envio de fotos</h2>
-<p>A página de envio trata a foto no teu dispositivo: abre-a, lê a data e o GPS, desfoca as zonas que marcares por cima de caras e matrículas, e faz três tamanhos (2048, 1024 e 400 px) sem metadados. A foto original nunca é enviada. Para sugerir postos, a página arredonda o GPS a cerca de 100 metros e pede-nos os postos à volta desse ponto; esse pedido fica no registo técnico como qualquer outro.</p>
+<p>A página de envio trata a foto no teu dispositivo: abre-a (também as fotos HEIC, convertidas no dispositivo), lê a data e o GPS, procura caras para sugerir as zonas a desfocar, desfoca as zonas que confirmares por cima de caras e matrículas, e faz três tamanhos (2048, 1024 e 400 px) sem metadados. A foto original nunca é enviada, e a procura de caras corre no teu dispositivo, com um programa e um modelo servidos por este site. Para sugerir postos, a página arredonda o GPS a cerca de 100 metros e pede-nos os postos à volta desse ponto; esse pedido fica no registo técnico como qualquer outro.</p>
+<p>Se abrires o mapa para escolher o posto, o teu navegador pede as imagens do mapa (os mosaicos) aos servidores do OpenStreetMap, que recebem o teu endereço IP e a zona do mapa que vês, segundo a <a href="${LINKS.osmf}">política de privacidade da OpenStreetMap Foundation</a>. O mapa só abre se tocares no botão. O botão «Ir para a minha localização» pede ao navegador a tua posição; ela só serve para centrar o mapa, e o que nos chega é o centro do mapa arredondado a cerca de 100 metros, para listar os postos.</p>
+<p>Se propuseres um posto novo, guardamos o que escreveste (nome, operador, código, posição e nota), quem o propôs e quando, e a decisão do moderador. Até ser aprovado, não é público e só a moderação o vê; aprovado, o nome, o operador, o código e a posição ficam públicos como os dos outros postos, sem o teu nome.</p>
 <p>Quando enviares, recebemos os três tamanhos e, à parte, a data e o GPS exato da foto, se os tiver. Guardamos:</p>
 <ul>
 <li>a foto de 2048 px no nosso servidor Panoramax, com as coordenadas do posto (nunca as do GPS da foto), a data da foto e o teu nome no OpenStreetMap como autor;</li>
@@ -83,7 +85,7 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
     title: `Privacy · ${BRAND}`,
     description: `What data ${BRAND} handles, why, for how long, and how to ask us to delete it.`,
     body: `<h1>Privacy</h1>
-<p>${BRAND} shows photos and data about EV charging stations in Portugal. You do not need an account to use the site. There are no ads, no analytics and nothing from third parties on the pages.</p>
+<p>${BRAND} shows photos and data about EV charging stations in Portugal. You do not need an account to use the site. There are no ads, no analytics and nothing from third parties on the pages, apart from what is said below for photo uploads.</p>
 <p><strong>Controller:</strong> O Carro Elétrico / Fernando Miguel, ${mail}.</p>
 
 <h2>When you visit the site</h2>
@@ -103,7 +105,9 @@ export const PRIVACY: Record<Lang, { title: string; description: string; body: s
 <p>Signing in takes you through the OpenStreetMap site, which handles your data under the <a href="${LINKS.osmf}">OpenStreetMap Foundation privacy policy</a>.</p>
 
 <h2>Photo uploads</h2>
-<p>The upload page handles the photo on your device: it opens it, reads its date and GPS, blurs the areas you mark over faces and number plates, and makes three sizes (2048, 1024 and 400 px) without metadata. The original photo is never sent. To suggest stations, the page rounds the GPS to about 100 metres and asks us for the stations around that point; that request goes into the technical log like any other.</p>
+<p>The upload page handles the photo on your device: it opens it (HEIC photos too, converted on the device), reads its date and GPS, looks for faces to suggest the areas to blur, blurs the areas you confirm over faces and number plates, and makes three sizes (2048, 1024 and 400 px) without metadata. The original photo is never sent, and the face search runs on your device, with a program and a model served by this site. To suggest stations, the page rounds the GPS to about 100 metres and asks us for the stations around that point; that request goes into the technical log like any other.</p>
+<p>If you open the map to choose the station, your browser asks OpenStreetMap’s servers for the map images (tiles), and they receive your IP address and the area of the map you look at, under the <a href="${LINKS.osmf}">OpenStreetMap Foundation privacy policy</a>. The map only opens if you tap the button. The “Go to my location” button asks your browser for your position; it only centres the map, and what reaches us is the centre of the map rounded to about 100 metres, to list the stations.</p>
+<p>If you propose a new station, we keep what you wrote (name, operator, code, position and note), who proposed it and when, and the moderator’s decision. Until it is approved, it is not public and only the moderators see it; once approved, its name, operator, code and position are public like those of the other stations, without your name.</p>
 <p>When you send a photo, we receive the three sizes and, separately, the photo’s date and exact GPS, if it has them. We keep:</p>
 <ul>
 <li>the 2048 px photo on our Panoramax server, with the station’s coordinates (never the photo’s GPS), the photo’s date and your OpenStreetMap name as the author;</li>

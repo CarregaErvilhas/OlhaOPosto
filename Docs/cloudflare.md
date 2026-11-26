@@ -219,43 +219,82 @@ ainda têm fotos; o moderador escreve o código do posto novo e cria o alias
 (`POST /admin/rekey`). O link antigo responde `301` para o novo (páginas e
 `/api/v1/stations/{id}`). Migração `0009_station_aliases.sql`.
 
-**Pedidos de remoção** (`/takedown` e `/en/takedown`, públicos; `/admin/remocoes` e `/en/admin/takedowns`, só moderadores; `src/takedown.ts`, migração `0010_takedowns.sql`).
-O formulário não pede conta e usa o mesmo widget Turnstile do envio, com a
-ação `takedown` (um código do envio não serve aqui). A pessoa escreve o
-código do posto ou da tomada, ou cola o link da foto, da página ou do
-Panoramax; a página do posto tem um link «Pedir remoção» na legenda da foto
-que já o preenche. A resposta é a mesma quer o pedido corresponda a uma foto
-quer não, para o formulário não servir para sondar o que existe. Ao chegar
-o pedido, a foto fica oculta logo:
+**Pedidos de remoção** (`/takedown` e `/en/takedown`, públicos; `/admin/remocoes` e `/en/admin/takedowns`, só moderadores; `src/takedown.ts`).
+Assentam nas denúncias do próprio Panoramax (`/api/reports`), sem tabela
+nossa. No Panoramax, uma denúncia por desfocagem em falta, privacidade,
+conteúdo impróprio ou direitos de autor põe logo a foto em `owner-only` (um
+*trigger* da BD; a denúncia nasce `open_autofix`). O que o Panoramax não
+conhece são as nossas cópias, e é disso que o Worker trata.
 
-1. `photos.status` passa a `hidden`: o site, a API e o `/main-photos` deixam
-   de a mostrar (no máximo 5 minutos de cache).
-2. Cada link estático que ela servia sai do R2 `pictures` e da tabela
-   `selections`, e os três URLs são purgados da cache.
-3. O *upload set* no Panoramax volta a `owner-only` e os URLs das imagens
-   no `panoramax.*` são purgados (a zona guarda-os em cache).
+O formulário não pede conta nem contacto e usa o mesmo widget Turnstile do
+envio, com a ação `takedown` (um código do envio não serve aqui). A pessoa
+escreve o código do posto ou da tomada, ou cola o link da foto, da página ou
+do Panoramax; a página do posto tem um link «Pedir remoção» na legenda da
+foto que já o preenche. Se não corresponde a nenhuma foto publicada, a
+pessoa fica a saber (os links estáticos são públicos, não há nada a
+esconder). Se corresponde:
 
-Um passo que falhe fica no pedido (`hide_failed`) e aparece no painel com um
-botão para repetir. **O formulário fica fechado** (mostra o email) enquanto
-faltarem os segredos do Turnstile ou da purga: sem purga, a foto continuaria
-na cache do `pictures.*` até 30 dias. Para o abrir (só o Fernando):
+1. O Worker cria a denúncia no Panoramax **sem o token**: o Panoramax vê
+   primeiro se quem edita é o autor da denúncia e só depois se é o dono da
+   foto, e o autor não a pode fechar como ignorada. Todos os motivos do
+   formulário correspondem a um tipo que oculta logo; o motivo vai no início
+   do comentário.
+2. Oculta as nossas cópias: `photos.status` passa a `hidden` (o site, a API
+   e o `/main-photos` deixam de a mostrar, no máximo 5 minutos de cache), a
+   foto no Panoramax passa a `owner-only` (o mesmo que o *trigger* faz), as
+   cópias saem do R2 `pictures` e os URLs do `pictures.*` e das imagens do
+   `panoramax.*` são purgados. As linhas de `selections` só saem depois de a
+   purga correr bem: enquanto ficarem, há algo por limpar.
 
-1. Criar um token de API só com *Zone → Cache Purge → Purge*, só na zona
+**Cron a cada 10 minutos** (`triggers.crons` no `wrangler.json`, `scheduled`
+no `src/index.ts`). Lê as denúncias abertas das fotos da conta de serviço
+(`/api/users/me/reports`; é dona de todas, chega para as ler e fechar sem ser
+admin) e oculta as nossas cópias das que o Panoramax ocultou, venham do
+formulário ou do botão de denúncia do visualizador. Repete também as
+ocultações que deixaram `selections` para trás. O painel faz o mesmo ao
+abrir. É quase só espera de rede, por isso cabe nos 10 ms de CPU do plano
+Free.
+
+No painel, **Remover** limpa as cópias, apaga o *upload set* no Panoramax (a
+denúncia vai com ele) e as cópias do `pictures-staging` (foto `removed`).
+**Manter** fecha primeiro todas as denúncias abertas da foto
+(`closed_ignored`; senão o cron voltava a ocultá-la), torna a foto pública e
+volta a preencher os links estáticos que ainda estão vazios. As denúncias de
+uma sequência inteira (só pelo visualizador, e só até haver a regra WAF
+abaixo) não têm botões: o cron não as segue e tratam-se pela API do
+Panoramax com o token da conta de serviço. O prazo é de 72 horas; o painel
+mostra o tempo que falta. Ainda não se promove outra foto aprovada a
+principal quando uma é ocultada.
+
+**O formulário fica fechado** (mostra o email) enquanto faltarem os
+segredos do Turnstile, da purga ou o `PANORAMAX_TOKEN`: sem purga, a foto
+continuaria na cache do `pictures.*` até 30 dias. Os segredos da purga
+(também usados na troca da foto principal, `PUT /api/v1/selections/{target}`):
+
+1. Um token de API só com *Zone → Cache Purge → Purge*, só na zona
    `ocarroeletrico.com` (cobre o `pictures.*` e o `panoramax.*`).
 2. `npm run remote -- secret put CF_ZONE_ID` (o ID da zona) e
    `npm run remote -- secret put CF_CACHE_PURGE_TOKEN` (o token).
 3. Depois do primeiro pedido real, os três URLs do `pictures.*` têm de dar
    `404` (`curl -sI`), não um `HIT` da cache.
 
-Os mesmos segredos servem a troca da foto principal
-(`PUT /api/v1/selections/{target}`), que até aqui não purgava nada. No painel, **Remover** apaga o *upload set*
-e as cópias do `pictures-staging` (foto `removed`); **Repor** torna o *set*
-público, a foto `published` e volta a preencher os links estáticos que ainda
-estão vazios; **Fechar** encerra um pedido que não corresponde a nenhuma
-foto. Uma decisão fecha todos os pedidos abertos da mesma foto e apaga o
-contacto. Os pedidos decididos apagam-se 2 anos depois da decisão (sem
-*cron*: o `DELETE` corre quando chega um pedido ou se abre o painel). O prazo é de 72 horas; o painel mostra o tempo que falta.
-Ainda não se promove outra foto aprovada a principal quando uma é ocultada.
+**Regra WAF para as denúncias (por aplicar, só o Fernando, depois do
+deploy).** O `POST /api/reports` do Panoramax não pede conta nem tem
+Turnstile, e oculta logo: sem filtro, um *script* pode ocultar todas as
+fotos. A regra só deixa passar as denúncias que trazem o cabeçalho que o
+Worker envia. O botão de denúncia do visualizador deixa de funcionar; quem
+quiser denunciar usa o formulário.
+
+1. `npm run remote -- secret put PANORAMAX_REPORT_KEY` (um valor aleatório
+   longo, por exemplo `openssl rand -hex 32`; nunca num ficheiro do
+   repositório). Antes da regra existir, o cabeçalho não muda nada.
+2. Na zona `ocarroeletrico.com`, *Security → WAF → Custom rules*, uma regra
+   *Block*: `http.host eq "panoramax.ocarroeletrico.com" and
+   http.request.method eq "POST" and http.request.uri.path eq "/api/reports"
+   and not any(http.request.headers["x-olhaoposto-report"][*] eq "<o valor>")`.
+3. Testar: um `curl -X POST` sem o cabeçalho dá `403`, e um pedido no
+   formulário continua a criar a denúncia (confirma que o pedido do Worker
+   chega com o cabeçalho, seja qual for o caminho dele dentro da zona).
 
 **Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`).
 Só para moderadores e administradores. Mostra as fotos `pending` da mais

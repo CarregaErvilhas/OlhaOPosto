@@ -139,9 +139,10 @@ Resposta: `{ "targets": ["EZC-AMD-00051"] }`.
 ### `POST /takedown`
 
 O formulário público de remoção (`/takedown`), não é uma API JSON: campos
-`alvo`, `motivo` (`face`, `plate`, `property`, `other`), `detalhes`,
-`contacto` e o `cf-turnstile-response` do widget, mesma origem. Responde
-`303` de volta ao formulário. Ver [`cloudflare.md`](cloudflare.md),
+`alvo`, `motivo` (`face`, `plate`, `property`, `copyright`, `other`),
+`detalhes` e o `cf-turnstile-response` do widget, mesma origem. Responde
+`303` de volta ao formulário. O pedido vira uma denúncia no Panoramax
+(`/api/reports`). Ver [`cloudflare.md`](cloudflare.md),
 *Pedidos de remoção*.
 
 ## Ainda por implementar

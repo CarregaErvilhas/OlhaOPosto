@@ -143,7 +143,7 @@ Já existem `GET /stations?q=` (pesquisa por texto), `GET /stations?lat=&lon=&ra
 | `PUT /selections/{target}` | Escolher a foto principal de um posto ou tomada | `trusted` |
 | `POST /stations` | Propor posto novo (vai para a fila) | `photos:write` |
 | `DELETE /photos/{id}` | Retirar uma foto (autor ou moderador) | sessão/token |
-| `POST /takedown` | Pedido de remoção por privacidade, sem login | Turnstile |
+| `POST /report` | Pedido de remoção por privacidade, sem login | Turnstile |
 
 **Tokens para scripts e agentes** (fase 3). Cada utilizador gera *personal access tokens* na sua página, com âmbitos (`photos:read`, `photos:write`, `selections:write`) e validade. Envio com `Authorization: Bearer <token>`. Na D1 guarda-se só o hash. Os limites de envio são os da conta, não do token.
 
@@ -225,7 +225,7 @@ A licença das fotos (CC BY-SA 4.0 com autorização ODbL) está em [`licenca.md
 
 - **Dados de quem envia:** ID e nome do OSM, pseudónimo opcional, papel e GPS das fotos. Sem email.
 - **Pessoas e matrículas nas fotos:** desfocagem obrigatória e caixa a confirmar no envio.
-- **Pedidos de remoção:** feitos sobre as denúncias do Panoramax ([`cloudflare.md`](cloudflare.md), secção 4, *Pedidos de remoção*). Falta a regra WAF que só deixa passar as denúncias do Worker, e promover a seguinte foto aprovada a principal quando uma é ocultada.
+- **Pedidos de remoção:** feitos sobre as denúncias do Panoramax ([`cloudflare.md`](cloudflare.md), secção 4, *Pedidos de remoção*). Falta promover a seguinte foto aprovada a principal quando uma é ocultada.
 - **Política de privacidade:** publicada em `/privacidade`, com o responsável, os registos, o login, os *cookies* e o envio (o que se guarda, onde, a moderação, a licença). Inclui o formulário de remoção.
 - **Conservação:** o GPS fica na D1 só para moderação; as versões em `pictures-staging` apagam-se ao aprovar ou rejeitar; logs com retenção curta.
 

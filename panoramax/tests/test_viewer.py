@@ -138,3 +138,39 @@ def test_viewer_draws_single_photo_at_zoom_10(base_url):
             f"Ao zoom {ZOOM} a foto de teste está no mapa mas não se vê ({found['visible']} píxeis da cor da camada onde ela está).",
             "ver o raio, a opacidade e a cor da camada das fotos no visualizador novo e ajustar o PAINT em panoramax/templates/viewer.html.",
         )
+
+
+def test_viewer_report_button_opens_our_form(base_url):
+    """The viewer's Report button must open the olh'o'posto form: the WAF rule
+    blocks the viewer's own POST /api/reports (templates/viewer.html)."""
+    version = map_override.viewer_version()
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(locale="pt-PT")
+        page.route(
+            re.compile(r"^http://127\.0\.0\.1:\d+/api/?(\?.*)?$"),
+            lambda route: route.fulfill(status=200, content_type="application/json", body=LANDING.replace("{base}", base_url)),
+        )
+        page.goto(f"{base_url}/viewer")
+        try:
+            page.wait_for_function("() => window.oopReport && (window.oopReport.hooked || window.oopReport.error)", timeout=60_000)
+        except PlaywrightError:
+            fail("O script do botão de denúncia do /viewer não correu.", "ver se há erros de JavaScript no /viewer.")
+        state = page.evaluate("() => window.oopReport")
+        if not state.get("hooked"):
+            fail(
+                f"O visualizador {version} já não tem `_showReportForm` ({state.get('error')}).",
+                "procurar no visualizador novo o que o botão «Report» chama e substituí-lo no script em panoramax/templates/viewer.html.",
+            )
+        # Call it as the button does, with a picture selected and window.open caught.
+        url = page.evaluate(
+            """() => {
+                const v = document.getElementById('viewer');
+                let opened = null;
+                window.open = (u) => { opened = u; return null; };
+                v._showReportForm.call({ psv: { getPictureMetadata: () => ({ id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' }) } });
+                return opened;
+            }"""
+        )
+        browser.close()
+    assert url == "https://olhaoposto.ocarroeletrico.com/report?alvo=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"

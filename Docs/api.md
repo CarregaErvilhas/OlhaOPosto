@@ -73,7 +73,7 @@ Os `candidates` de um `300` têm a mesma forma.
   },
   "page": "https://olhaoposto.ocarroeletrico.com/postos/EZC-AMD-00051",
   "panoramax": "https://panoramax.ocarroeletrico.com/viewer?focus=map&map=19/…&pic=…",
-  "takedown": "https://olhaoposto.ocarroeletrico.com/takedown?alvo=EZC-AMD-00051"
+  "report": "https://olhaoposto.ocarroeletrico.com/report?alvo=EZC-AMD-00051"
 }
 ```
 
@@ -81,7 +81,7 @@ Os `candidates` de um `300` têm a mesma forma.
 - `attribution` é o texto pronto a colar ao lado da foto (a licença pede o
   crédito); é o mesmo que vai no XMP de cada ficheiro.
 - `page` é a página do posto (com `#t-<tomada>` numa tomada); `panoramax`
-  pode ser `null`; `takedown` abre o formulário de remoção já preenchido.
+  pode ser `null`; `report` abre o formulário de remoção já preenchido.
 - Os URLs de imagem são estáveis: quando a foto principal muda, o URL
   continua o mesmo.
 
@@ -136,9 +136,9 @@ curl -X PUT 'https://olhaoposto.ocarroeletrico.com/api/v1/selections/EZC-AMD-000
 
 Resposta: `{ "targets": ["EZC-AMD-00051"] }`.
 
-### `POST /takedown`
+### `POST /report`
 
-O formulário público de remoção (`/takedown`), não é uma API JSON: campos
+O formulário público de remoção (`/report`), não é uma API JSON: campos
 `alvo`, `motivo` (`face`, `plate`, `property`, `copyright`, `other`),
 `detalhes` e o `cf-turnstile-response` do widget, mesma origem. Responde
 `303` de volta ao formulário. O pedido vira uma denúncia no Panoramax

@@ -332,7 +332,7 @@ label[for="photo"], .station-search label { font-weight: 600; }
 .upload button[type="submit"] { margin-top: 8px; width: 100%; }
 .upload button:disabled { opacity: 0.6; cursor: progress; }
 
-/* The public removal form (/takedown). */
+/* The public removal form (/report). */
 .takedown { max-width: 40rem; accent-color: var(--accent); }
 .takedown > p { color: inherit; font-size: inherit; }
 .takedown fieldset { border: 0; margin: 12px 0; padding: 0; min-width: 0; }

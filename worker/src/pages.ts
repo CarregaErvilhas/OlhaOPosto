@@ -473,7 +473,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
     ${main
       ? `<figure class="main-photo">
       <a href="${PICTURES}/${encodeURIComponent(s.id)}.full.jpg"><img src="${PICTURES}/${encodeURIComponent(s.id)}.jpg" alt="${esc(t.photoAlt(s.id))}"></a>
-      <figcaption>${t.photoBy} <span lang="">${esc(main.credit ?? BRAND)}</span> · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">CC BY-SA 4.0</a> · <a href="${lang === 'pt' ? '/takedown' : '/en/takedown'}?alvo=${encodeURIComponent(s.id)}" rel="nofollow">${t.askRemoval}</a></figcaption>
+      <figcaption>${t.photoBy} <span lang="">${esc(main.credit ?? BRAND)}</span> · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license">CC BY-SA 4.0</a> · <a href="${lang === 'pt' ? '/report' : '/en/report'}?alvo=${encodeURIComponent(s.id)}" rel="nofollow">${t.askRemoval}</a></figcaption>
     </figure>`
       : `<div class="empty-photo">
       ${ICON_CAMERA}

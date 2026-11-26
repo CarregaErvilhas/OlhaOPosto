@@ -219,7 +219,7 @@ ainda têm fotos; o moderador escreve o código do posto novo e cria o alias
 (`POST /admin/rekey`). O link antigo responde `301` para o novo (páginas e
 `/api/v1/stations/{id}`). Migração `0009_station_aliases.sql`.
 
-**Pedidos de remoção** (`/takedown` e `/en/takedown`, públicos; `/admin/remocoes` e `/en/admin/takedowns`, só moderadores; `src/takedown.ts`).
+**Pedidos de remoção** (`/report` e `/en/report`, públicos, com o mesmo nome do Panoramax; `/admin/remocoes` e `/en/admin/takedowns`, só moderadores; `src/takedown.ts`).
 Assentam nas denúncias do próprio Panoramax (`/api/reports`), sem tabela
 nossa. No Panoramax, uma denúncia por desfocagem em falta, privacidade,
 conteúdo impróprio ou direitos de autor põe logo a foto em `owner-only` (um
@@ -246,13 +246,22 @@ esconder). Se corresponde:
    `panoramax.*` são purgados. As linhas de `selections` só saem depois de a
    purga correr bem: enquanto ficarem, há algo por limpar.
 
-**Cron a cada 10 minutos** (`triggers.crons` no `wrangler.json`, `scheduled`
-no `src/index.ts`). Lê as denúncias abertas das fotos da conta de serviço
-(`/api/users/me/reports`; é dona de todas, chega para as ler e fechar sem ser
-admin) e oculta as nossas cópias das que o Panoramax ocultou, venham do
-formulário ou do botão de denúncia do visualizador. Repete também as
-ocultações que deixaram `selections` para trás. O painel faz o mesmo ao
-abrir. É quase só espera de rede, por isso cabe nos 10 ms de CPU do plano
+**Cron a cada 6 horas** (`triggers.crons` no `wrangler.json`, `scheduled`
+no `src/index.ts`). É um *cron* e não um *webhook* porque o Panoramax não
+avisa ninguém quando chega uma denúncia. Com a regra WAF e o botão do
+visualizador a mandar toda a gente para o formulário, o formulário já oculta
+as cópias na hora, e o cron fica para o que pode falhar a meio:
+
+- Repete as ocultações que deixaram `selections` para trás (o R2 ou a purga
+  falharam). Sem isto, um link estático ficava público até alguém abrir o
+  painel, ou até 30 dias na cache.
+- Rede de segurança: lê as denúncias abertas das fotos da conta de serviço
+  (`/api/users/me/reports`; é dona de todas, chega para as ler e fechar sem
+  ser admin) e oculta as nossas cópias de qualquer foto que o Panoramax tenha
+  ocultado sem passar pelo formulário (por exemplo, se a regra WAF for
+  desligada).
+
+O painel faz o mesmo ao abrir. É quase só espera de rede, por isso cabe nos 10 ms de CPU do plano
 Free.
 
 No painel, **Remover** limpa as cópias, apaga o *upload set* no Panoramax (a
@@ -260,9 +269,9 @@ denúncia vai com ele) e as cópias do `pictures-staging` (foto `removed`).
 **Manter** fecha primeiro todas as denúncias abertas da foto
 (`closed_ignored`; senão o cron voltava a ocultá-la), torna a foto pública e
 volta a preencher os links estáticos que ainda estão vazios. As denúncias de
-uma sequência inteira (só pelo visualizador, e só até haver a regra WAF
-abaixo) não têm botões: o cron não as segue e tratam-se pela API do
-Panoramax com o token da conta de serviço. O prazo é de 72 horas; o painel
+uma sequência inteira (só pelo formulário do próprio visualizador, que a
+regra WAF agora bloqueia) não têm botões: o cron não as segue e tratam-se
+pela API do Panoramax com o token da conta de serviço. O prazo é de 72 horas; o painel
 mostra o tempo que falta. Ainda não se promove outra foto aprovada a
 principal quando uma é ocultada.
 
@@ -278,23 +287,29 @@ continuaria na cache do `pictures.*` até 30 dias. Os segredos da purga
 3. Depois do primeiro pedido real, os três URLs do `pictures.*` têm de dar
    `404` (`curl -sI`), não um `HIT` da cache.
 
-**Regra WAF para as denúncias (por aplicar, só o Fernando, depois do
-deploy).** O `POST /api/reports` do Panoramax não pede conta nem tem
-Turnstile, e oculta logo: sem filtro, um *script* pode ocultar todas as
-fotos. A regra só deixa passar as denúncias que trazem o cabeçalho que o
-Worker envia. O botão de denúncia do visualizador deixa de funcionar; quem
-quiser denunciar usa o formulário.
+**Regra WAF para as denúncias (aplicada).** O `POST /api/reports` do
+Panoramax não pede conta nem tem Turnstile, e oculta logo: sem filtro, um
+*script* pode ocultar todas as fotos. A regra só deixa passar as denúncias
+que trazem o cabeçalho que o Worker envia. O botão «Report» do nosso
+`/viewer` abre o formulário do olh'o'posto para essa foto
+(`/report?alvo=<id da foto>`, ou `/en/report` num browser que não esteja
+em português), em vez do formulário do próprio visualizador
+(`panoramax/templates/viewer.html`; o `tests/test_viewer.py` falha se uma
+versão nova do visualizador mudar o que o botão chama).
 
 1. `npm run remote -- secret put PANORAMAX_REPORT_KEY` (um valor aleatório
    longo, por exemplo `openssl rand -hex 32`; nunca num ficheiro do
    repositório). Antes da regra existir, o cabeçalho não muda nada.
 2. Na zona `ocarroeletrico.com`, *Security → WAF → Custom rules*, uma regra
    *Block*: `http.host eq "panoramax.ocarroeletrico.com" and
-   http.request.method eq "POST" and http.request.uri.path eq "/api/reports"
+   http.request.method eq "POST" and starts_with(lower(http.request.uri.path), "/api/reports")
    and not any(http.request.headers["x-olhaoposto-report"][*] eq "<o valor>")`.
-3. Testar: um `curl -X POST` sem o cabeçalho dá `403`, e um pedido no
-   formulário continua a criar a denúncia (confirma que o pedido do Worker
-   chega com o cabeçalho, seja qual for o caminho dele dentro da zona).
+   **Não usar `eq "/api/reports"`:** o Panoramax aceita também
+   `/api/reports/` (com barra no fim), que um `eq` deixa passar.
+3. Testar, sem o valor: um `curl -X POST` sem o cabeçalho ou com um errado
+   dá `403` em `/api/reports`, `/api/reports/` e `/api/reports?x=1`; o
+   `GET /api/` continua a dar `200`. Um pedido no formulário continua a
+   criar a denúncia (o pedido do Worker chega com o cabeçalho).
 
 **Fila de moderação** (`/admin/fila` e `/en/admin/queue`, `src/moderation.ts`).
 Só para moderadores e administradores. Mostra as fotos `pending` da mais
@@ -354,7 +369,7 @@ essa já é do `/mcp` do ohmigo. Por isso os limites ficam no Worker, com o
 | `UPLOAD_LIMIT` | conta | 6 por minuto | `POST /api/v1/photos`, antes de ler o corpo; `429` `too_fast` |
 | `LOGIN_LIMIT` | IP | 10 por minuto | `/auth/osm/login` e `/auth/osm/callback` |
 | `SEARCH_LIMIT` | IP | 60 por minuto | `/api/v1/stations` (texto e proximidade), `/pesquisa`, `/en/search` |
-| `TAKEDOWN_LIMIT` | IP | 5 por minuto | `POST /takedown`; volta ao formulário com `erro=limit` |
+| `TAKEDOWN_LIMIT` | IP | 5 por minuto | `POST /report`; volta ao formulário com `erro=limit` |
 
 Acima do limite: `429` com `Retry-After: 60` (JSON na API, uma linha em
 pt e en nas páginas). Os contadores são por localização da Cloudflare e

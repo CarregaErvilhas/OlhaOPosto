@@ -35,4 +35,4 @@ Read-only JSON, open CORS, no key.
 
 - [Sitemap](https://olhaoposto.ocarroeletrico.com/sitemap.xml)
 - [Privacy policy](https://olhaoposto.ocarroeletrico.com/en/privacy) (pt-PT: /privacidade)
-- [Ask for a photo to be removed](https://olhaoposto.ocarroeletrico.com/en/takedown) (pt-PT: /takedown): no account; the photo is hidden at once and a moderator decides within 72 hours. Each API `photo` has a prefilled `takedown` link.
+- [Ask for a photo to be removed](https://olhaoposto.ocarroeletrico.com/en/report) (pt-PT: /report): no account; the photo is hidden at once and a moderator decides within 72 hours. Each API `photo` has a prefilled `report` link.

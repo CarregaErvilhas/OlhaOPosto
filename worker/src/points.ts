@@ -53,7 +53,7 @@ const insert = (db: PointsDb, userId: string, photoId: string, reason: Reason, n
 
 async function loadPhoto(db: PointsDb, photoId: string): Promise<PhotoTarget | null> {
   return db.prepare(
-    `SELECT id, uploader_id, station_id, evse_compact FROM photos WHERE id = ? AND status = 'published'`,
+    `SELECT id, uploader_id, station_id, evse_compact FROM photos WHERE id = ? AND status = 'published' AND origin = 'olhaoposto'`,
   ).bind(photoId).first<PhotoTarget>();
 }
 
@@ -78,7 +78,7 @@ export async function awardApproval(db: PointsDb, photoId: string, now = new Dat
   if (await recentOnTarget(db, p, now)) return [];
   const earlier = await db.prepare(
     `SELECT COUNT(*) AS n FROM photos
-      WHERE station_id = ? AND evse_compact IS ? AND id <> ? AND status = 'published'`,
+      WHERE station_id = ? AND evse_compact IS ? AND id <> ? AND status = 'published' AND origin = 'olhaoposto'`,
   ).bind(p.station_id, p.evse_compact, p.id).first<{ n: number }>();
   const reasons: Reason[] = ['approved'];
   if ((earlier?.n ?? 0) === 0) reasons.push('first_photo');

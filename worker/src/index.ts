@@ -87,6 +87,16 @@ const CREDIT_HEADERS = {
     .replace("img-src 'self'", "img-src 'self' https://panoramax.ocarroeletrico.com"),
 };
 
+// The station page shows thumbnails of external photos, which the NAP
+// dashboard publishes on its own domain (same owner). Only a page that has
+// some gets the host.
+const EXTERNAL_THUMBS = 'https://nap.ocarroeletrico.com';
+const EXTERNAL_HEADERS = {
+  ...HTML_HEADERS,
+  'content-security-policy': HTML_HEADERS['content-security-policy']
+    .replace("img-src 'self'", `img-src 'self' ${EXTERNAL_THUMBS}`),
+};
+
 // 429 from the request limits (src/ratelimit.ts): JSON for the API, a short
 // bilingual line for pages (the page may be the OSM callback, with no language).
 function tooMany(pathname: string): Response {
@@ -128,7 +138,7 @@ async function stationJson(env: Env, id: string): Promise<Response> {
   if (alias) return new Response(null, { status: 301, headers: { location: `/api/v1/stations/${encodeURIComponent(alias)}`, 'cache-control': 'no-store' } });
   const found = await getStation(env, id);
   if (!found) return notFound();
-  const { station: s, points, mains } = found;
+  const { station: s, points, mains, externals } = found;
   const photo = (target: string | null) => {
     const m = target ? mains[target] : undefined;
     return m && target
@@ -148,6 +158,18 @@ async function stationJson(env: Env, id: string): Promise<Response> {
     status: s.status,
     osm: s.osm_ref,
     photo: photo(s.id),
+    // Photos at their origin (Panoramax, Commons), as references: never a main
+    // photo, no static link. Show the author, the licence and the source link.
+    externalPhotos: externals.map((p) => ({
+      id: p.id,
+      external: true,
+      origin: p.origin,
+      thumb: p.thumb,
+      credit: p.credit,
+      license: p.license,
+      source: p.source,
+      takenAt: p.taken_at,
+    })),
     points: points.map((p) => ({
       id: p.point_id,
       evse: p.evse_id,
@@ -252,7 +274,14 @@ function stationHtml(lang: Lang) {
     if (alias) return new Response(null, { status: 301, headers: { location: stationPath(lang, alias), 'cache-control': 'no-store' } });
     const found = await getStation(env, id);
     if (!found) return pageNotFound(lang, messages(lang).noStation(id));
-    return html(lang, stationPage(lang, found.station, found.points, found.mains));
+    return new Response(stationPage(lang, found.station, found.points, found.mains, found.externals), {
+      status: 200,
+      headers: {
+        ...(found.externals.length ? EXTERNAL_HEADERS : HTML_HEADERS),
+        'content-language': lang === 'pt' ? 'pt-PT' : 'en',
+        'cache-control': 'public, max-age=300',
+      },
+    });
   };
 }
 

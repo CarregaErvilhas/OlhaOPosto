@@ -26,6 +26,7 @@
 // The report is filed without our token on purpose: Panoramax checks
 // "reporter" before "owner", and a reporter cannot close a report as ignored.
 
+import { reasonForReport } from './reasons.ts';
 import { currentUser, page, sameOrigin, type SessionUser } from './auth.ts';
 import { BRAND, PANORAMAX_URL, accountPath, esc, layout, privacyPath, stationPath, type Lang } from './pages.ts';
 import { turnstileOk, type PhotoEnv } from './photos.ts';
@@ -607,7 +608,9 @@ export async function decideTakedown(request: Request, env: TakedownEnv, fetcher
       const r = await fetcher(`${base}/api/upload_sets/${encodeURIComponent(photo.panoramax_set)}`, { method: 'DELETE', headers: authed(env) }).catch(() => null);
       if (!r || (!r.ok && r.status !== 404)) return back('erro=panoramax');
     }
-    await db(env).prepare(`UPDATE photos SET status = 'removed' WHERE id = ? AND status IN ('published', 'hidden')`).bind(photo.id).run();
+    await db(env).prepare(
+      `UPDATE photos SET status = 'removed', refusal_reason = ? WHERE id = ? AND status IN ('published', 'hidden')`,
+    ).bind(reasonForReport(report.issue), photo.id).run();
     if (env.STAGING) await env.STAGING.delete([`${photo.id}/main.jpg`, `${photo.id}/thumb.jpg`]).catch(() => {});
     return back('ok=remove');
   }

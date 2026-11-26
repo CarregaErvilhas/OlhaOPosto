@@ -20,7 +20,6 @@ daqui fica feita, sai deste documento e passa para lá.
    - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
    - página de crédito `/p/{photo_id}` e pseudónimo no perfil (ver *Crédito*);
    - promover a foto aprovada seguinte a principal quando uma principal é ocultada ou retirada;
-   - o autor ver os seus envios e o motivo de uma recusa (ver *Moderação*);
    - link manual "acrescentar ao OSM";
    - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
    - entrada na federação, depois da conversa com a comunidade.
@@ -142,8 +141,6 @@ Por defeito, o crédito é o nome OSM. Falta a página de perfil onde a pessoa e
 
 ## Moderação
 
-- Critérios de recusa: posto errado, privacidade, qualidade (desfocada, escura), duplicado, publicidade. Falta escolher o motivo ao recusar e guardá-lo.
-- Falta uma página "os meus envios" para o autor ver o estado de cada foto e o motivo de uma recusa, e um histórico de decisões para os moderadores.
 - Moderadores: só o Fernando no lançamento; a lista de moderadores da comunidade vem depois. Com um só moderador, o prazo de 72 h depende de ele estar disponível; como a foto fica oculta logo, o risco é atraso, não exposição.
 - Apagar a conta a partir da própria conta (hoje é por email, como diz a política de privacidade).
 

@@ -18,8 +18,10 @@ import { PANORAMAX_URL, type PhotoEnv } from './photos.ts';
 import { FAR_M } from './types.ts';
 import { publishMain } from './publish.ts';
 import { awardApproval, type PointsDb } from './points.ts';
+import { cleanNote, isReason, reasonOptions, type Reason } from './reasons.ts';
 import { decideProposal, pendingProposals, proposalsSection, type ProposalRow } from './proposals.ts';
 
+export const decisionsPath = (lang: Lang) => (lang === 'pt' ? '/admin/decisoes' : '/en/admin/decisions');
 export const queuePath = (lang: Lang) => (lang === 'pt' ? '/admin/fila' : '/en/admin/queue');
 // One POST for both languages; the form says which page to go back to.
 export const DECIDE_ACTION = '/admin/decidir';
@@ -67,12 +69,17 @@ const T = {
     unknown: 'desconhecida',
     approve: 'Aprovar',
     reject: 'Recusar',
+    reason: 'Motivo da recusa',
+    reasonPick: 'Escolhe o motivo…',
+    note: 'Nota para o autor (opcional)',
+    history: 'Histórico de decisões',
     ok: { approve: 'Foto aprovada.', main: 'Foto aprovada e publicada como foto principal: o link estático já a mostra.', reject: 'Foto recusada e apagada.', station_approved: 'Posto aprovado: já é público e pode receber fotos.', station_rejected: 'Posto recusado, com as fotos dele que estavam à espera.' } as Record<string, string>,
     errors: {
       stale: 'Esta foto já foi decidida por outra pessoa.',
       panoramax: 'O Panoramax não respondeu. Nada mudou; tenta outra vez.',
       closed: 'A ligação ao Panoramax não está configurada.',
       bad: 'Pedido inválido.',
+      reason: 'Escolhe o motivo da recusa.',
       publish: 'Mas a cópia para o link estático falhou; a próxima aprovação deste posto tenta outra vez.',
       station_pending: 'Esta foto é de um posto proposto: aprova primeiro o posto, mais acima.',
     } as Record<string, string>,
@@ -98,12 +105,17 @@ const T = {
     unknown: 'unknown',
     approve: 'Approve',
     reject: 'Reject',
+    reason: 'Reason for refusing',
+    reasonPick: 'Choose the reason…',
+    note: 'Note for the author (optional)',
+    history: 'Decisions history',
     ok: { approve: 'Photo approved.', main: 'Photo approved and published as the main photo: the static link shows it now.', reject: 'Photo rejected and deleted.', station_approved: 'Station approved: it is public now and can take photos.', station_rejected: 'Station rejected, with its photos that were waiting.' } as Record<string, string>,
     errors: {
       stale: 'Someone else already decided on this photo.',
       panoramax: 'Panoramax did not answer. Nothing changed; try again.',
       closed: 'The Panoramax connection is not configured.',
       bad: 'Invalid request.',
+      reason: 'Choose the reason for refusing.',
       publish: 'But copying it to the static link failed; the next approval for this station tries again.',
       station_pending: 'This photo is of a proposed station: approve the station first, above.',
     } as Record<string, string>,
@@ -140,7 +152,7 @@ function card(lang: Lang, r: QueueRow): string {
     ? `<a href="https://www.openstreetmap.org/?mlat=${r.exif_lat}&amp;mlon=${r.exif_lon}#map=19/${r.exif_lat}/${r.exif_lon}" target="_blank" rel="noopener">${r.exif_lat.toFixed(5)}, ${r.exif_lon.toFixed(5)}</a>`
     : '—';
   const img = `${STAGING_PREFIX}${encodeURIComponent(r.id)}/`;
-  const decide = (action: 'approve' | 'reject', cls: string) =>
+  const decide = (action: 'approve', cls: string) =>
     `<form method="post" action="${DECIDE_ACTION}">` +
     `<input type="hidden" name="photo" value="${esc(r.id)}">` +
     `<input type="hidden" name="action" value="${action}">` +
@@ -154,7 +166,16 @@ ${r.evse_compact ? `<p><strong>${t.socket}:</strong> ${esc(r.evse_compact)}</p>`
 <p><strong>${t.sentBy}:</strong> <span lang="">${esc(r.credit ?? '—')}</span> · <strong>${t.sentAt}:</strong> ${esc(r.created_at.slice(0, 16).replace('T', ' '))}</p>
 <p><strong>${t.takenAt}:</strong> ${esc(r.taken_at ? r.taken_at.slice(0, 16).replace('T', ' ') : t.unknown)} · <strong>${t.gps}:</strong> ${gps}</p>
 ${warn}
-<div class="queue-actions">${decide('approve', 'button')}${decide('reject', 'button secondary')}</div>
+<div class="queue-actions">${decide('approve', 'button')}</div>
+<form method="post" action="${DECIDE_ACTION}" class="reject-form">
+<input type="hidden" name="photo" value="${esc(r.id)}">
+<input type="hidden" name="action" value="reject">
+<input type="hidden" name="lang" value="${lang}">
+<label for="reason-${esc(r.id)}">${t.reason}</label>
+<select id="reason-${esc(r.id)}" name="reason" required>${reasonOptions(lang, t.reasonPick)}</select>
+<label for="note-${esc(r.id)}">${t.note}</label>
+<input id="note-${esc(r.id)}" name="note" maxlength="200" autocomplete="off">
+<button type="submit" class="button secondary">${t.reject}</button></form>
 </div>
 </article>`;
 }
@@ -174,7 +195,7 @@ export function queuePage(lang: Lang, rows: QueueRow[], p: { ok?: string; error?
     parts.push(rows.map((r) => card(lang, r)).join('\n'));
     if (rows.length >= QUEUE_LIMIT) parts.push(`<p class="muted">${t.more(QUEUE_LIMIT)}</p>`);
   }
-  parts.push(`<p><a href="${accountPath(lang)}">${t.back}</a></p>`);
+  parts.push(`<p><a href="${decisionsPath(lang)}">${t.history}</a> · <a href="${accountPath(lang)}">${t.back}</a></p>`);
   return layout({
     lang,
     title: `${t.title} · ${BRAND}`,
@@ -267,7 +288,7 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
     if (photos === null) return back('erro=stale');
     // The station's waiting photos go with it. One that fails stays pending,
     // shown as a photo of a rejected station: a moderator can reject it again.
-    for (const pid of photos) await rejectPhoto(env, fetcher, pid, user.id, now).catch(() => false);
+    for (const pid of photos) await rejectPhoto(env, fetcher, pid, user.id, now, 'wrong_station', null).catch(() => false);
     return back(action === 'approve_station' ? 'ok=station_approved' : 'ok=station_rejected');
   }
   const id = form.get('photo');
@@ -283,7 +304,9 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
   // static link of a station that has no public page would make no sense.
   if (action === 'approve' && photo.station_status === 'pending_review') return back('erro=station_pending');
   if (action === 'reject') {
-    const r = await rejectPhoto(env, fetcher, id, user.id, now);
+    const reason = form.get('reason');
+    if (!isReason(reason)) return back('erro=reason');
+    const r = await rejectPhoto(env, fetcher, id, user.id, now, reason, cleanNote(form.get('note')));
     return back(r === true ? 'ok=reject' : `erro=${r}`);
   }
 
@@ -319,7 +342,7 @@ export async function decide(request: Request, env: PhotoEnv, fetcher: Fetch = f
 // Reject one pending photo: its upload set deleted on Panoramax, the staging
 // copies deleted, the row `removed`. true, or the error code for the page.
 async function rejectPhoto(
-  env: PhotoEnv, fetcher: Fetch, id: string, moderatorId: string, now: Date,
+  env: PhotoEnv, fetcher: Fetch, id: string, moderatorId: string, now: Date, reason: Reason, note: string | null,
 ): Promise<true | 'stale' | 'panoramax'> {
   const photo = await db(env).prepare(`SELECT panoramax_set FROM photos WHERE id = ? AND status = 'pending'`)
     .bind(id).first<{ panoramax_set: string | null }>();
@@ -333,8 +356,9 @@ async function rejectPhoto(
     if (!r || (!r.ok && r.status !== 404)) return 'panoramax';
   }
   const res = await db(env).prepare(
-    `UPDATE photos SET status = 'removed', approved_by = ?, approved_at = ? WHERE id = ? AND status = 'pending'`,
-  ).bind(moderatorId, now.toISOString(), id).run();
+    `UPDATE photos SET status = 'removed', approved_by = ?, approved_at = ?, refused_by = ?, refusal_reason = ?, refusal_note = ?
+      WHERE id = ? AND status = 'pending'`,
+  ).bind(moderatorId, now.toISOString(), moderatorId, reason, note, id).run();
   if (res.meta.changes !== 1) return 'stale';
   if (env.STAGING) await staging(env).delete([`${id}/main.jpg`, `${id}/thumb.jpg`]).catch(() => {});
   return true;

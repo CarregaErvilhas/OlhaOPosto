@@ -475,3 +475,9 @@ table.ranking .num { text-align: right; font-variant-numeric: tabular-nums; }
   .mate-pic::before, .group-stage::before, .mate-bubble::before { display: none; }
   .mate-host::before { background: CanvasText; }
 }
+
+/* Moderation: refusing a photo needs a reason; the author's uploads list. */
+.reject-form { display: grid; gap: 6px; margin-top: 12px; max-width: 32rem; }
+.reject-form select, .reject-form input { width: 100%; }
+ul.uploads { padding: 0; margin: 0 0 16px; }
+ul.uploads > .queue-item { list-style: none; }

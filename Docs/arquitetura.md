@@ -143,7 +143,7 @@ link de tomada.
 | `import_state` | `key`, `value` | O `generatedAt` do último feed importado |
 | `users` | `id` (UUID nosso), `osm_uid` (único), `osm_name`, `pseudonym`, `role` (`contributor`, `trusted`, `moderator`, `admin`), `ranking_opt_out`, `promoted_by`, `promoted_at`, `license_accepted_at`, `created_at`, `last_login_at` | Só do login OSM: sem email. O `pseudonym` ainda não se edita |
 | `sessions` | `token_hash` (PK, SHA-256 do *cookie*), `user_id` (FK), `created_at`, `expires_at` | Uma cópia da tabela não abre sessões. As expiradas saem no login seguinte |
-| `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados |
+| `photos` | `id` (UUID), `origin`, `station_id` (FK), `evse_compact` (nulo = foto geral), `uploader_id` (FK), `panoramax_set`, `panoramax_id`, `taken_at`, `exif_lat`, `exif_lon`, `distance_m`, `license`, `credit`, `status` (`uploading`, `failed`, `pending`, `published`, `hidden`, `removed`), `approved_by`, `approved_at`, `refusal_reason`, `refusal_note`, `refused_by`, `created_at` | Uma linha por envio. O GPS do EXIF é só para a moderação, nunca publicado. `uploading` e `failed` são envios a meio ou falhados |
 | `selections` | `target` (PK), `station_id` (FK), `photo_id` (FK), `chosen_by`, `chosen_at`, `published_at` | Qual foto cada link estático serve. `INSERT OR IGNORE` torna a primeira aprovação atómica |
 | `station_aliases` | `old_id` (PK), `new_id` (FK), `created_by`, `created_at` | Re-keys do NAP: o link antigo responde `301` para o novo |
 | `points` | `id` (autoincrement), `user_id` (FK), `photo_id` (FK), `points`, `reason` (`approved`, `first_photo`, `refresh`), `month`, `created_at` | Gamificação (*Pontos e ranking*, abaixo). Uma linha por atribuição; só contam as de fotos `published` |
@@ -238,7 +238,10 @@ três chaves e faz *purge* desses URLs.
 - **Publicação direta:** contas `trusted` publicam logo no envio, quando o posto está `active` e a foto foi tirada a ≤300 m dele. Caso contrário (contributor, sem GPS, >300 m, posto proposto) fica `pending` para a fila.
 - **Trocar a principal:** `PUT /api/v1/selections/{target}` com `{ "photo": "<id>" }` (`trusted`, moderador, administrador; sessão ou *token* `selections:write`) copia os 3 tamanhos por cima e faz *purge* da cache.
 - **Aliases (re-key):** quando o NAP muda o código de um posto, o antigo fica `missing_from_nap`. Um moderador cria o alias em `/admin/postos-fora-do-nap`; o link antigo responde `301` para o novo.
-- **Postos propostos:** aprovados passam a `active` e públicos; recusados passam a `rejected`, com as fotos que esperavam por eles.
+- **Postos propostos:** aprovados passam a `active` e públicos; recusados passam a `rejected`, com as fotos que esperavam por eles (motivo `wrong_station`).
+- **Motivo de recusa:** recusar uma foto na fila (`/admin/fila`) exige um motivo de uma lista fixa (`wrong_station`, `privacy`, `quality`, `duplicate`, `advertising`, `other`, em `src/reasons.ts`) e aceita uma nota curta. Guarda-se em `photos.refusal_reason`, `refusal_note` e `refused_by`. Uma remoção pelo painel `/admin/remocoes` guarda o motivo da denúncia convertido para a mesma lista, sem `refused_by`.
+- **Os meus envios:** `/conta/envios` (`/en/account/uploads`), ligada da conta: as fotos do próprio autor, com miniatura (só dele), posto, data, estado (à espera, publicada, principal, recusada, removida, oculta) e o motivo em linguagem simples. Paginada, 20 por página.
+- **Histórico de decisões:** `/admin/decisoes` (`/en/admin/decisions`), para moderadores: quem aprovou ou recusou fotos e postos propostos, quando e porquê, da mais recente para a mais antiga. As remoções por denúncia não entram (vivem no Panoramax).
 
 ## Pontos e ranking
 

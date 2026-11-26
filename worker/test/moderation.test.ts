@@ -35,7 +35,7 @@ function world(opts: { role?: string | null; status?: string; set?: string | nul
       },
       async run() {
         const to = sql.match(/SET status = '(\w+)'/)?.[1];
-        if (sql.startsWith('UPDATE photos') && to && w.photo.status === 'pending' && args[2] === ID) {
+        if (sql.startsWith('UPDATE photos') && to && w.photo.status === 'pending' && args[args.length - 1] === ID) {
           w.photo.status = to;
           w.photo.approved_by = args[0];
           return { meta: { changes: 1 } };
@@ -81,20 +81,20 @@ test('approve: upload set made public, then published with who and when', async 
 
 test('reject: upload set and staging copies deleted, row removed', async () => {
   const w = world();
-  const res = await decide(post({ photo: ID, action: 'reject', lang: 'en' }), w.env, fetcher(w), NOW);
+  const res = await decide(post({ photo: ID, action: 'reject', reason: 'quality', lang: 'en' }), w.env, fetcher(w), NOW);
   assert.equal(res.headers.get('location'), '/en/admin/queue?ok=reject');
   assert.deepEqual(w.calls.map((c) => c.method), ['DELETE']);
   assert.equal(w.photo.status, 'removed');
   assert.equal(w.r2.size, 0);
   const gone = world();
-  await decide(post({ photo: ID, action: 'reject' }), gone.env, fetcher(gone, 404), NOW);
+  await decide(post({ photo: ID, action: 'reject', reason: 'quality' }), gone.env, fetcher(gone, 404), NOW);
   assert.equal(gone.photo.status, 'removed');   // already gone on Panoramax is fine
 });
 
 test('Panoramax failing changes nothing', async () => {
   for (const action of ['approve', 'reject']) {
     const w = world();
-    const res = await decide(post({ photo: ID, action }), w.env, fetcher(w, 500), NOW);
+    const res = await decide(post({ photo: ID, action, reason: 'quality' }), w.env, fetcher(w, 500), NOW);
     assert.equal(res.headers.get('location'), '/admin/fila?erro=panoramax');
     assert.equal(w.photo.status, 'pending');
     assert.equal(w.r2.size, 2);
@@ -107,7 +107,7 @@ test('refusals: role, origin, decided already, bad input', async () => {
   const x = world();
   assert.equal((await decide(post({ photo: ID, action: 'approve' }, 'https://evil.example'), x.env, fetcher(x), NOW)).status, 403);
   const done = world({ status: 'published' });
-  assert.equal((await decide(post({ photo: ID, action: 'reject' }), done.env, fetcher(done), NOW)).headers.get('location'), '/admin/fila?erro=stale');
+  assert.equal((await decide(post({ photo: ID, action: 'reject', reason: 'quality' }), done.env, fetcher(done), NOW)).headers.get('location'), '/admin/fila?erro=stale');
   const bad = world();
   assert.equal((await decide(post({ photo: ID, action: 'delete' }), bad.env, fetcher(bad), NOW)).headers.get('location'), '/admin/fila?erro=bad');
   const anon = world({ role: null });

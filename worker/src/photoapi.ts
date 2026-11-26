@@ -53,6 +53,9 @@ export interface PhotoRow {
   lat: number;
   lon: number;
   station_status: string;
+  // Only for photos that live at their origin (origin <> 'olhaoposto').
+  external_src: string | null;
+  source_url: string | null;
 }
 
 const SELECT = `SELECT p.id, p.origin, p.station_id, p.evse_compact, p.uploader_id, p.panoramax_set, p.panoramax_id,
@@ -61,7 +64,7 @@ const SELECT = `SELECT p.id, p.origin, p.station_id, p.evse_compact, p.uploader_
                 WHERE sel.target = coalesce(p.evse_compact, p.station_id)
                   AND sel.photo_id = p.id AND sel.published_at IS NOT NULL AND sel.lost_at IS NULL) AS is_main,
        s.name AS station_name, s.code AS station_code, s.opc, s.operator, s.municipality, s.lat, s.lon,
-       s.status AS station_status
+       s.status AS station_status, p.external_src, p.source_url
   FROM photos p JOIN stations s ON s.id = p.station_id`;
 
 const pano = (r: Pick<PhotoRow, 'panoramax_id'>) => (r.panoramax_id ? `${PANORAMAX_URL}/api/pictures/${encodeURIComponent(r.panoramax_id)}` : null);
@@ -85,7 +88,49 @@ function sizesOf(r: PhotoRow): Record<string, { url: string; maxPx: number | nul
 
 // One published photo, the same shape in GET /photos/{id} and in the export.
 // The position is the station's: the photo's own GPS is for moderators only.
+export const isExternal = (r: Pick<PhotoRow, 'origin'>) => r.origin !== 'olhaoposto';
+
+// A photo that lives at its origin (a Panoramax picture or a Commons file
+// linked from OSM): we keep a reference, never a copy. It has no credit page,
+// no static links and no removal request here: `sourceUrl` is where it lives
+// and where its author, licence and any removal are handled.
+function externalPhoto(r: PhotoRow) {
+  const credit = r.credit ?? r.origin;
+  return {
+    id: r.id,
+    origin: r.origin,
+    target: r.station_id,
+    socket: null,
+    station: stationOf(r),
+    credit,
+    license: r.license,
+    licenseUrl: null,
+    attribution: `© ${credit}, ${r.license}`,
+    takenAt: r.taken_at,
+    publishedAt: r.approved_at ?? r.created_at,
+    isMain: false,
+    sizes: r.external_src ? { thumb: { url: r.external_src, maxPx: null } } : null,
+    page: `${SITE}${stationPath('pt', r.station_id)}`,
+    sourceUrl: r.source_url,
+    creditPage: null,
+    panoramaxId: null,
+    panoramax: null,
+    report: null,
+  };
+}
+
+const stationOf = (r: PhotoRow) => ({
+  id: r.station_id,
+  code: r.station_code,
+  name: r.station_name,
+  operator: { id: r.opc, name: r.operator },
+  municipality: r.municipality,
+  lat: r.lat,
+  lon: r.lon,
+});
+
 export function publicPhoto(r: PhotoRow) {
+  if (isExternal(r)) return externalPhoto(r);
   const credit = r.credit ?? BRAND;
   const target = r.evse_compact ?? r.station_id;
   const ccBySa = r.license === LICENSE;
@@ -94,19 +139,12 @@ export function publicPhoto(r: PhotoRow) {
     origin: r.origin,
     target,
     socket: r.evse_compact,
-    station: {
-      id: r.station_id,
-      code: r.station_code,
-      name: r.station_name,
-      operator: { id: r.opc, name: r.operator },
-      municipality: r.municipality,
-      lat: r.lat,
-      lon: r.lon,
-    },
+    station: stationOf(r),
     credit,
     license: r.license,
     licenseUrl: ccBySa ? LICENSE_URL : null,
     attribution: ccBySa ? `© ${credit}, CC BY-SA 4.0, via ${BRAND}` : `© ${credit}, ${r.license}, via ${BRAND}`,
+    sourceUrl: null,
     takenAt: r.taken_at,
     publishedAt: r.approved_at ?? r.created_at,
     isMain: r.is_main === 1,
@@ -164,7 +202,8 @@ export async function getPhoto(env: { DB: unknown }, id: string, user: SessionUs
   };
 }
 
-// Every published photo of a public station, gallery included, for reusers.
+// Every published photo of a public station, gallery included, for reusers:
+// ours, and the references to photos that live elsewhere (origin tells them apart).
 // Thousands of rows at most for a long while; the Worker caches the answer.
 export async function exportPhotos(env: { DB: unknown }) {
   const { results } = await db(env).prepare(
@@ -192,7 +231,8 @@ export async function deletePhoto(
 ): Promise<DeleteResult> {
   if (!PHOTO_ID.test(id)) return { error: 'not_found', status: 404 };
   const row = await db(env).prepare(`${SELECT} WHERE p.id = ?`).bind(id).first<PhotoRow>();
-  if (!row || !REMOVABLE.includes(row.status)) return { error: 'not_found', status: 404 };
+  // An external photo is only a reference: it is removed at its origin.
+  if (!row || isExternal(row) || !REMOVABLE.includes(row.status)) return { error: 'not_found', status: 404 };
   const own = row.uploader_id !== null && row.uploader_id === user.id;
   const moderator = canModerate(user.role);
   if (!own && !moderator) return row.status === 'published' ? { error: 'forbidden', status: 403 } : { error: 'not_found', status: 404 };

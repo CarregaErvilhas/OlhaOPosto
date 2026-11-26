@@ -21,7 +21,7 @@ JSON, open CORS, no key for reads (the OpenAPI description is at `/api/v1/openap
 - `GET /api/v1/stations?lat={deg}&lon={deg}&radius={metres, default 500, max 5000}&limit={1-50}`: public stations near a point, nearest first, each with `distance_m`. Use either `q` or `lat`/`lon`, not both.
 - `GET /api/v1/stations?opc={operator id}&municipality={name}&has_photo=true|false`: filters, on their own (a list by id, paged with `after`/`next`) or narrowing a text or place search. `has_photo=false` lists the stations whose static link is still 404: the ones to photograph.
 - `GET /api/v1/photos/{photo id}`: one published photo: credit, licence, target (station or socket), station, sizes, Panoramax id, `attribution`.
-- `GET /api/v1/photos.json`: every published photo, gallery included, for reusers (cached a day; the station's position, never the photo's GPS).
+- `GET /api/v1/photos.json`: every published photo, gallery included (also references to external photos, told apart by `origin`, each with its own licence), for reusers (cached a day; the station's position, never the photo's GPS).
 - `GET /api/v1/main-photos`: every published main photo (station or socket) with its credit, the three sizes on pictures.ocarroeletrico.com, the station page and the Panoramax picture id. Licence CC BY-SA 4.0: credit the author.
 - `GET /api/v1/evses/{EVSE code}`: the socket and its station, each with `photo` (or `null`) as above. 300 with `candidates` when the NAP lists the same code at more than one station, 404 when unknown.
 - `GET /api/v1/ranking?period=month|all`: top contributors (`rank`, `name`, `points`, `photos`, `medal`), month = current month, UTC.

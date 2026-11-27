@@ -96,6 +96,7 @@ const T = {
     buildingGoneNotice: 'Este posto saiu da lista de obras que vem do OpenStreetMap, e não se juntou a nenhum posto do NAP. Pode já ter aberto, a obra pode ter parado, ou o mapa mudou. Fica aqui com as fotos que tiver.',
     buildingCodes: 'Códigos MOBI.E no OSM:',
     ownHeading: 'Fotos enviadas',
+    moreHeading: 'Outras fotos',
     sendMore: 'Enviar outra foto',
     ownAlt: (id: string, n: number) => `Foto ${n} do posto ${id}`,
     photosHeading: 'Fotos do posto',
@@ -250,6 +251,7 @@ const T = {
     buildingGoneNotice: 'This station left the list of building sites that comes from OpenStreetMap, and did not merge into any NAP station. It may have opened, the works may have stopped, or the map changed. It stays here with any photos it has.',
     buildingCodes: 'MOBI.E codes in OSM:',
     ownHeading: 'Photos sent',
+    moreHeading: 'More photos',
     sendMore: 'Send another photo',
     ownAlt: (id: string, n: number) => `Photo ${n} of station ${id}`,
     photosHeading: 'Station photos',
@@ -623,13 +625,13 @@ function externalGallery(lang: Lang, stationId: string, photos: ExternalPhoto[])
     </section>`;
 }
 
-// Our published photos of a station under construction, which has no main
-// photo: Panoramax's thumbnail, linked to each photo's credit page.
-function ownGallery(lang: Lang, stationId: string, photos: OwnPhoto[]): string {
+// Our published photos that are not a main photo (all of them, for a station
+// under construction): Panoramax's thumbnail, linked to each photo's credit page.
+function ownGallery(lang: Lang, stationId: string, photos: OwnPhoto[], heading = T[lang].ownHeading): string {
   if (!photos.length) return '';
   const t = T[lang];
   return `<section class="external" aria-labelledby="own-h">
-      <h2 id="own-h">${t.ownHeading}</h2>
+      <h2 id="own-h">${heading}</h2>
       <ul class="external-list" role="list">
         ${photos.map((p, i) => `<li>
           <figure class="external-photo">
@@ -707,7 +709,8 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}${building ? `<p c
       <strong>${t.emptyTitle}</strong>
       <a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.emptySend}</a>
     </div>`}
-    ${building ? (own.length ? `<p><a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.sendMore}</a></p>` : '') : `<p class="hint">${t.hint}</p>`}
+    ${building ? (own.length ? `<p><a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.sendMore}</a></p>` : '') : `<p class="hint">${t.hint}</p>
+    ${ownGallery(lang, s.id, own, t.moreHeading)}`}
     ${externalGallery(lang, s.id, externals)}
   </section>
   <div class="side">

@@ -148,3 +148,42 @@ test('the station page shows rating plates in their own gallery, not as photos',
   const api = await (await worker.fetch(new Request(`${SITE}/api/v1/stations/EZC-AMD-00051`), w.env as never, ctx)).json() as { photos: { id: string; kind: string; socket: string | null }[] };
   assert.deepEqual(api.photos.map((p) => [p.id, p.kind, p.socket]), [[B, 'photo', null], [S, 'photo', 'PTEZCEAMD000511'], [P, 'plate', null]]);
 });
+
+test('move: a photo goes to a socket or the plates, its Panoramax tags follow, the main stays put', async () => {
+  const w = await world();
+  const patches: { url: string; body: unknown }[] = [];
+  let fail = false;
+  const fetcher = async (url: string, init?: RequestInit) => {
+    if (init?.method === 'PATCH') {
+      patches.push({ url: String(url), body: JSON.parse(String(init.body)) });
+      return new Response('{}', { status: fail ? 500 : 200 });
+    }
+    return new Response('{}');
+  };
+  const move = (photo: string, to: string) => stationAdminAction(post({ action: 'move', station: 'EZC-AMD-00051', target: 'EZC-AMD-00051', photo, to, lang: 'pt' }), w.env as never, fetcher as never, NOW);
+  const row = (id: string) => w.db.sql.prepare('SELECT evse_compact, kind FROM photos WHERE id = ?').get(id) as { evse_compact: string | null; kind: string };
+
+  assert.match((await move(B, 'PTEZCEAMD000511')).headers.get('location')!, /r=moved/);
+  assert.deepEqual({ ...row(B) }, { evse_compact: 'PTEZCEAMD000511', kind: 'photo' });
+  assert.equal(patches[0].url, 'https://pano.test/api/pictures/pic-b');
+  assert.deepEqual(patches[0].body, { semantics: [{ action: 'add', key: 'osm|ref:EU:EVSE', value: 'PT*EZC*E*AMD*00051*1' }] });
+
+  await move(B, 'plate');
+  assert.deepEqual({ ...row(B) }, { evse_compact: null, kind: 'plate' });
+  assert.deepEqual(patches[1].body, { semantics: [
+    { action: 'delete', key: 'osm|ref:EU:EVSE', value: 'PT*EZC*E*AMD*00051*1' },
+    { action: 'add', key: 'OlhaOPosto|kind', value: 'plate' },
+  ] });
+
+  // Panoramax fails: nothing changes in D1.
+  fail = true;
+  assert.match((await move(B, 'EZC-AMD-00051')).headers.get('location')!, /r=move\b/);
+  assert.equal(row(B).kind, 'plate');
+  fail = false;
+
+  // The main photo does not move.
+  assert.match((await move(A, 'plate')).headers.get('location')!, /r=ismain/);
+  assert.equal(row(A).kind, 'photo');
+  // Unknown socket.
+  assert.match((await move(S, 'PTNOPE1')).headers.get('location')!, /r=bad/);
+});

@@ -179,7 +179,7 @@ Há postos com uma foto que alguém pôs no OSM (`panoramax=`, `wikimedia_common
 ## Publicação e gestão de fotos
 
 - **Publicação direta:** contas `trusted` publicam logo no envio, quando o posto está `active` e a foto foi tirada a ≤300 m dele. Caso contrário (contributor, sem GPS, >300 m) fica `pending` para a fila.
-- **Trocar a principal:** `PUT /api/v1/selections/{target}` com `{ "photo": "<id>" }` (`trusted`, moderador, administrador; sessão ou *token* `selections:write`) copia os 3 tamanhos por cima e faz *purge* da cache.
+- **Trocar a principal:** `PUT /api/v1/selections/{target}` com `{ "photo": "<id>" }` (moderador ou administrador; sessão ou *token* `selections:write`) copia os 3 tamanhos por cima e faz *purge* da cache.
 - **Aliases (re-key):** quando o NAP muda o código de um posto, o antigo fica `missing_from_nap`. Um moderador cria o alias em `/admin/postos-fora-do-nap`; o link antigo responde `301` para o novo.
 - **Motivo de recusa:** recusar uma foto na fila (`/admin/fila`) exige um motivo de uma lista fixa (`wrong_station`, `privacy`, `quality`, `duplicate`, `advertising`, `other`, em `src/reasons.ts`) e aceita uma nota curta. Guarda-se em `photos.refusal_reason`, `refusal_note` e `refused_by`. Uma remoção pelo painel `/admin/remocoes` guarda o motivo da denúncia convertido para a mesma lista, sem `refused_by`.
 - **Os meus envios:** `/conta/envios` (`/en/account/uploads`), ligada da conta: as fotos do próprio autor, com miniatura (só dele), posto, data, estado (à espera, publicada, principal, recusada, removida, oculta) e o motivo em linguagem simples. Paginada, 20 por página.
@@ -203,7 +203,7 @@ O crédito de uma foto é o nome de quem a enviou: por defeito o nome no OSM; se
 
 ## Tokens de API
 
-Na conta, cada pessoa cria *tokens* (até 5 ativos) com um nome, os âmbitos (`photos:write`; `selections:write` só para `trusted`, moderadores e administradores) e a validade (30, 90 ou 365 dias). O *token* aparece uma vez; a D1 guarda só o hash. Age como a conta, com o papel e os limites dela, lidos em cada pedido. O envio pela API é só `mode=clean`: o cliente manda as três fotos já desfocadas e sem EXIF, com as coordenadas e a data no JSON, e o Worker recusa ficheiros com metadados. Não passa pelo Turnstile.
+Na conta, cada pessoa cria *tokens* (até 5 ativos) com um nome, os âmbitos (`photos:write`; `selections:write` só para moderadores e administradores) e a validade (30, 90 ou 365 dias). O *token* aparece uma vez; a D1 guarda só o hash. Age como a conta, com o papel e os limites dela, lidos em cada pedido. O envio pela API é só `mode=clean`: o cliente manda as três fotos já desfocadas e sem EXIF, com as coordenadas e a data no JSON, e o Worker recusa ficheiros com metadados. Não passa pelo Turnstile.
 
 ## Servidor MCP
 
@@ -220,7 +220,7 @@ As ferramentas (`src/mcp.ts`, descrições em inglês) chamam as mesmas funçõe
 | `list_main_photos` | Todas as fotos principais (como `/api/v1/main-photos`), às páginas | — |
 | `get_ranking` | O ranking do mês ou de sempre | — |
 | `submit_photo` | Envio dos três tamanhos já limpos (base64 ou URL https), como o `POST /api/v1/photos` | `photos:write` |
-| `set_primary_photo` | Escolher a foto principal, como o `PUT /api/v1/selections/{target}` | `selections:write` e conta `trusted`, moderador ou administrador |
+| `set_primary_photo` | Escolher a foto principal, como o `PUT /api/v1/selections/{target}` | `selections:write` e conta de moderador ou administrador |
 | `get_photo` | Uma foto, como o `GET /api/v1/photos/{id}` (`getPhoto`) | — |
 | `delete_photo` | Retirar uma foto, como o `DELETE /api/v1/photos/{id}` (`deletePhoto`): a própria, ou a de outra pessoa por um moderador, com motivo | `photos:write` |
 

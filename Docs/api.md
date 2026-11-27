@@ -57,7 +57,7 @@ Resposta: `{ "id", "code", "name", "operator": { "id", "name" }, "address", "mun
 
 `photo` é a foto principal do posto ou da tomada, ou `null` quando não há (ver *Objeto `photo`*, abaixo).
 
-`photos` são as outras fotos enviadas pelo olh'o'posto e publicadas, as que não são principais de nada (no máximo 24): `[ { "id", "credit", "license", "attribution", "page", "thumb" } ]`. Não têm link estático: `thumb` é a miniatura do Panoramax e `page` a página de crédito. Num posto sem mais fotos vem `[]`.
+`photos` são as outras fotos enviadas pelo olh'o'posto e publicadas, as que não são principais de nada (no máximo 24): `[ { "id", "socket", "credit", "license", "attribution", "page", "thumb" } ]` (`socket` é o código EVSE compacto da tomada que a foto mostra, ou `null` para o posto em geral). Não têm link estático: `thumb` é a miniatura do Panoramax e `page` a página de crédito. Num posto sem mais fotos vem `[]`.
 
 `externalPhotos` são as fotos que outras pessoas puseram no OSM e estão noutro sítio (Panoramax, Wikimedia Commons), no máximo 12, só como referência. Nunca são a foto principal, não têm link estático e não entram em `/main-photos`:
 
@@ -114,6 +114,10 @@ Resposta: `{ "evse", "compact", "station": { "id", "name", "operator", "photo" }
 - Os URLs de imagem são estáveis: quando a foto principal muda, o URL continua o mesmo.
 
 ## Fotos principais
+
+### `GET /me`
+
+Para as páginas do próprio site: `{ "role", "moderator" }` da sessão (o *cookie*), ou `role: null` sem sessão. Nunca em cache; não lê *tokens*. A página do posto usa-o para mostrar «Moderar as fotos deste posto» a moderadores e administradores.
 
 ### `GET /main-photos`
 
@@ -197,7 +201,7 @@ Quem tem sessão cria *tokens* na conta (`/conta`, `/en/account`): um nome, os �
 | Âmbito | Dá acesso a | Quem o pode ter |
 | --- | --- | --- |
 | `photos:write` | `POST /photos`, `POST /stations`, `DELETE /photos/{id}` | Todas as contas |
-| `selections:write` | `PUT /selections/{target}` | `trusted`, `moderator`, `admin` |
+| `selections:write` | `PUT /selections/{target}` | `moderator`, `admin` |
 
 O *token* age como a conta, com o papel e os limites dela, lidos em cada pedido. Erros: `401 sign_in_required` (*token* desconhecido, expirado ou revogado), `403 missing_scope`. Sem *token*, a sessão só vale a partir do próprio site (`403 cross_site`).
 

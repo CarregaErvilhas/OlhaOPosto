@@ -405,7 +405,7 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
   server.registerTool('set_primary_photo', {
     title: 'Choose the main photo',
     description: 'Make a published photo the main photo of its station or socket: its static links then serve it '
-      + '(needs selections:write, and a trusted, moderator or admin account). The photo id is the one in the credit page /p/{id}.',
+      + '(needs selections:write, and a moderator or admin account). The photo id is the one in the credit page /p/{id}.',
     inputSchema: z.object({
       target: z.string().min(1).max(80).describe('Station id, or the socket\'s EVSE code.'),
       photo: z.string().min(1).max(64).describe('Id of a published photo of that same station or socket.'),
@@ -414,7 +414,7 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
   }, async ({ target, photo }) => {
     const who = signedIn(caller, 'selections:write');
     if ('content' in who) return who;
-    if (!canChooseMain(who.user.role)) return fail('forbidden', 'Only trusted, moderator and admin accounts choose main photos.');
+    if (!canChooseMain(who.user.role)) return fail('forbidden', 'Only moderator and admin accounts choose main photos.');
     const t = STATION_ID.test(target) && !target.includes('*') ? target : compactCode(target);
     if (!t) return fail('bad_target', ERROR_DETAIL.bad_target);
     try {

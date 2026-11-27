@@ -33,7 +33,7 @@ export function stationBody(found: { station: StationRow; points: PointRow[]; ma
     // station under construction has none, so all of its photos): no static
     // link, Panoramax's thumbnail and the credit page.
     photos: own.map((p) => ({
-      id: p.id, credit: p.credit, license: 'CC-BY-SA-4.0',
+      id: p.id, socket: p.evse_compact ?? null, credit: p.credit, license: 'CC-BY-SA-4.0',
       attribution: `© ${p.credit ?? BRAND}, CC BY-SA 4.0, via ${BRAND}`,
       page: SITE + photoPath('pt', p.id),
       thumb: `${PANORAMAX_URL}/api/pictures/${encodeURIComponent(p.panoramax_id)}/thumb.jpg`,

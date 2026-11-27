@@ -28,8 +28,9 @@ test('parseNewToken: name, scopes allowed for the role, validity', () => {
   const ok = form([['name', '  phone  script '], ['scope', 'photos:write'], ['days', '90']]);
   assert.deepEqual(parseNewToken(ok, 'contributor'), { name: 'phone script', scopes: ['photos:write'], days: 90 });
   assert.equal(parseNewToken(form([['name', 'x'], ['scope', 'selections:write'], ['days', '90']]), 'contributor'), 'scope');
+  assert.equal(parseNewToken(form([['name', 'x'], ['scope', 'selections:write'], ['days', '90']]), 'trusted'), 'scope');
   assert.deepEqual(
-    parseNewToken(form([['name', 'x'], ['scope', 'selections:write'], ['days', '30']]), 'trusted'),
+    parseNewToken(form([['name', 'x'], ['scope', 'selections:write'], ['days', '30']]), 'moderator'),
     { name: 'x', scopes: ['selections:write'], days: 30 },
   );
   assert.equal(parseNewToken(form([['name', ''], ['scope', 'photos:write'], ['days', '90']]), 'admin'), 'name');

@@ -57,7 +57,7 @@ Resposta: `{ "id", "code", "name", "operator": { "id", "name" }, "address", "mun
 
 `photo` é a foto principal do posto ou da tomada, ou `null` quando não há (ver *Objeto `photo`*, abaixo).
 
-`photos` são as outras fotos enviadas pelo olh'o'posto e publicadas, as que não são principais de nada (no máximo 24): `[ { "id", "credit", "license", "attribution", "page", "thumb" } ]`. Não têm link estático: `thumb` é a miniatura do Panoramax e `page` a página de crédito. Num posto sem mais fotos vem `[]`.
+`photos` são as outras fotos enviadas pelo olh'o'posto e publicadas, as que não são principais de nada (no máximo 24): `[ { "id", "socket", "credit", "license", "attribution", "page", "thumb" } ]` (`socket` é o código EVSE compacto da tomada que a foto mostra, ou `null` para o posto em geral). Não têm link estático: `thumb` é a miniatura do Panoramax e `page` a página de crédito. Num posto sem mais fotos vem `[]`.
 
 `externalPhotos` são as fotos que outras pessoas puseram no OSM e estão noutro sítio (Panoramax, Wikimedia Commons), no máximo 12, só como referência. Nunca são a foto principal, não têm link estático e não entram em `/main-photos`:
 
@@ -114,6 +114,10 @@ Resposta: `{ "evse", "compact", "station": { "id", "name", "operator", "photo" }
 - Os URLs de imagem são estáveis: quando a foto principal muda, o URL continua o mesmo.
 
 ## Fotos principais
+
+### `GET /me`
+
+Para as páginas do próprio site: `{ "role", "moderator" }` da sessão (o *cookie*), ou `role: null` sem sessão. Nunca em cache; não lê *tokens*. A página do posto usa-o para mostrar «Moderar as fotos deste posto» a moderadores e administradores.
 
 ### `GET /main-photos`
 

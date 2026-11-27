@@ -95,6 +95,15 @@ export function openApiSpec() {
           },
         },
       },
+      '/me': {
+        get: {
+          tags: ['Photos'],
+          operationId: 'getMe',
+          summary: 'Who is signed in on this site',
+          description: 'For the site\'s own pages: `role` of the session cookie (or null) and whether it moderates. Never cached; a token is not read here.',
+          responses: { 200: json({ type: 'object', properties: { role: nstr, moderator: { type: 'boolean' } } }, 'The session\'s role.') },
+        },
+      },
       '/main-photos': {
         get: {
           tags: ['Photos'],

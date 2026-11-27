@@ -29,6 +29,9 @@ export const stationPath = (lang: Lang, id: string) =>
   `${lang === 'pt' ? '/postos/' : '/en/stations/'}${encodeURIComponent(id)}`;
 export const socketPath = (lang: Lang, evse: string) =>
   `${lang === 'pt' ? '/tomadas/' : '/en/sockets/'}${encodeURIComponent(evse)}`;
+// The moderators' page with every photo of a station (src/stationadmin.ts).
+export const stationAdminPath = (lang: Lang, id: string) =>
+  `${lang === 'pt' ? '/admin/posto/' : '/en/admin/station/'}${encodeURIComponent(id)}`;
 export const photoPath = (lang: Lang, id: string) => `${lang === 'pt' ? '/p/' : '/en/p/'}${encodeURIComponent(id)}`;
 export const searchPath = (lang: Lang) => (lang === 'pt' ? '/pesquisa' : '/en/search');
 export const privacyPath = (lang: Lang) => (lang === 'pt' ? '/privacidade' : '/en/privacy');
@@ -126,6 +129,8 @@ const T = {
     socketsIntro: 'Cada tomada com código EVSE tem o seu link.',
     noPhoto: 'sem foto',
     noEvse: 'Sem código EVSE no NAP: sem link de tomada',
+    socketMore: 'Outras fotos desta tomada',
+    moderate: 'Moderar as fotos deste posto',
     socketSend: 'Enviar foto desta tomada',
     socketSendMore: 'Enviar outra foto desta tomada',
     socketGone: 'já não está no NAP',
@@ -283,6 +288,8 @@ const T = {
     socketsIntro: 'Each socket with an EVSE code has its own link.',
     noPhoto: 'no photo',
     noEvse: 'No EVSE code in the NAP: no socket link',
+    socketMore: 'More photos of this socket',
+    moderate: 'Moderate the photos of this station',
     socketSend: 'Send a photo of this socket',
     socketSendMore: 'Send another photo of this socket',
     socketGone: 'no longer in the NAP',
@@ -576,8 +583,12 @@ function thumb(lang: Lang, compact: string, main: MainPhotos[string]): string {
   return main.photo_id ? `<a href="${photoPath(lang, main.photo_id)}">${img}</a>` : img;
 }
 
-function socketItem(lang: Lang, stationId: string, p: PointRow, i: number, main?: MainPhotos[string]): string {
+function socketItem(lang: Lang, stationId: string, p: PointRow, i: number, main?: MainPhotos[string], others: OwnPhoto[] = []): string {
   const t = T[lang];
+  // Its other photos, small, each linked to its credit page.
+  const more = others.length
+    ? `\n        <ul class="socket-more" role="list" aria-label="${esc(t.socketMore)}">${others.map((o, k) => `<li><a href="${photoPath(lang, o.id)}"><img src="${PANORAMAX_URL}/api/pictures/${encodeURIComponent(o.panoramax_id)}/thumb.jpg" alt="${esc(t.ownAlt(p.evse_id ?? p.point_id, k + 2))}" loading="lazy" referrerpolicy="no-referrer"></a></li>`).join('')}</ul>`
+    : '';
   const anchor = p.evse_compact ? ` id="t-${esc(p.evse_compact)}"` : '';
   const meta = [plug(lang, p.connector), kw(lang, p.max_kw), p.dc ? 'DC' : 'AC'];
   if (p.status === 'missing_from_nap') meta.push(t.socketGone);
@@ -595,7 +606,7 @@ function socketItem(lang: Lang, stationId: string, p: PointRow, i: number, main?
       <div class="info">
         ${code}
         <div class="meta">${esc(meta.filter(Boolean).join(' · '))}</div>
-        ${link}
+        ${link}${more}
       </div>
     </li>`;
 }
@@ -715,7 +726,8 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}${building ? `<p c
       <a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.emptySend}</a>
     </div>`}
     ${building ? (own.length ? `<p><a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.sendMore}</a></p>` : '') : `<p class="hint">${t.hint}</p>
-    ${ownGallery(lang, s.id, own, t.moreHeading)}`}
+    ${ownGallery(lang, s.id, own.filter((p) => !p.evse_compact), t.moreHeading)}`}
+    <p class="mod-link" hidden><a href="${stationAdminPath(lang, s.id)}">${t.moderate}</a></p>
     ${externalGallery(lang, s.id, externals)}
   </section>
   <div class="side">
@@ -739,7 +751,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}${building ? `<p c
       <h2>${t.socketsTitle}</h2>
       <p>${t.socketsIntro}</p>
       <ul class="sockets" role="list">
-    ${points.map((p, i) => socketItem(lang, s.id, p, i, p.evse_compact ? mains[p.evse_compact] : undefined)).join('\n    ')}
+    ${points.map((p, i) => socketItem(lang, s.id, p, i, p.evse_compact ? mains[p.evse_compact] : undefined, own.filter((o) => p.evse_compact && o.evse_compact === p.evse_compact))).join('\n    ')}
       </ul>
     </section>`}
     <section class="card" id="osm">

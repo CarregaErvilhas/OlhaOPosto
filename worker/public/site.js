@@ -47,4 +47,14 @@
       }
     });
   }
+
+  // «Moderar fotos» on a station page: the page is cached for everyone, so
+  // only the browser of a moderator or admin shows the link (no-store).
+  const mod = document.querySelector('.mod-link');
+  if (mod) {
+    fetch('/api/v1/me', { credentials: 'same-origin', cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me) => { if (me && me.moderator) mod.hidden = false; })
+      .catch(() => {});
+  }
 })();

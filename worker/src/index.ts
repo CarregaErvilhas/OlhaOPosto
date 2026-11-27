@@ -29,6 +29,9 @@ import { groupPage } from './grupo.ts';
 import { evseBody, mainPhotoBody, searchBody, stationBody } from './bodies.ts';
 import { creditPage, getCredit } from './photopage.ts';
 import { PROMOTE_ACTION, lostHtml, promoteMain } from './mains.ts';
+import { currentUser } from './auth.ts';
+import { canModerate } from './moderation.ts';
+import { STATION_ADMIN_ACTION, STATION_ADMIN_ROUTE, stationAdminAction, stationAdminHtml } from './stationadmin.ts';
 import { TAKEDOWN_DECIDE, decideTakedown, reconcile, submitTakedown, takedownHtml, takedownsHtml, type TakedownEnv } from './takedown.ts';
 import { sitemapXml } from './sitemap.ts';
 import { isMcpPath } from './mcp.ts';
@@ -210,9 +213,12 @@ function stationHtml(lang: Lang) {
     // Each image host only on a page that shows it: the external thumbnails,
     // and Panoramax for the gallery of a station under construction.
     const hosts = [found.externals.length ? EXTERNAL_THUMBS : '', found.own.length ? PANORAMAX_IMAGES : ''].filter(Boolean);
-    const headers = hosts.length
-      ? { ...HTML_HEADERS, 'content-security-policy': HTML_HEADERS['content-security-policy'].replace("img-src 'self'", `img-src 'self' ${hosts.join(' ')}`) }
-      : HTML_HEADERS;
+    // connect-src 'self': site.js asks /api/v1/me whether to show «Moderar fotos».
+    const csp = HTML_HEADERS['content-security-policy'].replace("default-src 'none';", "default-src 'none'; connect-src 'self';");
+    const headers = {
+      ...HTML_HEADERS,
+      'content-security-policy': hosts.length ? csp.replace("img-src 'self'", `img-src 'self' ${hosts.join(' ')}`) : csp,
+    };
     return new Response(stationPage(lang, found.station, found.points, found.mains, found.externals, found.own), {
       status: 200,
       headers: {
@@ -399,6 +405,7 @@ export default {
     if (request.method === 'POST' && pathname === '/report') return submitTakedown(request, env);
     if (request.method === 'POST' && pathname === TAKEDOWN_DECIDE) return decideTakedown(request, env);
     if (request.method === 'POST' && pathname === PROMOTE_ACTION) return promoteMain(request, env);
+    if (request.method === 'POST' && pathname === STATION_ADMIN_ACTION) return stationAdminAction(request, env);
     if (request.method === 'PUT') {
       const m = pathname.match(/^\/api\/v1\/selections\/([^/]+)$/);
       if (m) {
@@ -436,6 +443,12 @@ export default {
       return value === null ? bad() : handler(env, value);
     }
     if (pathname === '/api/v1/main-photos') return mainPhotosJson(env);
+    // Who is signed in here, for a cached page that shows moderators more
+    // (the station page's «Moderar fotos»). Session cookie only, never cached.
+    if (pathname === '/api/v1/me') {
+      const user = await currentUser(request, env).catch(() => null);
+      return json({ role: user?.role ?? null, moderator: user ? canModerate(user.role) : false }, 200, 'private, no-store');
+    }
     if (pathname === '/api/v1/photos.json') return photosExportJson(request, env, ctx);
     if (pathname === '/api/v1/openapi.json') return json(openApiSpec(), 200, 'public, max-age=3600');
     if (pathname === '/api/v1/ranking') return rankingJson(env, url);
@@ -473,6 +486,10 @@ export default {
     if (pathname === '/admin/remocoes') return takedownsHtml('pt', request, env, HTML_HEADERS);
     if (pathname === '/en/admin/takedowns') return takedownsHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/admin/sem-principal') return lostHtml('pt', request, env, HTML_HEADERS);
+    for (const lang of ['pt', 'en'] as const) {
+      const m = pathname.match(STATION_ADMIN_ROUTE[lang]);
+      if (m) return stationAdminHtml(lang, request, env, HTML_HEADERS, m[1]);
+    }
     if (pathname === '/en/admin/no-main') return lostHtml('en', request, env, HTML_HEADERS);
     if (pathname === '/enviar') return uploadHtml('pt', request, env, UPLOAD_HEADERS);
     if (pathname === '/en/upload') return uploadHtml('en', request, env, UPLOAD_HEADERS);

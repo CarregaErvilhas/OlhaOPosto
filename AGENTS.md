@@ -36,6 +36,6 @@ O que já funciona está em `Docs/arquitetura.md` (o estado das fases no início
 ## Convenções
 
 - Docs e UI em pt-PT; código e commits em inglês.
-- Commits com `-s` (DCO).
+- Commits com `-s` (DCO). A verificação (`dco.yml`) vive em CarregaErvilhas/OCarroEletrico, para o grupo ter uma só cópia da regra.
 - `.github/dependabot.yml` cobre GitHub Actions, o pip de `panoramax/` (lock `requirements.txt` gerado do `requirements.in` com o `uv`; testes em `requirements-test.txt`), a versão do visualizador em `panoramax/viewer/` e o npm de `worker/`.
 - Sem IPs, IDs de recursos (Zerops, Cloudflare) nem datas das alterações nos docs, commits e PRs.

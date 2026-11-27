@@ -100,12 +100,19 @@ test('page: «sem foto» lists the stations, filters by town and operator, in bo
   assert.ok(pt.includes('href="/enviar?posto=EDP-LSB-00003"'));
   assert.equal(pt.includes('EZC-AMD-00001'), false);
   assert.equal(pt.includes('OOP-NEW'), false);
-  assert.ok(pt.includes('<option value="Amadora">Amadora (1)</option>'));
-  assert.ok(pt.includes('<option value="EDP">EDP Comercial (2)</option>'));
-  const lisboa = await (await get(env, '/postos/sem-foto?concelho=Lisboa&operador=EDP')).text();
-  assert.equal(lisboa.includes('EZC-AMD-00002'), false);
-  assert.ok(lisboa.includes('EDP-LSB-00004'));
-  assert.ok(lisboa.includes('<option value="Lisboa" selected>'));
+  assert.ok(pt.includes('<option value="Amadora">1 sem foto</option>'));
+  assert.ok(pt.includes('<option value="EDP Comercial">2 sem foto</option>'));
+  assert.ok(pt.includes('list="f-op-list"'));
+  // The operator box sends the name; an operator code (older links) still works.
+  for (const op of ['EDP', 'edp+comercial']) {
+    const lisboa = await (await get(env, `/postos/sem-foto?concelho=Lisboa&operador=${op}`)).text();
+    assert.equal(lisboa.includes('EZC-AMD-00002'), false, op);
+    assert.ok(lisboa.includes('EDP-LSB-00004'), op);
+    assert.ok(lisboa.includes('id="f-town" name="concelho" type="search" value="Lisboa"'), op);
+    assert.ok(lisboa.includes('name="operador" type="search" value="EDP Comercial"'), op);
+  }
+  const nobody = await (await get(env, '/postos/sem-foto?operador=Ningu%C3%A9m+Lda')).text();
+  assert.match(nobody, /Nenhum posto sem foto com estes filtros/);
   const en = await get(env, '/en/stations/without-photo?municipality=Amadora');
   assert.equal(en.status, 200);
   assert.equal(en.headers.get('content-language'), 'en');
@@ -115,6 +122,20 @@ test('page: «sem foto» lists the stations, filters by town and operator, in bo
   assert.ok(enHtml.includes('href="/en/upload?posto=EZC-AMD-00002"'));
   // «sem-foto» is not read as a station id.
   assert.equal((await get(env, '/postos/sem-foto')).status, 200);
+});
+
+test('page: «sem foto» searches by text within the filters', async () => {
+  const env = world();
+  const hit = await (await get(env, '/postos/sem-foto?q=00004')).text();
+  assert.ok(hit.includes('href="/postos/EDP-LSB-00004"'));
+  assert.equal(hit.includes('href="/postos/EDP-LSB-00003"'), false);
+  assert.ok(hit.includes('name="q" type="search" value="00004"'));
+  assert.ok(hit.includes('q=00004'));
+  // The search never lists a station that has a photo, and keeps the filters.
+  const posto = await (await get(env, '/postos/sem-foto?q=posto&operador=EZC3')).text();
+  assert.ok(posto.includes('href="/postos/EZC-AMD-00002"'));
+  assert.equal(posto.includes('href="/postos/EZC-AMD-00001"'), false);
+  assert.equal(posto.includes('href="/postos/EDP-LSB-00003"'), false);
 });
 
 test('page: the list is linked from the home page and the upload page', async () => {

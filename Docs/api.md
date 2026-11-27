@@ -43,7 +43,7 @@ Juntam-se à pesquisa por texto e por proximidade, ou usam-se sozinhos:
 curl 'https://olhaoposto.ocarroeletrico.com/api/v1/stations?opc=EZC3&has_photo=false&limit=50'
 ```
 
-Só com filtros (sem `q` nem coordenadas) a lista vem por ordem de id, em páginas: `{ "results": [...], "next": "<id>" | null }`, e `?after=<next>` dá a página seguinte. Um filtro inválido dá `400 bad_filter`. A página [`/postos/sem-foto`](https://olhaoposto.ocarroeletrico.com/postos/sem-foto) (`/en/stations/without-photo`) mostra a mesma lista, com filtros por concelho e operador.
+Só com filtros (sem `q` nem coordenadas) a lista vem por ordem de id, em páginas: `{ "results": [...], "next": "<id>" | null }`, e `?after=<next>` dá a página seguinte. Um filtro inválido dá `400 bad_filter`. A página [`/postos/sem-foto`](https://olhaoposto.ocarroeletrico.com/postos/sem-foto) (`/en/stations/without-photo`) mostra a mesma lista, com pesquisa por texto (`?q=`, as melhores 50, sem páginas) e filtros por concelho e operador (caixas de texto com sugestões; o operador aceita o nome ou o código).
 
 ### `GET /stations/{id}`
 

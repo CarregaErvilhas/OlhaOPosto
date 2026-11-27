@@ -259,6 +259,9 @@ a.button { display: inline-flex; align-items: center; text-decoration: none; }
 .search button:hover, .button:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--on-accent); }
 @media (forced-colors: active) { .search button, .button { border-color: ButtonText; } }
 .search .hint { margin-top: 6px; }
+/* The «sem foto» filters: one full-width box per line. */
+.filters input { display: block; width: 100%; }
+.filters .hint { display: block; }
 .results { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .result { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .result a { font-weight: 500; overflow-wrap: anywhere; }

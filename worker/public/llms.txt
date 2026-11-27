@@ -11,7 +11,7 @@ Stations under construction come from OpenStreetMap before the NAP lists them: i
 - [Station page](https://olhaoposto.ocarroeletrico.com/en/stations/EZC-AMD-00051): `/en/stations/{station id}` in English, `/postos/{station id}` in Portuguese.
 - Photo credit page: `/en/p/{photo id}` (or `/p/{photo id}`): the photo, its author, date and licence (CC BY-SA 4.0), the station or socket it shows and a link to Panoramax. Only published photos have one; the XMP of each new static copy points to it, and the station page links each photo to it.
 - [Search](https://olhaoposto.ocarroeletrico.com/en/search?q=amadora): `/en/search?q=` (or `/pesquisa?q=`). A full station or socket code goes straight to its page.
-- [Stations without a photo](https://olhaoposto.ocarroeletrico.com/en/stations/without-photo): `/en/stations/without-photo` (or `/postos/sem-foto`), filterable by municipality and operator; each links to the upload page for that station.
+- [Stations without a photo](https://olhaoposto.ocarroeletrico.com/en/stations/without-photo): `/en/stations/without-photo` (or `/postos/sem-foto`), searchable by text (`?q=`) and filterable by municipality and operator; each links to the upload page for that station.
 - Socket lookup: `/en/sockets/{EVSE code}` (or `/tomadas/{EVSE code}`) redirects to the station page, anchored on that socket. The code works with or without the `*` (`PT*EZC*E*AMD*00051*1` or `PTEZCEAMD000511`).
 
 ## API

@@ -86,7 +86,7 @@ interface Fakes {
   verified: { response: unknown; remoteip: unknown; secret: unknown }[];
 }
 
-function fakes(opts: { count?: number; panoramax?: number; role?: string; socket?: boolean; turnstile?: Record<string, unknown> } = {}): Fakes {
+function fakes(opts: { readOnly?: boolean; count?: number; panoramax?: number; role?: string; socket?: boolean; turnstile?: Record<string, unknown> } = {}): Fakes {
   const rows = new Map<string, Record<string, unknown>>();
   const r2 = new Map<string, Uint8Array>();
   const f: Fakes = {
@@ -108,6 +108,7 @@ function fakes(opts: { count?: number; panoramax?: number; role?: string; socket
         return null;
       },
       async run() {
+        if (opts.readOnly) throw new Error('D1_ERROR: writes are blocked');
         if (sql.startsWith('INSERT INTO photos')) {
           rows.set(args[0] as string, { station_id: args[1], evse_compact: args[2], kind: args[3], distance_m: args[8], credit: args[9], status: 'uploading' });
         } else if (sql.includes(`SET status = ?`)) {
@@ -248,6 +249,16 @@ test('submitPhoto: Turnstile is checked before anything is written', async () =>
     assert.equal(g.calls.length, 0);
     assert.equal(g.rows.size, 0);
   }
+});
+
+test('submitPhoto: D1 refusing writes answers 503 before anything is sent', async () => {
+  const f = fakes({ readOnly: true });
+  const { status, body } = await run(f, upload());
+  assert.equal(status, 503);
+  assert.deepEqual(body, { error: 'unavailable' });
+  assert.equal(f.r2.size, 0);
+  assert.equal(f.rows.size, 0);
+  assert.equal(f.calls.filter((c) => new URL(c.url).host === 'pano.test').length, 0);
 });
 
 test('submitPhoto: a Panoramax failure leaves only a failed row', async () => {

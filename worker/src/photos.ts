@@ -302,11 +302,18 @@ export async function submitPhoto(
     && target.status === 'active'
     && distance !== null
     && distance <= FAR_M;
-  await env.DB.prepare(
-    `INSERT INTO photos (id, station_id, evse_compact, kind, uploader_id, taken_at, exif_lat, exif_lon, distance_m,
-       credit, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploading', ?)`,
-  ).bind(id, meta.station, evse, meta.kind, user.id, meta.taken_at, meta.exif_lat, meta.exif_lon, distance, user.name, createdAt).run();
+  // The first write. When D1 refuses it (the daily write limit of the Free
+  // plan, an outage) nothing exists yet in staging or Panoramax: say so with
+  // its own code instead of a bare 500, so the sender knows to retry later.
+  try {
+    await env.DB.prepare(
+      `INSERT INTO photos (id, station_id, evse_compact, kind, uploader_id, taken_at, exif_lat, exif_lon, distance_m,
+         credit, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploading', ?)`,
+    ).bind(id, meta.station, evse, meta.kind, user.id, meta.taken_at, meta.exif_lat, meta.exif_lon, distance, user.name, createdAt).run();
+  } catch {
+    return reply(503, { error: 'unavailable' });
+  }
 
   const staged = [`${id}/main.jpg`, `${id}/thumb.jpg`];
   let setId: string | null = null;

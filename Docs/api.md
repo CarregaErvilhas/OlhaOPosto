@@ -216,7 +216,7 @@ curl -X POST 'https://olhaoposto.ocarroeletrico.com/api/v1/photos' \
   -F 'meta={"station":"EZC-AMD-00051","target":"PTEZCEAMD000511","taken_at":"2026-11-20T10:15:00Z","exif_lat":38.7879,"exif_lon":-9.2268,"license":true,"no_people":true}'
 ```
 
-Responde `201 { "id", "status": "pending"|"published" }`. Contas `trusted` publicam direto quando a foto foi tirada a 300 m ou menos de um posto ativo. O GPS é só para a moderação, nunca publicado. Erros: `400 bad_photo` (EXIF ou outro metadado, tamanho, forma), `400 bad_target`, `400 consent_required`, `429 daily_limit` (50 por dia para contribuidores), `429 too_fast`, `409 duplicate`.
+Responde `201 { "id", "status": "pending"|"published" }`. Contas `trusted` publicam direto quando a foto foi tirada a 300 m ou menos de um posto ativo. O GPS é só para a moderação, nunca publicado. Erros: `400 bad_photo` (EXIF ou outro metadado, tamanho, forma), `400 bad_target`, `400 consent_required`, `429 daily_limit` (50 por dia para contribuidores), `429 too_fast`, `409 duplicate`, `503 unavailable` (a base de dados não aceita escritas de momento, por exemplo o limite diário da D1; não se guardou nada, repete mais tarde).
 
 ### `DELETE /photos/{id}`
 

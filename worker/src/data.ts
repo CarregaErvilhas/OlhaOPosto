@@ -42,14 +42,17 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
         WHERE station_id = ? AND origin <> 'olhaoposto' AND status = 'published' AND external_src IS NOT NULL
         ORDER BY origin, taken_at DESC, id LIMIT ${EXTERNAL_LIMIT}`,
     ).bind(id),
-    // A station under construction has no main photo: its published photos
-    // show as a gallery. NAP stations get none here (the join on source).
+    // Our published photos that are not a main photo (a station under
+    // construction has none, so all of its photos): the page shows them as a
+    // gallery. Current mains are left out, the page already shows those.
     env.DB.prepare(
       `SELECT p.id, p.credit, p.panoramax_id
-         FROM photos p JOIN stations s ON s.id = p.station_id AND s.source = 'osm'
+         FROM photos p
         WHERE p.station_id = ? AND p.origin = 'olhaoposto' AND p.status = 'published' AND p.panoramax_id IS NOT NULL
+          AND p.id NOT IN (SELECT sel.photo_id FROM selections sel
+                            WHERE sel.station_id = ? AND sel.published_at IS NOT NULL AND sel.lost_at IS NULL)
         ORDER BY p.approved_at, p.id LIMIT ${OWN_LIMIT}`,
-    ).bind(id),
+    ).bind(id, id),
   ]);
   const s = (station.results as StationRow[])[0];
   if (!s || !isPublic(s)) return null;

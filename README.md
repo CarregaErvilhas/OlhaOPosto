@@ -8,11 +8,20 @@ https://pictures.ocarroeletrico.com/<id-do-posto>.jpg
 
 O link nunca muda. Muda só a foto para onde aponta.
 
-> **Estado:** o servidor Panoramax está em produção em `panoramax.ocarroeletrico.com`, ainda fora da federação. O Worker do olh'o'posto (`worker/`) já publica as páginas dos postos, a pesquisa, a API de postos só de leitura e a política de privacidade, com o import diário dos postos. O login com o OpenStreetMap e a página de envio estão feitos mas fechados; o envio já guarda a foto escondida no Panoramax, mas a moderação e a publicação ainda não existem.
+## O que funciona
+
+- Páginas dos postos e das tomadas, em pt-PT e inglês, com pesquisa por texto e por proximidade.
+- Login com o OpenStreetMap e envio de fotos, com desfocagem de caras no browser.
+- Fila de moderação; a aprovação publica a foto principal no link estático.
+- API `/api/v1` (leitura aberta, escrita com sessão ou *token*) e servidor MCP em `/mcp`.
+- Pontos, ranking, pedidos de remoção e fotos externas do OSM na galeria.
+- Servidor Panoramax próprio em `panoramax.ocarroeletrico.com`, ainda fora da federação.
+
+O detalhe está em [`Docs/arquitetura.md`](Docs/arquitetura.md); o que falta, em [`Docs/plan.md`](Docs/plan.md).
 
 ## Como funciona
 
-- **Postos oficiais como base.** A lista de postos e tomadas vem todos os dias dos dados abertos do NAP/MOBI.E. O OSM é um complemento.
+- **Postos oficiais como base.** A lista de postos e tomadas vem de hora a hora dos dados abertos do NAP/MOBI.E. O OSM é um complemento.
 - **Envio com login OSM.** Quem contribui escolhe o posto ou a tomada e envia a foto. No browser, a foto é redimensionada, as caras e matrículas são desfocadas e o EXIF é removido.
 - **Moderação.** As fotos passam por uma fila de revisão antes de serem públicas.
 - **Foto principal.** Quando há várias fotos de um posto ou tomada, escolhe-se a que alimenta o link estático.
@@ -39,7 +48,7 @@ O que já existe está em [`Docs/arquitetura.md`](Docs/arquitetura.md); o que fa
 | [`Docs/infra.md`](Docs/infra.md) | Infraestrutura do servidor Panoramax: serviços, segredos, R2, DNS, deploy, ensaio |
 | [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do olh'o'posto: buckets R2, cache, CORS, Worker e rotas, login, página de envio, D1 e import |
 | `zerops.yml`, `zerops-import.yaml` | Configuração dos serviços `pano` (Panoramax) e `db` no Zerops |
-| `worker/` | Worker do olh'o'posto (TypeScript + D1): páginas, API, login, página de envio, migrações e import diário dos postos |
+| `worker/` | Worker do olh'o'posto (TypeScript + D1): páginas, API, login, página de envio, migrações e import dos postos (de hora a hora) |
 | `panoramax/` | Versão do Panoramax, ponto de entrada do gunicorn, scripts de preparação da BD e da conta de serviço, e scripts de envio de teste |
 | `Design/` | Mockups das páginas e do fluxo olh'o'posto ↔ Panoramax |
 
@@ -47,4 +56,4 @@ O que já existe está em [`Docs/arquitetura.md`](Docs/arquitetura.md); o que fa
 
 - Documentação e interface em português de Portugal; código e commits em inglês.
 - Commits assinados com `git commit -s` (DCO).
-- Os princípios do projeto estão em [`CLAUDE.md`](CLAUDE.md). Mudanças a esses princípios discutem-se primeiro numa issue.
+- Os princípios do projeto estão em [`AGENTS.md`](AGENTS.md). Mudanças a esses princípios discutem-se primeiro numa issue.

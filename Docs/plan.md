@@ -97,7 +97,7 @@ O pseudónimo já se escolhe na conta ([`arquitetura.md`](arquitetura.md), *Cré
 
 ## Moderação
 
-- Moderadores: só o Fernando no lançamento; a lista de moderadores da comunidade vem depois. Com um só moderador, o prazo de 72 h depende de ele estar disponível; como a foto fica oculta logo, o risco é atraso, não exposição.
+- Moderadores: só o responsável do projeto no lançamento; a lista de moderadores da comunidade vem depois. Com um só moderador, o prazo de 72 h depende de ele estar disponível; como a foto fica oculta logo, o risco é atraso, não exposição.
 - Apagar a conta a partir da própria conta (hoje é por email, como diz a política de privacidade).
 
 ## Custos

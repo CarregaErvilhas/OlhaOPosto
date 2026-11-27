@@ -15,7 +15,7 @@ import { submitPhoto, uploadHtml, type PhotoEnv } from './photos.ts';
 import { chooseMain } from './publish.ts';
 import { syncCredits } from './credit.ts';
 import { RETRY_AFTER, allowed, clientIp, type RateEnv } from './ratelimit.ts';
-import { filterStations, findEvse, getStation, listMainPhotos, listStations, nearStations, searchStations, type Env } from './data.ts';
+import { filterStations, findEvse, getStation, listMainPhotos, listStations, nearStations, recentPhotoStations, searchStations, type Env } from './data.ts';
 import { deletePhoto, exportPhotos, getPhoto, optionalCaller } from './photoapi.ts';
 import { openApiSpec } from './openapi.ts';
 import { noPhotoData, noPhotoPage } from './nophoto.ts';
@@ -202,6 +202,14 @@ async function mainPhotosJson(env: Env): Promise<Response> {
     license: 'CC-BY-SA-4.0',
     photos: rows.map(mainPhotoBody),
   });
+}
+
+async function homeHtml(lang: Lang, env: Env): Promise<Response> {
+  const recent = await recentPhotoStations(env);
+  const res = html(lang, homePage(lang, recent));
+  // The Panoramax host only when there are thumbnails to show.
+  if (recent.length) res.headers.set('content-security-policy', CREDIT_HEADERS['content-security-policy']);
+  return res;
 }
 
 function stationHtml(lang: Lang) {
@@ -457,8 +465,8 @@ export default {
       if (pathname === '/api/v1/stations') return searchJson(env, url);
       return searchHtml(pathname === '/pesquisa' ? 'pt' : 'en', env, url);
     }
-    if (pathname === '/') return html('pt', homePage('pt'));
-    if (pathname === '/en/') return html('en', homePage('en'));
+    if (pathname === '/') return homeHtml('pt', env);
+    if (pathname === '/en/') return homeHtml('en', env);
     if (pathname === '/en') return new Response(null, { status: 301, headers: { location: '/en/' } });
     if (pathname === '/privacidade') return html('pt', privacyPage('pt'));
     if (pathname === '/en/privacy') return html('en', privacyPage('en'));

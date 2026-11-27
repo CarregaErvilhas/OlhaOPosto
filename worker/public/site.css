@@ -506,6 +506,14 @@ ul.uploads > .queue-item { list-style: none; }
 .external-photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--empty); }
 .external-photo figcaption { display: grid; gap: 4px; justify-items: start; }
 
+/* Home: the latest stations with new photos */
+.recent h2 { font-size: 1rem; margin: 24px 0 4px; }
+.recent > ul { list-style: none; margin: 0; padding: 0; }
+.recent > ul > li { padding: 12px 0; border-top: 1px solid var(--line); }
+.recent-photos { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.recent-photos img { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; display: block; background: var(--line); }
+.recent .meta { font-size: 0.8125rem; color: var(--muted); }
+
 /* Instalar app (install.js): footer button, phone banner and the steps dialog. */
 .linkbtn { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
 .linkbtn:hover { color: var(--accent-strong); }

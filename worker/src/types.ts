@@ -222,6 +222,17 @@ export type OwnPhoto = {
   kind?: 'photo' | 'plate';
 };
 
+// A station on the home page, with its newest published photos of ours (newest
+// first, rating plates left out). One row per photo comes from the query.
+export type RecentStation = {
+  id: string;
+  name: string | null;
+  municipality: string | null;
+  source: string;
+  status: string;
+  photos: { id: string; credit: string | null; panoramax_id: string }[];
+};
+
 // One published main photo, for apps that copy them (nap.ocarroeletrico.com).
 export type MainPhotoRow = {
   target: string;

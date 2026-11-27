@@ -18,13 +18,13 @@
     "deploy": "node scripts/deploy.ts"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20261110.1",
+    "@cloudflare/workers-types": "5.20261113.1",
     "@mediapipe/tasks-vision": "1.2.3",
     "@types/node": "24.19.2",
     "leaflet": "1.9.4",
     "libheif-js": "1.23.5",
     "typescript": "7.0.2",
-    "wrangler": "4.160.1"
+    "wrangler": "4.162.0"
   },
   "allowScripts": {
     "esbuild": true,

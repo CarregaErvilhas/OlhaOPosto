@@ -14,7 +14,9 @@
 import { execFileSync } from 'node:child_process';
 import { withRemoteConfig, wrangler } from './lib/wrangler.ts';
 
-// The browser libraries the upload page loads (scripts/vendor.ts).
+// The browser libraries the upload page loads (scripts/vendor.ts) and the
+// group's shared files (scripts/brand.ts). A failure here stops the deploy
+// before any migration.
 execFileSync(process.execPath, [new URL('./vendor.ts', import.meta.url).pathname], { stdio: 'inherit' });
 
 withRemoteConfig((config) => {

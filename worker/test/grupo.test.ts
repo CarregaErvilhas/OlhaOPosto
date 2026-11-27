@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { GROUP, groupPage } from '../src/grupo.ts';
 import { homePage } from '../src/pages.ts';
 
-// The order every site of the group uses (O Carro Elétrico's GRUPO).
+// The order every site of the group uses (brand/group.json).
 const ORDER = ['carro', 'ohmigo', 'voltaria', 'ceme', 'nap', 'oop', 'pano', 'ampere'];
 
 for (const [lang, path, here] of [['pt', '/grupo', 'Estás aqui'], ['en', '/en/group', 'You are here']] as const) {
@@ -30,8 +30,8 @@ test('group page: each image is in public/grupo, with its viewBox size', () => {
   for (const g of GROUP) {
     const svg = readFileSync(join(import.meta.dirname, '..', 'public', 'grupo', `${g.id}.svg`), 'utf8');
     const [, w, h] = svg.match(/viewBox="[\d.-]+ [\d.-]+ ([\d.]+) ([\d.]+)"/)!;
-    assert.equal(Math.round(Number(w)), g.w, g.id);
-    assert.equal(Math.round(Number(h)), g.h, g.id);
+    assert.equal(Math.round(Number(w)), g.mascot.width, g.id);
+    assert.equal(Math.round(Number(h)), g.mascot.height, g.id);
   }
 });
 

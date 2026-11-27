@@ -30,6 +30,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          submodules: true
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -38,6 +39,13 @@ jobs:
           cache-dependency-path: worker/package-lock.json
 
       - run: npm ci --no-fund --no-audit
+
+      # public/ gets the group's shared files from brand/, as in a deploy.
+      - name: Copy vendor and brand files
+        run: npm run vendor
+
+      - name: Check the brand files
+        run: python3 ../brand/check.py --against public grupo install
 
       - name: Typecheck
         run: npm run check

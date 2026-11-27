@@ -10,6 +10,7 @@
     "predev": "npm run vendor",
     "dev": "wrangler dev",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.scripts.json",
+    "pretest": "node scripts/brand.ts",
     "test": "node --test \"test/**/*.test.ts\"",
     "db:local": "wrangler d1 migrations apply DB --local",
     "import:local": "node scripts/import-stations.ts --local",

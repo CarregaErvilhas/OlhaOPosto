@@ -7,3 +7,6 @@ worker/.wrangler/
 worker/.wrangler.remote.json
 worker/.dev.vars*
 worker/public/vendor/
+# Copied from the brand/ submodule (worker/scripts/brand.ts)
+worker/public/grupo/
+worker/public/install.js

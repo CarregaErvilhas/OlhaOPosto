@@ -126,6 +126,8 @@ const T = {
     socketsIntro: 'Cada tomada com código EVSE tem o seu link.',
     noPhoto: 'sem foto',
     noEvse: 'Sem código EVSE no NAP: sem link de tomada',
+    socketSend: 'Enviar foto desta tomada',
+    socketSendMore: 'Enviar outra foto desta tomada',
     socketGone: 'já não está no NAP',
     unknownPlug: 'Ficha desconhecida',
     osmTitle: 'No OpenStreetMap',
@@ -281,6 +283,8 @@ const T = {
     socketsIntro: 'Each socket with an EVSE code has its own link.',
     noPhoto: 'no photo',
     noEvse: 'No EVSE code in the NAP: no socket link',
+    socketSend: 'Send a photo of this socket',
+    socketSendMore: 'Send another photo of this socket',
     socketGone: 'no longer in the NAP',
     unknownPlug: 'Unknown connector',
     osmTitle: 'On OpenStreetMap',
@@ -572,7 +576,7 @@ function thumb(lang: Lang, compact: string, main: MainPhotos[string]): string {
   return main.photo_id ? `<a href="${photoPath(lang, main.photo_id)}">${img}</a>` : img;
 }
 
-function socketItem(lang: Lang, p: PointRow, i: number, main?: MainPhotos[string]): string {
+function socketItem(lang: Lang, stationId: string, p: PointRow, i: number, main?: MainPhotos[string]): string {
   const t = T[lang];
   const anchor = p.evse_compact ? ` id="t-${esc(p.evse_compact)}"` : '';
   const meta = [plug(lang, p.connector), kw(lang, p.max_kw), p.dc ? 'DC' : 'AC'];
@@ -582,6 +586,7 @@ function socketItem(lang: Lang, p: PointRow, i: number, main?: MainPhotos[string
     : `<div class="code mono">${esc(p.point_id)}</div><div class="meta">${t.noEvse}</div>`;
   const link = p.evse_compact
     ? copyRow(`l-t${i}`, `${PICTURES}/${encodeURIComponent(p.evse_compact)}`, t.copySocket(p.evse_id ?? p.point_id))
+      + `\n        <a class="send-socket" href="${uploadPath(lang)}?posto=${encodeURIComponent(stationId)}&amp;tomada=${encodeURIComponent(p.evse_compact)}">${main ? t.socketSendMore : t.socketSend}</a>`
     : '';
   return `<li class="socket"${anchor}>
       ${main && p.evse_compact
@@ -734,7 +739,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}${building ? `<p c
       <h2>${t.socketsTitle}</h2>
       <p>${t.socketsIntro}</p>
       <ul class="sockets" role="list">
-    ${points.map((p, i) => socketItem(lang, p, i, p.evse_compact ? mains[p.evse_compact] : undefined)).join('\n    ')}
+    ${points.map((p, i) => socketItem(lang, s.id, p, i, p.evse_compact ? mains[p.evse_compact] : undefined)).join('\n    ')}
       </ul>
     </section>`}
     <section class="card" id="osm">

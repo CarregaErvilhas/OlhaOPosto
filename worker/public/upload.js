@@ -66,6 +66,8 @@ function init(form, M) {
   let zones = [];
   let station = null;
   let target = null;
+  // ?tomada=: the socket to pick once the preset station is listed (first photo only).
+  let wantSocket = M.presetSocket;
   let lookup = 0;
   /** Where the chosen station is, for the next photo. */
   let stationPos = null;
@@ -303,17 +305,26 @@ function init(form, M) {
     // photo goes to the id the API answered with, not the one in the link.
     station = s.id;
     stationPos = { id: s.id, lat: s.lat, lon: s.lon };
-    const sockets = (s.points ?? []).filter((p) => p.compact);
+    // Numbered as on the station page (every socket counts), with the plug,
+    // the power and the EVSE code of its sticker to tell them apart.
+    const points = s.points ?? [];
+    const sockets = points.map((p, i) => ({ ...p, n: i + 1 })).filter((p) => p.compact);
     targetList.replaceChildren(
       choice('target', s.id, [el('span', {}, M.general)]),
       ...sockets.map((p) => choice('target', p.compact, [
-        el('span', {}, fill(M.socket, { evse: p.evse })),
-        p.kw ? el('span', { className: 'meta' }, `${km.format(p.kw)} kW`) : null,
-      ].filter(Boolean))),
+        el('span', {}, fill(M.socket, { n: p.n })),
+        el('span', { className: 'meta' }, [p.connector, p.kw ? `${km.format(p.kw)} kW` : null].filter(Boolean).join(' · ')),
+        el('span', { className: 'meta mono' }, p.evse),
+      ])),
     );
-    say(targetNote, sockets.length === 0 && (s.points ?? []).length > 0 ? M.noEvse : '');
-    targetList.querySelector('input').checked = true;
-    setTarget(s.id);
+    say(targetNote, sockets.length === 0 && points.length > 0 ? M.noEvse : '');
+    // No default when there is a socket to choose: the person says what the
+    // photo shows. A link from a socket (?tomada=) picks that one.
+    const wanted = wantSocket && sockets.find((p) => p.compact === wantSocket);
+    wantSocket = null;
+    const pick = sockets.length === 0 ? s.id : wanted ? wanted.compact : null;
+    if (pick) targetList.querySelector(`input[value="${CSS.escape(pick)}"]`).checked = true;
+    setTarget(pick);
     targetsBox.hidden = false;
   }
 
@@ -321,7 +332,7 @@ function init(form, M) {
 
   function setTarget(value) {
     target = value;
-    say(targetLink, `${M.host}/${target}.jpg`);
+    say(targetLink, target ? `${M.host}/${target}.jpg` : '');
   }
 
   function el(tag, props, children) {
@@ -516,8 +527,13 @@ function init(form, M) {
     // One photo, one upload: a second click would send a re-encoded copy.
     if (sent) return say(sendStatus, M.sent);
     if (!target) {
-      say(sendStatus, M.chooseStation);
-      searchInput.focus();
+      if (station) {
+        say(sendStatus, M.chooseTarget);
+        targetList.querySelector('input')?.focus();
+      } else {
+        say(sendStatus, M.chooseStation);
+        searchInput.focus();
+      }
       return;
     }
     const button = e.submitter;

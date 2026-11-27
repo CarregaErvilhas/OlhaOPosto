@@ -16,7 +16,7 @@ import { currentUser, loginEnabled, page, type AuthEnv, type Db, type Waiter } f
 import { apiCaller, type ApiSigner } from './tokens.ts';
 import { PANORAMAX_URL, type Lang } from './pages.ts';
 import { distanceM, FAR_M, PUBLIC_SQL, STATION_ID } from './types.ts';
-import { TURNSTILE_ACTION, presetStation, uploadPage } from './upload.ts';
+import { TURNSTILE_ACTION, presetSocket, presetStation, uploadPage } from './upload.ts';
 import { allowed, type RateEnv } from './ratelimit.ts';
 import { awardApproval, type PointsDb } from './points.ts';
 
@@ -89,8 +89,10 @@ export async function uploadHtml(lang: Lang, request: Request, env: PhotoEnv, he
   // A D1 hiccup reads as signed out, never as a 500.
   const user = enabled ? await currentUser(request, env).catch(() => null) : null;
   const sending = uploadsOpen(env);
-  const station = presetStation(new URL(request.url).searchParams.get('posto'));
-  return page(lang, uploadPage(lang, { user, enabled, sending, sitekey: sending ? env.TURNSTILE_SITEKEY : undefined, station }), 200, headers);
+  const params = new URL(request.url).searchParams;
+  const station = presetStation(params.get('posto'));
+  const socket = station ? presetSocket(params.get('tomada')) : null;
+  return page(lang, uploadPage(lang, { user, enabled, sending, sitekey: sending ? env.TURNSTILE_SITEKEY : undefined, station, socket }), 200, headers);
 }
 
 const reply = (status: number, body: Record<string, unknown>) =>

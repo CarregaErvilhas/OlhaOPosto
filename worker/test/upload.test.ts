@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { presetStation, uploadPage } from '../src/upload.ts';
+import { presetSocket, presetStation, uploadPage } from '../src/upload.ts';
 
 const user = { name: '<b>x</b>', role: 'contributor' };
 
@@ -90,4 +90,17 @@ test('uploadPage: ?posto= reaches the script, the sign-in link and the language 
   assert.ok(m);
   assert.equal(JSON.parse(m[1]).station, 'ABT-00026');
   assert.equal(JSON.parse(uploadPage('en', { user, enabled: true }).match(/id="upload-msg">(.*?)<\/script>/s)![1]).station, null);
+});
+
+test('presetSocket: either EVSE form becomes the compact code, anything else is dropped', () => {
+  assert.equal(presetSocket('PT*EZC*E*AMD*00051*1'), 'PTEZCEAMD000511');
+  assert.equal(presetSocket('ptezceamd000511'), 'PTEZCEAMD000511');
+  assert.equal(presetSocket('<script>'), null);
+  assert.equal(presetSocket(null), null);
+});
+
+test('uploadPage: ?tomada= reaches the script, and the targets ask what the photo shows', () => {
+  const page = uploadPage('pt', { user, enabled: true, sending: true, station: 'EZC-AMD-00051', socket: 'PTEZCEAMD000511' });
+  assert.ok(page.includes('"presetSocket":"PTEZCEAMD000511"'));
+  assert.ok(page.includes('O que mostra esta foto?'));
 });

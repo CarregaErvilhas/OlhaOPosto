@@ -239,6 +239,7 @@ main { flex: 1 0 auto; padding: 24px 0 64px; }
 }
 .socket .info { flex: 1 1 auto; min-width: 0; }
 .socket .code { overflow-wrap: anywhere; }
+.socket .send-socket { display: inline-block; margin-top: 0.25rem; font-size: 0.875rem; }
 .socket .meta { font-size: 0.8125rem; color: var(--muted); }
 
 /* Search */

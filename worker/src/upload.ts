@@ -35,7 +35,8 @@ const T = {
     mapNote: 'O mapa carrega os mosaicos do OpenStreetMap, que recebe o teu endereço IP, como qualquer site que os mostre. Só abre se tocares no botão.',
     locate: 'Ir para a minha localização',
     mapLabel: 'Mapa dos postos. Toca num posto para o escolher.',
-    targetsLegend: 'Esta foto mostra',
+    targetsLegend: 'O que mostra esta foto?',
+    targetsHint: 'O posto em geral (o carregador, o lugar, a sinalização), ou uma tomada: a ficha dela, com o código EVSE do autocolante. Escolhe uma.',
     link: 'Link:',
     stepBlur: '3 · Privacidade',
     preview: 'Pré-visualização da foto, com as zonas desfocadas',
@@ -84,7 +85,8 @@ const T = {
       failed: 'Não foi possível falar com o servidor. Tenta outra vez.',
       general: 'Posto em geral',
       building: 'Em construção, segundo o OpenStreetMap',
-      socket: 'Tomada {evse}',
+      socket: 'Tomada {n}',
+      chooseTarget: 'Escolhe se a foto mostra o posto em geral ou uma tomada.',
       noEvse: 'As tomadas deste posto não têm código EVSE no NAP: a foto fica no posto em geral.',
       zone: 'Zona {n}',
       zoneOn: 'desfocada',
@@ -142,7 +144,8 @@ const T = {
     mapNote: 'The map loads its tiles from OpenStreetMap, which receives your IP address, like any site that shows them. It only opens if you tap the button.',
     locate: 'Go to my location',
     mapLabel: 'Map of the stations. Tap a station to choose it.',
-    targetsLegend: 'This photo shows',
+    targetsLegend: 'What does this photo show?',
+    targetsHint: 'The station in general (the charger, the bay, the signs), or one socket: its plug, with the EVSE code on its sticker. Pick one.',
     link: 'Link:',
     stepBlur: '3 · Privacy',
     preview: 'Preview of the photo, with the blurred areas',
@@ -190,7 +193,8 @@ const T = {
       failed: 'Couldn’t reach the server. Try again.',
       general: 'The station in general',
       building: 'Under construction, according to OpenStreetMap',
-      socket: 'Socket {evse}',
+      socket: 'Socket {n}',
+      chooseTarget: 'Choose whether the photo shows the station in general or one socket.',
       noEvse: 'This station’s sockets have no EVSE code in the NAP: the photo goes on the station in general.',
       zone: 'Area {n}',
       zoneOn: 'blurred',
@@ -232,6 +236,8 @@ export interface UploadView {
   sitekey?: string;
   // ?posto=<id>: the station to pick first (a station page, the NAP dashboard).
   station?: string | null;
+  // ?tomada=<EVSE>: the socket of that station to pick (a socket on a station page).
+  socket?: string | null;
 }
 
 // A station id or alias as the links carry it: NAP site ids (EZC-AMD-00051),
@@ -241,6 +247,13 @@ export function presetStation(raw: string | null): string | null {
   return /^[A-Za-z0-9][A-Za-z0-9*_.-]{0,63}$/.test(v) ? v : null;
 }
 
+// A socket's EVSE code, in either form (PT*EZC*E*AMD*00051*1 or
+// PTEZCEAMD000511), as the compact code the targets use. Anything else: null.
+export function presetSocket(raw: string | null): string | null {
+  const v = (raw ?? '').trim().replace(/\*/g, '').toUpperCase();
+  return /^[A-Z]{2}[A-Z0-9]{3,60}$/.test(v) ? v : null;
+}
+
 // Must match what the Worker expects back from siteverify (src/photos.ts).
 export const TURNSTILE_ACTION = 'upload';
 
@@ -248,11 +261,11 @@ export const TURNSTILE_ACTION = 'upload';
 // must not close the element.
 const scriptJson = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 
-function form(lang: Lang, sending: boolean, sitekey?: string, station?: string | null): string {
+function form(lang: Lang, sending: boolean, sitekey?: string, station?: string | null, socket?: string | null): string {
   const t = T[lang];
   return `${sending ? `<p class="hint">${t.moderated}</p>` : `<p class="notice">${t.building}</p>`}
 <noscript><p class="notice">${t.noScript}</p></noscript>
-<script type="application/json" id="upload-msg">${scriptJson({ lang, host: PICTURES_HOST, canSend: sending, station: station ?? null, ...t.js })}</script>
+<script type="application/json" id="upload-msg">${scriptJson({ lang, host: PICTURES_HOST, canSend: sending, station: station ?? null, presetSocket: socket ?? null, ...t.js })}</script>
 <form id="upload" class="upload" hidden>
 <section class="card" aria-labelledby="h-photo">
   <h2 id="h-photo">${t.stepPhoto}</h2>
@@ -289,6 +302,7 @@ function form(lang: Lang, sending: boolean, sitekey?: string, station?: string |
   </div>
   <fieldset id="targets" hidden>
     <legend>${t.targetsLegend}</legend>
+    <p class="hint">${t.targetsHint}</p>
     <div class="choices" id="target-list"></div>
     <p id="target-note" class="hint"></p>
     <p class="hint">${t.link} <code id="target-link"></code></p>
@@ -348,7 +362,7 @@ export function uploadPage(lang: Lang, p: UploadView): string {
     // The OSM name is the person's own text, in whatever language they chose.
     parts.push(
       `<p class="hint">${t.signedIn} <strong lang="">${esc(p.user.name)}</strong> · <a href="${accountPath(lang)}">${t.account}</a></p>`,
-      form(lang, Boolean(p.sending), p.sitekey, p.station),
+      form(lang, Boolean(p.sending), p.sitekey, p.station, p.socket),
     );
     module = '/upload.js';
   }

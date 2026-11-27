@@ -215,3 +215,10 @@ test('station under construction: banner, codes, gallery, no static links or soc
   const gone = stationPage('pt', { ...s, status: 'missing_from_osm' }, []);
   assert.match(gone, /saiu da lista de obras que vem do OpenStreetMap/);
 });
+
+test('stationPage: each socket with an EVSE code links to the upload page with that socket picked', () => {
+  const page = stationPage('pt', station(), [point()]);
+  assert.ok(page.includes('href="/enviar?posto=EZC-AMD-00051&amp;tomada=PTEZCEAMD000511">Enviar foto desta tomada</a>'));
+  const en = stationPage('en', station(), [point()], { PTEZCEAMD000511: { credit: 'Ana' } });
+  assert.ok(en.includes('tomada=PTEZCEAMD000511">Send another photo of this socket</a>'));
+});

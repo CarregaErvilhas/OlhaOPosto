@@ -8,9 +8,12 @@
 //   @mediapipe/...   Apache-2.0   face detection (public/detect.js)
 //   leaflet          BSD-2-Clause the station map (public/upload.js)
 //
-// Each library keeps its licence file next to it.
+// Each library keeps its licence file next to it. It also runs
+// scripts/brand.ts, so both callers get the group's shared files too.
 import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+
+import './brand.ts';
 
 const ROOT = join(import.meta.dirname, '..');
 const OUT = join(ROOT, 'public', 'vendor');

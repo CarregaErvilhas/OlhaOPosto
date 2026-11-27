@@ -48,6 +48,7 @@ O que já existe está em [`Docs/arquitetura.md`](Docs/arquitetura.md); o que fa
 | [`Docs/infra.md`](Docs/infra.md) | Infraestrutura do servidor Panoramax: serviços, segredos, R2, DNS, deploy, ensaio |
 | [`Docs/cloudflare.md`](Docs/cloudflare.md) | Recursos Cloudflare do olh'o'posto: buckets R2, cache, CORS, Worker e rotas, login, página de envio, D1 e import |
 | `zerops.yml`, `zerops-import.yaml` | Configuração dos serviços `pano` (Panoramax) e `db` no Zerops |
+| `brand/` | Submódulo com o que é comum aos sites do grupo: textos da página do grupo, mascotes e `install.js` |
 | `worker/` | Worker do olh'o'posto (TypeScript + D1): páginas, API, login, página de envio, migrações e import dos postos (de hora a hora) |
 | `panoramax/` | Versão do Panoramax, ponto de entrada do gunicorn, scripts de preparação da BD e da conta de serviço, e scripts de envio de teste |
 | `Design/` | Mockups das páginas e do fluxo olh'o'posto ↔ Panoramax |

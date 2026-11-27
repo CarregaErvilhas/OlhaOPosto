@@ -78,3 +78,17 @@ updates:
         update-types:
           - "minor"
           - "patch"
+  # Kit do grupo (submódulo brand/): textos da página do grupo, mascotes e
+  # install.js. O Dependabot propõe a tag vX.Y.Z mais recente.
+  - package-ecosystem: "gitsubmodule"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps(brand)"
+      include: "scope"

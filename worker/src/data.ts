@@ -3,13 +3,16 @@
 import {
   boundingBox, compactCode, distanceM, ftsQuery, isPublic, PUBLIC_SQL, STATION_ID,
   type EvseMatch, type NearQuery, type PointRow, type SearchRow, type StationFilters, type StationRow,
-  type ExternalPhoto, type MainPhotoRow, type MainPhotos, type OwnPhoto,
+  type ExternalPhoto, type MainPhotoRow, type MainPhotos, type OwnPhoto, type RecentStation,
 } from './types.ts';
 
 // The most external photos shown for one station.
 const EXTERNAL_LIMIT = 12;
 // The most of our own photos shown for a station under construction.
 const OWN_LIMIT = 24;
+// The home page: how many stations, and thumbnails for each.
+const RECENT_STATIONS = 3;
+const RECENT_PHOTOS = 4;
 
 export interface Env {
   DB: D1Database;
@@ -64,6 +67,36 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
     station: s, points: points.results as PointRow[], mains: byTarget,
     externals: externals.results as ExternalPhoto[], own: own.results as OwnPhoto[],
   };
+}
+
+// The public stations whose photos were published last, for the home page.
+export async function recentPhotoStations(env: Env): Promise<RecentStation[]> {
+  const { results } = await env.DB.prepare(
+    `WITH pics AS (
+       SELECT p.id, p.station_id, p.credit, p.panoramax_id, p.approved_at AS at
+         FROM photos p JOIN stations s ON s.id = p.station_id
+        WHERE p.origin = 'olhaoposto' AND p.status = 'published' AND p.kind <> 'plate'
+          AND p.panoramax_id IS NOT NULL AND s.status IN ${PUBLIC_SQL}
+     ), latest AS (
+       SELECT station_id, max(at) AS last FROM pics GROUP BY station_id
+        ORDER BY last DESC, station_id LIMIT ${RECENT_STATIONS}
+     ), ranked AS (
+       SELECT pics.*, latest.last,
+              row_number() OVER (PARTITION BY pics.station_id ORDER BY pics.at DESC, pics.id) AS n
+         FROM pics JOIN latest ON latest.station_id = pics.station_id
+     )
+     SELECT r.station_id, r.id, r.credit, r.panoramax_id, s.name, s.municipality, s.source, s.status
+       FROM ranked r JOIN stations s ON s.id = r.station_id
+      WHERE r.n <= ${RECENT_PHOTOS}
+      ORDER BY r.last DESC, r.station_id, r.n`,
+  ).all<Omit<RecentStation, 'id' | 'photos'> & RecentStation['photos'][number] & { station_id: string }>();
+  const stations = new Map<string, RecentStation>();
+  for (const { station_id: id, name, municipality, source, status, ...photo } of results) {
+    const s = stations.get(id) ?? { id, name, municipality, source, status, photos: [] };
+    s.photos.push(photo);
+    stations.set(id, s);
+  }
+  return [...stations.values()];
 }
 
 // Every published main photo of a public station or socket, for sites that

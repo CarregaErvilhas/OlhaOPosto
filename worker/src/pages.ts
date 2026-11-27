@@ -4,7 +4,7 @@
 // operators): it only reaches the markup through esc(). That text is
 // Portuguese whatever the page language, and English pages mark it as such
 // (lang="pt-PT") so screen readers read it with the right voice.
-import { MAX_QUERY, underConstruction, type EvseMatch, type ExternalPhoto, type MainPhotos, type OwnPhoto, type PointRow, type SearchRow, type StationRow } from './types.ts';
+import { MAX_QUERY, underConstruction, type EvseMatch, type ExternalPhoto, type MainPhotos, type OwnPhoto, type PointRow, type RecentStation, type SearchRow, type StationRow } from './types.ts';
 import { MEDALS, POINTS, SAME_TARGET_DAYS, type Medal, type RankingRow } from './points.ts';
 
 // The brand as written. The apostrophes keep it out of every technical name
@@ -178,6 +178,7 @@ const T = {
     homeExampleLink: 'posto EZC-AMD-00051',
     homeApi: 'API:',
     homeNoPhoto: 'Postos que ainda não têm foto',
+    homeRecent: 'Últimos postos com fotos novas',
     and: 'e',
     searchLabel: 'Procurar um posto',
     searchHint: 'Código do posto ou da tomada, localidade, morada ou operador.',
@@ -339,6 +340,7 @@ const T = {
     homeExampleLink: 'station EZC-AMD-00051',
     homeApi: 'API:',
     homeNoPhoto: 'Stations that still have no photo',
+    homeRecent: 'Latest stations with new photos',
     and: 'and',
     searchLabel: 'Find a station',
     searchHint: 'Station or socket code, town, address or operator.',
@@ -898,7 +900,33 @@ function searchForm(lang: Lang, q = ''): string {
 </form>`;
 }
 
-export function homePage(lang: Lang): string {
+// Thumbnails from Panoramax (the static links are the main photo's, which may
+// not be the new one), each linked to its credit page, with the authors named.
+function recentList(lang: Lang, stations: RecentStation[]): string {
+  if (!stations.length) return '';
+  const t = T[lang];
+  return `
+<section class="recent" aria-labelledby="recent-h">
+<h2 id="recent-h">${t.homeRecent}</h2>
+<ul role="list">
+${stations.map((s) => {
+    const line = [s.name, s.municipality].filter(Boolean).join(' · ');
+    const authors = [...new Set(s.photos.map((p) => p.credit ?? BRAND))];
+    const chip = underConstruction(s)
+      ? ` <span class="chip warn">${s.status === 'missing_from_osm' ? t.buildingGone : t.building}</span>`
+      : s.status === 'missing_from_nap' ? ` <span class="chip warn">${t.outNap}</span>` : '';
+    return `<li>
+  <a class="mono" href="${stationPath(lang, s.id)}">${esc(s.id)}</a>${chip}
+  ${line ? `<div>${nap(lang, line)}</div>` : ''}
+  <ul class="recent-photos" role="list">${s.photos.map((p, i) => `<li><a href="${photoPath(lang, p.id)}"><img src="${PANORAMAX_URL}/api/pictures/${encodeURIComponent(p.panoramax_id)}/thumb.jpg" alt="${esc(t.ownAlt(s.id, i + 1))}" width="72" height="72" loading="lazy" referrerpolicy="no-referrer"></a></li>`).join('')}</ul>
+  <div class="meta">${t.photoBy} ${authors.map((a) => `<span lang="">${esc(a)}</span>`).join(', ')} · ${licenseHtml(lang, 'CC-BY-SA-4.0')}</div>
+</li>`;
+  }).join('\n')}
+</ul>
+</section>`;
+}
+
+export function homePage(lang: Lang, recent: RecentStation[] = []): string {
   const t = T[lang];
   return layout({
     lang,
@@ -910,7 +938,7 @@ export function homePage(lang: Lang): string {
 <h1>${t.homeH1}</h1>
 <p>${t.homeText}</p>
 ${searchForm(lang)}
-<p>${t.homeExample} <a href="${stationPath(lang, 'EZC-AMD-00051')}">${t.homeExampleLink}</a>.</p>
+<p>${t.homeExample} <a href="${stationPath(lang, 'EZC-AMD-00051')}">${t.homeExampleLink}</a>.</p>${recentList(lang, recent)}
 <p>${t.homeApi} <code>/api/v1/stations?q=</code>, <code>/api/v1/stations/{id}</code> ${t.and} <code>/api/v1/evses/{evse}</code>.</p>
 <p><a href="${withoutPhotoPath(lang)}">${t.homeNoPhoto}</a> · <a href="${rankingPath(lang)}">${lang === 'pt' ? 'Ranking de contribuidores' : 'Contributor ranking'}</a></p>
 </div>`,

@@ -11,7 +11,7 @@ function world() {
     INSERT INTO users (id, osm_uid, osm_name, created_at, last_login_at) VALUES ('u', 1, 'u', '2000-01-01', '2000-01-01');
     INSERT INTO stations (id, status, lat, lon, osm_ref, name, updated_at) VALUES
       ('S1', 'active', 38.5, -9.1, 'node/42', 'Posto <b>', '2000-01-01'),
-      ('S2', 'pending_review', 38.6, -9.2, NULL, NULL, '2000-01-01');
+      ('S2', 'merged', 38.6, -9.2, NULL, NULL, '2000-01-01');
     INSERT INTO evses (station_id, point_id, evse_id, evse_compact, status, dc, updated_at) VALUES
       ('S1', 'S1-1', 'PT*X*E*S1*1', 'PTXES11', 'active', 0, '2000-01-01');
     INSERT INTO photos (id, station_id, evse_compact, credit, status, panoramax_id, taken_at, created_at) VALUES
@@ -85,7 +85,7 @@ test('osmEditUrl: element, way, relation, or position', () => {
 });
 
 test('station page links the main photos to their credit pages', () => {
-  const st = { id: 'S1', code: null, opc: null, operator: null, name: null, address: null, municipality: null, region: null, lat: 1, lon: 2, status: 'active', osm_ref: null, updated_at: '' };
+  const st = { id: 'S1', code: null, opc: null, operator: null, name: null, address: null, municipality: null, region: null, lat: 1, lon: 2, status: 'active', osm_ref: null, updated_at: '', source: 'nap', codes: null };
   const pt = { point_id: 'S1-1', evse_id: 'PT*X*E*S1*1', evse_compact: 'PTXES11', connector: 'T2', max_kw: 7, dc: 0, status: 'active' };
   const page = stationPage('pt', st, [pt], {
     S1: { credit: 'Ana', photo_id: 'main1' },

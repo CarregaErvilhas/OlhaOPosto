@@ -80,6 +80,7 @@ const INSTRUCTIONS = `olh'o'posto is a community photo service for EV charging s
 Stations are identified by their official NAP id (e.g. EZC-AMD-00051) and sockets by their EVSE code (e.g. PT*EZC*E*AMD*00051*1 or PTEZCEAMD000511).
 Every photo is CC BY-SA 4.0: whenever you show or link one, show its "attribution" text next to it.
 Static photo links (pictures.ocarroeletrico.com/<id>.jpg) never change; the photo behind them may.
+Stations with lifecycle "construction" (ids like OSM-w123) are being built according to OpenStreetMap and are not in the NAP yet: never present them as places to charge. They take photos, but have no sockets and no static links until they merge into their NAP station (the old id then redirects).
 Reading needs no sign-in. Sending photos and choosing main photos need an account (OpenStreetMap sign-in), and follow the terms at ${SITE}/condicoes.`;
 
 const LICENCE = { license: LICENSE, licenseUrl: LICENSE_URL };
@@ -488,6 +489,6 @@ async function directHit(env: McpEnv, q: string) {
   const s = found.station.station;
   return searchBody({
     id: s.id, name: s.name, opc: s.opc, operator: s.operator, address: s.address,
-    municipality: s.municipality, region: s.region, lat: s.lat, lon: s.lon, status: s.status,
+    municipality: s.municipality, region: s.region, lat: s.lat, lon: s.lon, status: s.status, source: s.source,
   });
 }

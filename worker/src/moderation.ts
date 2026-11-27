@@ -55,6 +55,7 @@ const T = {
     title: 'Fila de moderação',
     intro: `Fotos à espera de decisão, da mais antiga para a mais recente. Aprovar torna a foto pública no Panoramax; recusar apaga-a do Panoramax e do armazenamento privado. Fotos a mais de ${FAR_M} m do posto ou sem GPS podem ser de outro posto: confirma antes de aprovar.`,
     empty: 'Não há fotos à espera.',
+    building: 'Posto em construção: numa obra há trabalhadores e carrinhas com o nome da empresa. Vê as caras e os letreiros com atenção antes de aprovar.',
     station: 'Posto',
     socket: 'Tomada',
     sentBy: 'Enviada por',
@@ -88,6 +89,7 @@ const T = {
     title: 'Moderation queue',
     intro: `Photos waiting for a decision, oldest first. Approving makes the photo public on Panoramax; rejecting deletes it from Panoramax and from the private storage. Photos more than ${FAR_M} m from the station, or without GPS, may be of another station: check before approving.`,
     empty: 'No photos waiting.',
+    building: 'Station under construction: building sites have workers, and vans with the company name. Check faces and lettering carefully before approving.',
     station: 'Station',
     socket: 'Socket',
     sentBy: 'Sent by',
@@ -132,11 +134,13 @@ export interface QueueRow {
   distance_m: number | null;
   created_at: string;
   station_status?: string;
+  station_source?: string;
 }
 
 function card(lang: Lang, r: QueueRow): string {
   const t = T[lang];
-  const warn = (r.distance_m === null
+  const building = r.station_source === 'osm' ? `<p class="notice">${t.building}</p>` : '';
+  const warn = building + (r.distance_m === null
     ? `<p class="notice">${t.noGps}</p>`
     : r.distance_m > FAR_M
       ? `<p class="notice">${t.far(r.distance_m)}</p>`
@@ -226,7 +230,7 @@ export async function queueHtml(lang: Lang, request: Request, env: PhotoEnv, hea
   if (!canModerate(user.role)) return page(lang, forbiddenPage(lang), 403, headers);
   const { results } = await db(env).prepare(
     `SELECT p.id, p.station_id, s.name AS station_name, s.operator, p.evse_compact, p.credit,
-            p.taken_at, p.exif_lat, p.exif_lon, p.distance_m, p.created_at, s.status AS station_status
+            p.taken_at, p.exif_lat, p.exif_lon, p.distance_m, p.created_at, s.status AS station_status, s.source AS station_source
        FROM photos p JOIN stations s ON s.id = p.station_id
       WHERE p.status = 'pending'
       ORDER BY p.created_at

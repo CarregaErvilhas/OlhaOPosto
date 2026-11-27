@@ -1,13 +1,13 @@
 // The JSON shapes of stations, sockets and search results, shared by the REST
 // API (src/index.ts) and the MCP server (src/mcp.ts), so both say the same
 // thing about a station and its photos (Docs/api.md).
-import { PICTURES, SITE, socketAnchor, stationPath } from './pages.ts';
+import { PANORAMAX_URL, PICTURES, SITE, photoPath, socketAnchor, stationPath } from './pages.ts';
 import { photoLink } from './photolinks.ts';
-import type { EvseMatch, ExternalPhoto, MainPhotoRow, MainPhotos, PointRow, SearchRow, StationRow } from './types.ts';
+import { underConstruction, type EvseMatch, type ExternalPhoto, type MainPhotoRow, type MainPhotos, type OwnPhoto, type PointRow, type SearchRow, type StationRow } from './types.ts';
 
 // GET /api/v1/stations/{id}
-export function stationBody(found: { station: StationRow; points: PointRow[]; mains: MainPhotos; externals?: ExternalPhoto[] }) {
-  const { station: s, points, mains, externals = [] } = found;
+export function stationBody(found: { station: StationRow; points: PointRow[]; mains: MainPhotos; externals?: ExternalPhoto[]; own?: OwnPhoto[] }) {
+  const { station: s, points, mains, externals = [], own = [] } = found;
   const photo = (target: string | null) => {
     const m = target ? mains[target] : undefined;
     return m && target
@@ -25,8 +25,18 @@ export function stationBody(found: { station: StationRow; points: PointRow[]; ma
     lat: s.lat,
     lon: s.lon,
     status: s.status,
+    ...lifecycle(s),
     osm: s.osm_ref,
     photo: photo(s.id),
+    // A station under construction has no main photo or static link until it
+    // merges into its NAP station: its published photos are listed instead.
+    ...(underConstruction(s) ? {
+      codes: (s.codes ?? '').split(' ').filter(Boolean),
+      photos: own.map((p) => ({
+        id: p.id, credit: p.credit, license: 'CC-BY-SA-4.0', page: SITE + photoPath('pt', p.id),
+        thumb: `${PANORAMAX_URL}/api/pictures/${encodeURIComponent(p.panoramax_id)}/thumb.jpg`,
+      })),
+    } : {}),
     // Photos at their origin (Panoramax, Commons), as references: never a main
     // photo, no static link. Show the author, the licence and the source link.
     externalPhotos: externals.map((p) => ({
@@ -80,7 +90,12 @@ export const searchBody = (r: SearchRow) => ({
   lat: r.lat,
   lon: r.lon,
   status: r.status,
+  ...lifecycle(r),
 });
+
+// `lifecycle: "construction"` on stations under construction (from OSM, not
+// in the NAP yet: they do not charge). Absent on NAP stations.
+const lifecycle = (s: { source?: string | null }) => (underConstruction(s) ? { lifecycle: 'construction' as const } : {});
 
 // One entry of GET /api/v1/main-photos
 export function mainPhotoBody(r: MainPhotoRow) {

@@ -8,7 +8,7 @@ import { compactCode, ftsQuery, type PointRow, type SearchRow, type StationRow }
 const station = (extra: Partial<StationRow> = {}): StationRow => ({
   id: 'EZC-AMD-00051', code: 'AMD-00051', opc: 'EZC3', operator: 'EZ - CHARG3, Lda', name: null,
   address: 'Estrada Santo Eloi, 25', municipality: 'Amadora', region: 'CONT', lat: 38.78791, lon: -9.226767,
-  status: 'active', osm_ref: 'node/1', updated_at: '2000-01-02T00:00:00+00:00', ...extra,
+  status: 'active', osm_ref: 'node/1', updated_at: '2000-01-02T00:00:00+00:00', source: 'nap', codes: null, ...extra,
 });
 const point = (extra: Partial<PointRow> = {}): PointRow => ({
   point_id: 'AMD-00051-1', evse_id: 'PT*EZC*E*AMD*00051*1', evse_compact: 'PTEZCEAMD000511',
@@ -122,7 +122,7 @@ test('ftsQuery: words as quoted prefixes, never FTS syntax', () => {
 });
 
 test('search page: escapes the query, links each language, is not indexed', () => {
-  const r: SearchRow = { id: 'EZC-AMD-00051', name: null, opc: 'EZC3', operator: 'EZ', address: 'Rua', municipality: 'Amadora', region: 'CONT', lat: 0, lon: 0, status: 'missing_from_nap' };
+  const r: SearchRow = { id: 'EZC-AMD-00051', name: null, opc: 'EZC3', operator: 'EZ', address: 'Rua', municipality: 'Amadora', region: 'CONT', lat: 0, lon: 0, status: 'missing_from_nap', source: 'nap' };
   const evil = '<script>"x"';
   const page = searchPage('pt', evil, [r], 20);
   assert.ok(!page.includes('<script>"x"'));
@@ -196,4 +196,22 @@ test('station page: add-to-OSM tag and iD link only with a main photo on Panoram
 
   assert.doesNotMatch(stationPage('pt', station(), [point()]), /osm-tag/);
   assert.doesNotMatch(stationPage('pt', station(), [point()], { 'EZC-AMD-00051': { credit: 'Ana', panoramax_id: null } }), /osm-tag/);
+});
+
+test('station under construction: banner, codes, gallery, no static links or sockets, not indexed', () => {
+  const s = station({ id: 'OSM-w1551836005', code: 'ALM-00114', opc: null, source: 'osm', codes: 'ALM-00114 ALM-00155', osm_ref: 'way/1551836005' });
+  const empty = stationPage('pt', s, []);
+  assert.match(empty, /Em construção segundo o OpenStreetMap/);
+  assert.match(empty, /<code>ALM-00155<\/code>/);
+  assert.match(empty, /enviar\?posto=OSM-w1551836005/);
+  assert.ok(!empty.includes('Links estáticos'));
+  assert.ok(!empty.includes('pictures.ocarroeletrico.com/OSM-w1551836005'));
+  assert.ok(!empty.includes('nap.ocarroeletrico.com/?posto='));
+  assert.match(empty, /<meta name="robots" content="noindex">/);
+  const withPhotos = stationPage('en', s, [], {}, [], [{ id: 'ph1', credit: 'Ana', panoramax_id: 'pano-1' }]);
+  assert.match(withPhotos, /panoramax\.ocarroeletrico\.com\/api\/pictures\/pano-1\/thumb\.jpg/);
+  assert.match(withPhotos, /href="\/en\/p\/ph1"/);
+  assert.match(withPhotos, /Under construction according to OpenStreetMap/);
+  const gone = stationPage('pt', { ...s, status: 'missing_from_osm' }, []);
+  assert.match(gone, /saiu da lista de obras que vem do OpenStreetMap/);
 });

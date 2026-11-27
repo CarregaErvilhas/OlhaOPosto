@@ -6,6 +6,7 @@ import { ROLE_ACTION, setRole, usersHtml } from './admin.ts';
 import { decisionsHtml } from './decisions.ts';
 import { OWN_THUMB_PREFIX, ownThumbnail, uploadsHtml } from './uploads.ts';
 import { DECIDE_ACTION, STAGING_PREFIX, decide, queueHtml, stagingImage } from './moderation.ts';
+import { afterMerges } from './construction.ts';
 import { ALIAS_ACTION, aliasPath, aliasesHtml, getStationAlias, rekey } from './aliases.ts';
 import { ACCOUNT_ACTION, accountAction, accountHtml } from './account.ts';
 import { callback, login, logout } from './auth.ts';
@@ -89,21 +90,17 @@ const TURNSTILE_HEADERS = {
 
 // The credit page may show a published photo that is not the main one, which
 // only Panoramax serves (the sizes in pictures.* are the main photos').
+const PANORAMAX_IMAGES = 'https://panoramax.ocarroeletrico.com';
 const CREDIT_HEADERS = {
   ...HTML_HEADERS,
   'content-security-policy': HTML_HEADERS['content-security-policy']
-    .replace("img-src 'self'", "img-src 'self' https://panoramax.ocarroeletrico.com"),
+    .replace("img-src 'self'", `img-src 'self' ${PANORAMAX_IMAGES}`),
 };
 
 // The station page shows thumbnails of external photos, which the NAP
 // dashboard publishes on its own domain (same owner). Only a page that has
 // some gets the host.
 const EXTERNAL_THUMBS = 'https://nap.ocarroeletrico.com';
-const EXTERNAL_HEADERS = {
-  ...HTML_HEADERS,
-  'content-security-policy': HTML_HEADERS['content-security-policy']
-    .replace("img-src 'self'", `img-src 'self' ${EXTERNAL_THUMBS}`),
-};
 
 // 429 from the request limits (src/ratelimit.ts): JSON for the API, a short
 // bilingual line for pages (the page may be the OSM callback, with no language).
@@ -210,10 +207,16 @@ function stationHtml(lang: Lang) {
     if (alias) return new Response(null, { status: 301, headers: { location: stationPath(lang, alias), 'cache-control': 'no-store' } });
     const found = await getStation(env, id);
     if (!found) return pageNotFound(lang, messages(lang).noStation(id));
-    return new Response(stationPage(lang, found.station, found.points, found.mains, found.externals), {
+    // Each image host only on a page that shows it: the external thumbnails,
+    // and Panoramax for the gallery of a station under construction.
+    const hosts = [found.externals.length ? EXTERNAL_THUMBS : '', found.own.length ? PANORAMAX_IMAGES : ''].filter(Boolean);
+    const headers = hosts.length
+      ? { ...HTML_HEADERS, 'content-security-policy': HTML_HEADERS['content-security-policy'].replace("img-src 'self'", `img-src 'self' ${hosts.join(' ')}`) }
+      : HTML_HEADERS;
+    return new Response(stationPage(lang, found.station, found.points, found.mains, found.externals, found.own), {
       status: 200,
       headers: {
-        ...(found.externals.length ? EXTERNAL_HEADERS : HTML_HEADERS),
+        ...headers,
         'content-language': lang === 'pt' ? 'pt-PT' : 'en',
         'cache-control': 'public, max-age=300',
       },
@@ -493,10 +496,12 @@ export default {
   // Every 6 hours (wrangler.json): retries the hides that half-failed, and
   // follows any auto-hide report that did not come from our form
   // (src/takedown.ts); then a batch of what is left of credit changes
-  // (src/credit.ts); last, expired OAuth grants out of KV (src/oauth.ts).
+  // (src/credit.ts); then what merges of stations under construction left
+  // (src/construction.ts); last, expired OAuth grants out of KV (src/oauth.ts).
   // One after the other: they share the subrequest limit.
   async scheduled(_event: ScheduledController, env: Env & TakedownEnv & OAuthEnv, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(reconcile(env, fetch).catch(() => {}).then(() => syncCredits(env, fetch)).catch(() => {})
+      .then(() => afterMerges(env, fetch)).catch(() => {})
       .then(async () => { if (env.OAUTH_KV) await (await oauth()).purgeOAuth(env); }).catch(() => {}));
   },
 } satisfies ExportedHandler<Env & TakedownEnv & OAuthEnv>;

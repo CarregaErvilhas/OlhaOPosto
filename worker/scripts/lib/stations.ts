@@ -3,6 +3,8 @@
 
 import { createHash } from 'node:crypto';
 
+import type { FeedPlanned } from './construction.ts';
+
 export interface FeedPoint {
   id: string;
   evse?: string | null;   // NAP EVSE code as published, PT*EDP*E*LSB*90050*01
@@ -43,6 +45,9 @@ export interface Feed {
   schema: number;
   generatedAt: string;
   sites: FeedSite[];
+  // Stations under construction or planned, from OSM (scripts/lib/construction.ts).
+  // Absent in feeds older than that array.
+  planned?: FeedPlanned[];
 }
 
 export interface StationRow {
@@ -100,6 +105,7 @@ export function validateFeed(feed: unknown): Feed {
   if (!f || f.schema !== 1 || !Array.isArray(f.sites) || typeof f.generatedAt !== 'string') {
     throw new Error('feed: unexpected shape (schema 1 with generatedAt and sites[] expected)');
   }
+  if (f.planned !== undefined && !Array.isArray(f.planned)) throw new Error('feed: planned must be an array');
   return f;
 }
 
@@ -248,7 +254,7 @@ export interface Diff {
   insertEvses: EvseRow[];
   updateEvses: EvseRow[];
   missingEvses: EvseRow[];
-  conflicts: string[];            // feed ids that exist in D1 as community/pending rows
+  conflicts: string[];            // feed ids that exist in D1 as rows of another source
 }
 
 const evseKey = (e: { station_id: string; point_id: string }) => `${e.station_id}\u0000${e.point_id}`;
@@ -271,8 +277,8 @@ export function diff(
     inFeed.add(s.id);
     const c = cur.get(s.id);
     if (!c) d.insertStations.push(s);
-    // The import only owns NAP rows. A community proposal that later shows up
-    // in the NAP is for a moderator to merge, not for the import to overwrite.
+    // This part of the import only owns NAP rows. A row of another source
+    // with the same id is for a moderator, not for the import to overwrite.
     else if (c.source !== 'nap') d.conflicts.push(s.id);
     else if (c.status !== 'active' || changed(s, c, STATION_FIELDS)) d.updateStations.push(s);
   }

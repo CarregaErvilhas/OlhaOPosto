@@ -1,26 +1,28 @@
 // The one data path for stations and sockets: the JSON API and the HTML pages
 // both read through here, so visibility rules live in one place.
 import {
-  boundingBox, compactCode, distanceM, ftsQuery, isPublic, STATION_ID,
+  boundingBox, compactCode, distanceM, ftsQuery, isPublic, PUBLIC_SQL, STATION_ID,
   type EvseMatch, type NearQuery, type PointRow, type SearchRow, type StationFilters, type StationRow,
-  type ExternalPhoto, type MainPhotoRow, type MainPhotos,
+  type ExternalPhoto, type MainPhotoRow, type MainPhotos, type OwnPhoto,
 } from './types.ts';
 
 // The most external photos shown for one station.
 const EXTERNAL_LIMIT = 12;
+// The most of our own photos shown for a station under construction.
+const OWN_LIMIT = 24;
 
 export interface Env {
   DB: D1Database;
 }
 
-export async function getStation(env: Env, id: string): Promise<{ station: StationRow; points: PointRow[]; mains: MainPhotos; externals: ExternalPhoto[] } | null> {
+export async function getStation(env: Env, id: string): Promise<{ station: StationRow; points: PointRow[]; mains: MainPhotos; externals: ExternalPhoto[]; own: OwnPhoto[] } | null> {
   if (!STATION_ID.test(id)) return null;
   // One round trip for both queries: the D1 primary is in the EU jurisdiction
   // (Eastern Europe), so every extra query is another trip from the edge.
-  const [station, points, mains, externals] = await env.DB.batch([
+  const [station, points, mains, externals, own] = await env.DB.batch([
     env.DB.prepare(
       `SELECT id, code, opc, operator, name, address, municipality, region, lat, lon,
-              status, osm_ref, updated_at
+              status, osm_ref, updated_at, source, codes
          FROM stations WHERE id = ?`,
     ).bind(id),
     env.DB.prepare(
@@ -40,6 +42,14 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
         WHERE station_id = ? AND origin <> 'olhaoposto' AND status = 'published' AND external_src IS NOT NULL
         ORDER BY origin, taken_at DESC, id LIMIT ${EXTERNAL_LIMIT}`,
     ).bind(id),
+    // A station under construction has no main photo: its published photos
+    // show as a gallery. NAP stations get none here (the join on source).
+    env.DB.prepare(
+      `SELECT p.id, p.credit, p.panoramax_id
+         FROM photos p JOIN stations s ON s.id = p.station_id AND s.source = 'osm'
+        WHERE p.station_id = ? AND p.origin = 'olhaoposto' AND p.status = 'published' AND p.panoramax_id IS NOT NULL
+        ORDER BY p.approved_at, p.id LIMIT ${OWN_LIMIT}`,
+    ).bind(id),
   ]);
   const s = (station.results as StationRow[])[0];
   if (!s || !isPublic(s)) return null;
@@ -47,7 +57,10 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
   for (const m of mains.results as { target: string; credit: string | null; panoramax_id: string | null; photo_id: string }[]) {
     byTarget[m.target] = { credit: m.credit, panoramax_id: m.panoramax_id, photo_id: m.photo_id };
   }
-  return { station: s, points: points.results as PointRow[], mains: byTarget, externals: externals.results as ExternalPhoto[] };
+  return {
+    station: s, points: points.results as PointRow[], mains: byTarget,
+    externals: externals.results as ExternalPhoto[], own: own.results as OwnPhoto[],
+  };
 }
 
 // Every published main photo of a public station or socket, for sites that
@@ -60,7 +73,7 @@ export async function listMainPhotos(env: Env): Promise<MainPhotoRow[]> {
        JOIN photos p ON p.id = sel.photo_id
        JOIN stations s ON s.id = sel.station_id
       WHERE sel.published_at IS NOT NULL AND p.status = 'published'
-        AND s.status IN ('active', 'missing_from_nap')
+        AND s.status IN ${PUBLIC_SQL}
       ORDER BY sel.target`,
   ).all<MainPhotoRow>();
   return results;
@@ -84,13 +97,13 @@ export async function findEvse(env: Env, raw: string): Promise<EvseMatch[]> {
        LEFT JOIN photos ps ON ps.id = ss.photo_id AND ps.status = 'published'
        LEFT JOIN selections st ON st.target = e.station_id AND st.published_at IS NOT NULL
        LEFT JOIN photos pt ON pt.id = st.photo_id AND pt.status = 'published'
-      WHERE e.evse_compact = ? AND s.status IN ('active', 'missing_from_nap')
+      WHERE e.evse_compact = ? AND s.status IN ${PUBLIC_SQL}
       ORDER BY e.station_id, e.point_id`,
   ).bind(code).all<EvseMatch>();
   return results;
 }
 
-// Every public station with the last time its page could have changed: its own
+// Every public NAP station with the last time its page could have changed: its own
 // row or any of its sockets. One correlated lookup per station on the evses
 // primary key; the Worker caches the result for a day (index.ts).
 export async function listStations(env: Env): Promise<{ id: string; lastmod: string }[]> {
@@ -98,7 +111,7 @@ export async function listStations(env: Env): Promise<{ id: string; lastmod: str
     `SELECT s.id,
             max(s.updated_at, coalesce((SELECT max(e.updated_at) FROM evses e WHERE e.station_id = s.id), '')) AS lastmod
        FROM stations s
-      WHERE s.status IN ('active', 'missing_from_nap')
+      WHERE s.status IN ${PUBLIC_SQL} AND s.source = 'nap'
       ORDER BY s.id`,
   ).all<{ id: string; lastmod: string }>();
   return results;
@@ -116,12 +129,14 @@ export function filterSql(f: StationFilters): { sql: string; binds: string[] } {
   if (f.opc) { parts.push('s.opc = ? COLLATE NOCASE'); binds.push(f.opc); }
   if (f.municipality) { parts.push('s.municipality = ? COLLATE NOCASE'); binds.push(f.municipality); }
   if (f.hasPhoto === true) parts.push(HAS_MAIN);
-  if (f.hasPhoto === false) parts.push(`NOT ${HAS_MAIN}`);
+  // Without a photo means a static link that would answer 404: a station
+  // under construction has no link to fill yet.
+  if (f.hasPhoto === false) parts.push(`NOT ${HAS_MAIN}`, `s.source = 'nap'`);
   return { sql: parts.map((p) => ` AND ${p}`).join(''), binds };
 }
 
-const PUBLIC = `s.status IN ('active', 'missing_from_nap')`;
-const SEARCH_COLUMNS = 's.id, s.name, s.opc, s.operator, s.address, s.municipality, s.region, s.lat, s.lon, s.status';
+const PUBLIC = `s.status IN ${PUBLIC_SQL}`;
+const SEARCH_COLUMNS = 's.id, s.name, s.opc, s.operator, s.address, s.municipality, s.region, s.lat, s.lon, s.status, s.source';
 
 // Public stations whose code, name, address, town or operator match every
 // word typed, best match first (FTS5 bm25). Reads the index entries that match
@@ -185,7 +200,7 @@ export interface Facet { value: string; label: string; n: number }
 export async function withoutPhotoFacets(env: Env): Promise<{ total: number; municipalities: Facet[]; operators: Facet[] }> {
   const { results } = await env.DB.prepare(
     `SELECT s.municipality, s.opc, s.operator, COUNT(*) AS n
-       FROM stations s WHERE ${PUBLIC} AND NOT ${HAS_MAIN}
+       FROM stations s WHERE ${PUBLIC} AND s.source = 'nap' AND NOT ${HAS_MAIN}
       GROUP BY s.municipality, s.opc, s.operator`,
   ).all<{ municipality: string | null; opc: string | null; operator: string | null; n: number }>();
   const town = new Map<string, number>();

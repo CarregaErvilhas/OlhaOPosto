@@ -4,6 +4,8 @@
 
 Pages are in European Portuguese, with English under /en/. Station and socket data come from NAP Portugal (MOBI.E), matched to OpenStreetMap, and are refreshed daily. Photo uploads are open and moderated; stations without an approved photo return 404 on their static link.
 
+Stations under construction come from OpenStreetMap before the NAP lists them: ids like `OSM-w1551836005` (the OSM element), `lifecycle: "construction"` in the API, with the MOBI.E `codes` the OSM tags carry. They do not charge yet. They take photos (listed in `photos`), but have no sockets and no static link; when the NAP publishes the station, they merge into it, their photos move with them and the old id answers 301.
+
 ## Pages
 
 - [Station page](https://olhaoposto.ocarroeletrico.com/en/stations/EZC-AMD-00051): `/en/stations/{station id}` in English, `/postos/{station id}` in Portuguese.

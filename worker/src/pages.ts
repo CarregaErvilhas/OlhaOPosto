@@ -4,7 +4,7 @@
 // operators): it only reaches the markup through esc(). That text is
 // Portuguese whatever the page language, and English pages mark it as such
 // (lang="pt-PT") so screen readers read it with the right voice.
-import { MAX_QUERY, type EvseMatch, type ExternalPhoto, type MainPhotos, type PointRow, type SearchRow, type StationRow } from './types.ts';
+import { MAX_QUERY, underConstruction, type EvseMatch, type ExternalPhoto, type MainPhotos, type OwnPhoto, type PointRow, type SearchRow, type StationRow } from './types.ts';
 import { MEDALS, POINTS, SAME_TARGET_DAYS, type Medal, type RankingRow } from './points.ts';
 
 // The brand as written. The apostrophes keep it out of every technical name
@@ -90,6 +90,14 @@ const T = {
     sockets: (n: number) => (n === 1 ? '1 tomada' : `${n} tomadas`),
     noPhotos: 'Sem fotos',
     missingNotice: 'Este posto deixou de aparecer no NAP. Fica aqui com as fotos que tiver, mas pode já não existir.',
+    building: 'Em construção (OSM)',
+    buildingGone: 'Fora da lista de obras do OSM',
+    buildingNotice: 'Em construção segundo o OpenStreetMap: ainda não está no NAP e pode ainda não carregar. As fotos aprovadas ficam aqui e passam para o posto do NAP quando ele aparecer. Até lá não há link estático nem tomadas.',
+    buildingGoneNotice: 'Este posto saiu da lista de obras que vem do OpenStreetMap, e não se juntou a nenhum posto do NAP. Pode já ter aberto, a obra pode ter parado, ou o mapa mudou. Fica aqui com as fotos que tiver.',
+    buildingCodes: 'Códigos MOBI.E no OSM:',
+    ownHeading: 'Fotos enviadas',
+    sendMore: 'Enviar outra foto',
+    ownAlt: (id: string, n: number) => `Foto ${n} do posto ${id}`,
     photosHeading: 'Fotos do posto',
     emptyTitle: 'Ainda não há fotos deste posto',
     emptySend: 'Envia a primeira',
@@ -236,6 +244,14 @@ const T = {
     sockets: (n: number) => (n === 1 ? '1 socket' : `${n} sockets`),
     noPhotos: 'No photos',
     missingNotice: 'This station no longer appears in the NAP. It stays here with any photos it has, but it may no longer exist.',
+    building: 'Under construction (OSM)',
+    buildingGone: 'Off the OSM works list',
+    buildingNotice: 'Under construction according to OpenStreetMap: not in the NAP yet, and it may not charge yet. Approved photos stay here and move to the NAP station when it shows up. Until then there is no static link and no sockets.',
+    buildingGoneNotice: 'This station left the list of building sites that comes from OpenStreetMap, and did not merge into any NAP station. It may have opened, the works may have stopped, or the map changed. It stays here with any photos it has.',
+    buildingCodes: 'MOBI.E codes in OSM:',
+    ownHeading: 'Photos sent',
+    sendMore: 'Send another photo',
+    ownAlt: (id: string, n: number) => `Photo ${n} of station ${id}`,
     photosHeading: 'Station photos',
     emptyTitle: 'No photos of this station yet',
     emptySend: 'Send the first one',
@@ -607,8 +623,29 @@ function externalGallery(lang: Lang, stationId: string, photos: ExternalPhoto[])
     </section>`;
 }
 
-export function stationPage(lang: Lang, s: StationRow, points: PointRow[], mains: MainPhotos = {}, externals: ExternalPhoto[] = []): string {
+// Our published photos of a station under construction, which has no main
+// photo: Panoramax's thumbnail, linked to each photo's credit page.
+function ownGallery(lang: Lang, stationId: string, photos: OwnPhoto[]): string {
+  if (!photos.length) return '';
   const t = T[lang];
+  return `<section class="external" aria-labelledby="own-h">
+      <h2 id="own-h">${t.ownHeading}</h2>
+      <ul class="external-list" role="list">
+        ${photos.map((p, i) => `<li>
+          <figure class="external-photo">
+            <a href="${photoPath(lang, p.id)}"><img src="${PANORAMAX_URL}/api/pictures/${encodeURIComponent(p.panoramax_id)}/thumb.jpg" alt="${esc(t.ownAlt(stationId, i + 1))}" loading="lazy" referrerpolicy="no-referrer"></a>
+            <figcaption><span>${t.photoBy} <a href="${photoPath(lang, p.id)}"><span lang="">${esc(p.credit ?? BRAND)}</span></a> · ${licenseHtml(lang, 'CC-BY-SA-4.0')}</span></figcaption>
+          </figure>
+        </li>`).join('\n        ')}
+      </ul>
+    </section>`;
+}
+
+export function stationPage(
+  lang: Lang, s: StationRow, points: PointRow[], mains: MainPhotos = {}, externals: ExternalPhoto[] = [], own: OwnPhoto[] = [],
+): string {
+  const t = T[lang];
+  const building = underConstruction(s);
   const missing = s.status === 'missing_from_nap';
   const main = mains[s.id];
   const place = [s.address, s.municipality].filter(Boolean).join(', ');
@@ -635,7 +672,7 @@ export function stationPage(lang: Lang, s: StationRow, points: PointRow[], mains
   // The NAP dashboard only lists what the NAP publishes today; the Panoramax
   // viewer opens on a photo, so it only gets a link once there is one.
   const also = [
-    s.status === 'active' && s.code
+    s.status === 'active' && s.code && !building
       ? `<li><a target="_blank" rel="noopener" href="${NAP_DASHBOARD}/?posto=${encodeURIComponent(s.code)}">${t.alsoNap}</a></li>`
       : '',
     main?.panoramax_id
@@ -650,15 +687,17 @@ export function stationPage(lang: Lang, s: StationRow, points: PointRow[], mains
     ${subtitle ? `<p class="subtitle">${nap(lang, subtitle)}</p>` : ''}
   </div>
   <div class="chips">
-    ${missing ? `<span class="chip warn">${t.outNap}</span>` : `<span class="chip ok">${t.inNap}</span>`}
-    <span class="chip">${t.sockets(points.length)}</span>
-    <span class="chip${main ? ' ok' : ''}">${main ? t.hasPhoto : t.noPhotos}</span>
+    ${building
+      ? `<span class="chip warn">${s.status === 'missing_from_osm' ? t.buildingGone : t.building}</span>`
+      : missing ? `<span class="chip warn">${t.outNap}</span>` : `<span class="chip ok">${t.inNap}</span>`}
+    ${building ? '' : `<span class="chip">${t.sockets(points.length)}</span>`}
+    <span class="chip${main || own.length ? ' ok' : ''}">${main || own.length ? t.hasPhoto : t.noPhotos}</span>
   </div>
 </div>
-${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="columns">
+${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}${building ? `<p class="notice">${s.status === 'missing_from_osm' ? t.buildingGoneNotice : t.buildingNotice}</p>\n` : ''}${building && s.codes ? `<p>${t.buildingCodes} ${s.codes.split(' ').map((c) => `<code>${esc(c)}</code>`).join(', ')}</p>\n` : ''}<div class="columns">
   <section class="photos">
     <h2 class="sr-only">${t.photosHeading}</h2>
-    ${main
+    ${building && own.length ? ownGallery(lang, s.id, own) : main
       ? `<figure class="main-photo">
       <a href="${PICTURES}/${encodeURIComponent(s.id)}.full.jpg" target="_blank" rel="noopener"><img src="${PICTURES}/${encodeURIComponent(s.id)}.jpg" alt="${esc(t.photoAlt(s.id))}"></a>
       <figcaption>${t.photoBy} ${main.photo_id ? `<a href="${photoPath(lang, main.photo_id)}">` : ''}<span lang="">${esc(main.credit ?? BRAND)}</span>${main.photo_id ? '</a>' : ''} · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license noopener" target="_blank">CC BY-SA 4.0</a> · <a href="${lang === 'pt' ? '/report' : '/en/report'}?alvo=${encodeURIComponent(s.id)}" rel="nofollow">${t.askRemoval}</a></figcaption>
@@ -668,11 +707,11 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
       <strong>${t.emptyTitle}</strong>
       <a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.emptySend}</a>
     </div>`}
-    <p class="hint">${t.hint}</p>
+    ${building ? (own.length ? `<p><a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.sendMore}</a></p>` : '') : `<p class="hint">${t.hint}</p>`}
     ${externalGallery(lang, s.id, externals)}
   </section>
   <div class="side">
-    <section class="card">
+    ${building ? '' : `<section class="card">
       <h2>${t.linksTitle}</h2>
       <p>${t.linksIntro}</p>
       <div class="sizes" role="group" aria-label="${t.size}">
@@ -694,7 +733,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
       <ul class="sockets" role="list">
     ${points.map((p, i) => socketItem(lang, p, i, p.evse_compact ? mains[p.evse_compact] : undefined)).join('\n    ')}
       </ul>
-    </section>
+    </section>`}
     <section class="card" id="osm">
       <h2>${t.osmTitle}</h2>
       ${osm}${osmAdd}
@@ -718,6 +757,8 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}<div class="column
     description: t.stationDesc(s.id, s.operator, s.municipality),
     path: stationPath(lang, s.id),
     alternates: { pt: stationPath('pt', s.id), en: stationPath('en', s.id) },
+    // Its URL becomes a redirect once it merges into the NAP station.
+    noindex: building,
     body,
     script: true,
   });
@@ -855,7 +896,7 @@ function resultItem(lang: Lang, r: SearchRow): string {
   return `<li class="result">
     <a class="mono" href="${stationPath(lang, r.id)}">${esc(r.id)}</a>
     ${line ? `<div>${nap(lang, line)}</div>` : ''}
-    <div class="meta">${r.operator ? nap(lang, r.operator) : t.unknownOperator}${r.status === 'missing_from_nap' ? ` · ${t.outNap}` : ''}</div>
+    <div class="meta">${r.operator ? nap(lang, r.operator) : t.unknownOperator}${r.status === 'missing_from_nap' ? ` · ${t.outNap}` : ''}${underConstruction(r) ? ` · ${r.status === 'missing_from_osm' ? t.buildingGone : t.building}` : ''}</div>
   </li>`;
 }
 

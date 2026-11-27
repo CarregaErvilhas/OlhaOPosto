@@ -14,8 +14,8 @@ function world() {
     ['EZC-AMD-00002', 'EZC3', 'EZ Charge', 'Amadora', 38.7001, -9.2001, 'active'],
     ['EDP-LSB-00003', 'EDP', 'EDP Comercial', 'Lisboa', 38.72, -9.14, 'active'],
     ['EDP-LSB-00004', 'EDP', 'EDP Comercial', 'Lisboa', 38.73, -9.15, 'missing_from_nap'],
-    ['OOP-NEW', 'EDP', 'EDP Comercial', 'Lisboa', 38.74, -9.16, 'pending_review'],
-    ['GONE-1', 'EDP', 'EDP Comercial', 'Lisboa', 38.75, -9.17, 'rejected'],
+    ['OOP-NEW', 'EDP', 'EDP Comercial', 'Lisboa', 38.74, -9.16, 'merged'],
+    ['GONE-1', 'EDP', 'EDP Comercial', 'Lisboa', 38.75, -9.17, 'merged'],
   ];
   for (const [id, opc, operator, town, lat, lon, status] of rows) {
     db.sql.prepare(`INSERT INTO stations (id, opc, operator, name, municipality, lat, lon, status, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'x')`)

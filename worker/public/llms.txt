@@ -42,7 +42,7 @@ Writes need a personal access token, created by a signed-in person on their acco
 Remote MCP server named `OlhaOPosto` at `https://olhaoposto.ocarroeletrico.com/mcp` (Streamable HTTP, stateless). The same data and rules as the API, as tools with English descriptions; every photo result carries its credit, licence and `attribution`.
 
 - Read, no sign-in: `search_stations` (words, a point and radius, or filters: `operator` (NAP opc), `municipality`, `has_photo`), `get_station` (station id or EVSE code: sockets and their photos), `get_photo_link` (one static link and its attribution), `list_missing_photos` (stations or sockets without a photo, for campaigns), `list_main_photos`, `get_ranking`, `get_photo`.
-- Write, signed in: `submit_photo` (three clean JPEG sizes, base64 or https URLs, `photos:write`), `set_primary_photo` (`selections:write`, moderators and admins), `delete_photo` (your own, or any as a moderator, `photos:write`).
+- Write, signed in: `submit_photo` (three clean JPEG sizes, base64 or https URLs, `photos:write`; `kind: "plate"` for a charger's rating plate, which goes to the station's rating plates gallery and is never a main photo), `set_primary_photo` (`selections:write`, moderators and admins), `delete_photo` (your own, or any as a moderator, `photos:write`).
 - Sign-in: OAuth 2.1 with dynamic client registration (metadata at `/.well-known/oauth-protected-resource/mcp`); the person signs in with OpenStreetMap once and chooses what the agent may do. A call to a write tool without sign-in gets the 401 challenge. An API token (`Authorization: Bearer oop_…`) also works. Either way the agent acts as the person, with their current role and limits, and can be disconnected on the account page.
 
 ## Static photo links

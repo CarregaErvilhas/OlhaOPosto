@@ -66,6 +66,10 @@ function init(form, M) {
   let zones = [];
   let station = null;
   let target = null;
+  // What the photo shows: 'photo' (the station or a socket) or 'plate' (a charger's rating plate).
+  let kind = 'photo';
+  // The radio value of the rating plate choice (never a station id or EVSE code).
+  const PLATE = '-plate';
   // ?tomada=: the socket to pick once the preset station is listed (first photo only).
   let wantSocket = M.presetSocket;
   let lookup = 0;
@@ -178,6 +182,7 @@ function init(form, M) {
     zones = [];
     station = null;
     target = null;
+    kind = 'photo';
     detectRun++;
     say(detectStatus, '');
     nextButton.hidden = true;
@@ -316,13 +321,14 @@ function init(form, M) {
         el('span', { className: 'meta' }, [p.connector, p.kw ? `${km.format(p.kw)} kW` : null].filter(Boolean).join(' · ')),
         el('span', { className: 'meta mono' }, p.evse),
       ])),
+      choice('target', PLATE, [el('span', {}, M.plate), el('span', { className: 'meta' }, M.plateMeta)]),
     );
     say(targetNote, sockets.length === 0 && points.length > 0 ? M.noEvse : '');
-    // No default when there is a socket to choose: the person says what the
-    // photo shows. A link from a socket (?tomada=) picks that one.
+    // No default: the person says what the photo shows (the station, a
+    // socket or a rating plate). A link from a socket (?tomada=) picks that one.
     const wanted = wantSocket && sockets.find((p) => p.compact === wantSocket);
     wantSocket = null;
-    const pick = sockets.length === 0 ? s.id : wanted ? wanted.compact : null;
+    const pick = wanted ? wanted.compact : null;
     if (pick) targetList.querySelector(`input[value="${CSS.escape(pick)}"]`).checked = true;
     setTarget(pick);
     targetsBox.hidden = false;
@@ -331,8 +337,10 @@ function init(form, M) {
   targetList.addEventListener('change', (e) => setTarget(e.target.value));
 
   function setTarget(value) {
-    target = value;
-    say(targetLink, target ? `${M.host}/${target}.jpg` : '');
+    // A rating plate goes on the station, in its own gallery: no static link.
+    kind = value === PLATE ? 'plate' : 'photo';
+    target = value === PLATE ? station : value;
+    say(targetLink, !target ? '' : kind === 'plate' ? M.plateNoLink : `${M.host}/${target}.jpg`);
   }
 
   function el(tag, props, children) {
@@ -572,6 +580,7 @@ function init(form, M) {
     body.append('meta', JSON.stringify({
       station,
       target,
+      kind,
       taken_at: meta?.takenAt ?? null,
       exif_lat: meta?.lat ?? null,
       exif_lon: meta?.lon ?? null,

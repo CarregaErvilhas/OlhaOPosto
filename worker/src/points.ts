@@ -42,6 +42,8 @@ interface PhotoTarget {
   uploader_id: string | null;
   station_id: string;
   evse_compact: string | null;
+  // A rating plate counts apart from the photos of the same station.
+  kind?: string | null;
 }
 
 const insert = (db: PointsDb, userId: string, photoId: string, reason: Reason, now: Date) =>
@@ -53,7 +55,7 @@ const insert = (db: PointsDb, userId: string, photoId: string, reason: Reason, n
 
 async function loadPhoto(db: PointsDb, photoId: string): Promise<PhotoTarget | null> {
   return db.prepare(
-    `SELECT id, uploader_id, station_id, evse_compact FROM photos WHERE id = ? AND status = 'published' AND origin = 'olhaoposto'`,
+    `SELECT id, uploader_id, station_id, evse_compact, kind FROM photos WHERE id = ? AND status = 'published' AND origin = 'olhaoposto'`,
   ).bind(photoId).first<PhotoTarget>();
 }
 
@@ -63,9 +65,9 @@ async function recentOnTarget(db: PointsDb, p: PhotoTarget, now: Date): Promise<
   const since = new Date(now.getTime() - SAME_TARGET_DAYS * DAY).toISOString();
   const row = await db.prepare(
     `SELECT 1 AS hit FROM points pt JOIN photos ph ON ph.id = pt.photo_id
-      WHERE pt.user_id = ? AND ph.station_id = ? AND ph.evse_compact IS ? AND ph.id <> ? AND pt.created_at >= ?
+      WHERE pt.user_id = ? AND ph.station_id = ? AND ph.evse_compact IS ? AND ph.kind = ? AND ph.id <> ? AND pt.created_at >= ?
       LIMIT 1`,
-  ).bind(p.uploader_id, p.station_id, p.evse_compact, p.id, since).first<{ hit: number }>();
+  ).bind(p.uploader_id, p.station_id, p.evse_compact, p.kind ?? 'photo', p.id, since).first<{ hit: number }>();
   return row !== null;
 }
 
@@ -78,8 +80,8 @@ export async function awardApproval(db: PointsDb, photoId: string, now = new Dat
   if (await recentOnTarget(db, p, now)) return [];
   const earlier = await db.prepare(
     `SELECT COUNT(*) AS n FROM photos
-      WHERE station_id = ? AND evse_compact IS ? AND id <> ? AND status = 'published' AND origin = 'olhaoposto'`,
-  ).bind(p.station_id, p.evse_compact, p.id).first<{ n: number }>();
+      WHERE station_id = ? AND evse_compact IS ? AND kind = ? AND id <> ? AND status = 'published' AND origin = 'olhaoposto'`,
+  ).bind(p.station_id, p.evse_compact, p.kind ?? 'photo', p.id).first<{ n: number }>();
   const reasons: Reason[] = ['approved'];
   if ((earlier?.n ?? 0) === 0) reasons.push('first_photo');
   for (const r of reasons) await insert(db, p.uploader_id, p.id, r, now).run();

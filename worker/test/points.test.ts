@@ -14,10 +14,10 @@ function setup() {
   db.sql.exec(`INSERT INTO users (id, osm_uid, osm_name, created_at, last_login_at) VALUES
     ('ana', 1, 'Ana', 'x', 'x'), ('rui', 2, 'Rui', 'x', 'x'), ('mod', 3, 'Mod', 'x', 'x')`);
   let n = 0;
-  const photo = (uploader: string, station: string, evse: string | null = null, status = 'published') => {
+  const photo = (uploader: string, station: string, evse: string | null = null, status = 'published', kind = 'photo') => {
     const id = `p${++n}`;
-    db.sql.prepare(`INSERT INTO photos (id, station_id, evse_compact, uploader_id, status, created_at) VALUES (?, ?, ?, ?, ?, 'x')`)
-      .run(id, station, evse, uploader, status);
+    db.sql.prepare(`INSERT INTO photos (id, station_id, evse_compact, kind, uploader_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'x')`)
+      .run(id, station, evse, kind, uploader, status);
     return id;
   };
   const rows = () => db.sql.prepare('SELECT user_id, photo_id, points, reason FROM points ORDER BY id').all().map((r) => ({ ...r }));
@@ -101,4 +101,15 @@ test('rankingPage: a table with escaped names, medals and the rules', () => {
   assert.ok(html.includes('&lt;b&gt;x&lt;/b&gt;'));
   assert.ok(html.includes('medal-silver'));
   assert.ok(html.includes('Como se ganham pontos'));
+});
+
+test('a rating plate counts apart from the photos of the same station', async () => {
+  const { db, photo } = setup();
+  const a = photo('ana', 'S1');
+  assert.deepEqual(await awardApproval(db, a, NOW), ['approved', 'first_photo']);
+  // Same person, same station, same day: a plate is another target for points.
+  const plate = photo('ana', 'S1', null, 'published', 'plate');
+  assert.deepEqual(await awardApproval(db, plate, NOW), ['approved', 'first_photo']);
+  const plate2 = photo('rui', 'S1', null, 'published', 'plate');
+  assert.deepEqual(await awardApproval(db, plate2, NOW), ['approved']);
 });

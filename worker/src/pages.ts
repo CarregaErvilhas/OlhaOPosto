@@ -130,6 +130,8 @@ const T = {
     noPhoto: 'sem foto',
     noEvse: 'Sem código EVSE no NAP: sem link de tomada',
     socketMore: 'Outras fotos desta tomada',
+    platesHeading: 'Chapas',
+    platesIntro: 'As placas de características dos carregadores: modelo, número de série, tensão, corrente e potência. Não são a foto principal nem têm link estático.',
     moderate: 'Moderar as fotos deste posto',
     socketSend: 'Enviar foto desta tomada',
     socketSendMore: 'Enviar outra foto desta tomada',
@@ -289,6 +291,8 @@ const T = {
     noPhoto: 'no photo',
     noEvse: 'No EVSE code in the NAP: no socket link',
     socketMore: 'More photos of this socket',
+    platesHeading: 'Rating plates',
+    platesIntro: 'The chargers’ rating plates: model, serial number, voltage, current and power. They are never the main photo and have no static link.',
     moderate: 'Moderate the photos of this station',
     socketSend: 'Send a photo of this socket',
     socketSendMore: 'Send another photo of this socket',
@@ -643,11 +647,11 @@ function externalGallery(lang: Lang, stationId: string, photos: ExternalPhoto[])
 
 // Our published photos that are not a main photo (all of them, for a station
 // under construction): Panoramax's thumbnail, linked to each photo's credit page.
-function ownGallery(lang: Lang, stationId: string, photos: OwnPhoto[], heading = T[lang].ownHeading): string {
+function ownGallery(lang: Lang, stationId: string, photos: OwnPhoto[], heading = T[lang].ownHeading, key = 'own', intro = ''): string {
   if (!photos.length) return '';
   const t = T[lang];
-  return `<section class="external" aria-labelledby="own-h">
-      <h2 id="own-h">${heading}</h2>
+  return `<section class="external" aria-labelledby="${key}-h">
+      <h2 id="${key}-h">${heading}</h2>${intro ? `\n      <p class="hint">${intro}</p>` : ''}
       <ul class="external-list" role="list">
         ${photos.map((p, i) => `<li>
           <figure class="external-photo">
@@ -666,6 +670,9 @@ export function stationPage(
   const building = underConstruction(s);
   const missing = s.status === 'missing_from_nap';
   const main = mains[s.id];
+  // Rating plates have their own gallery; the rest are photos of the station or a socket.
+  const plates = own.filter((p) => p.kind === 'plate');
+  const pics = own.filter((p) => p.kind !== 'plate');
   const place = [s.address, s.municipality].filter(Boolean).join(', ');
   const subtitle = [s.name, place].filter(Boolean).join(' · ');
   const region = s.region ? REGIONS[lang][s.region] ?? s.region : null;
@@ -709,13 +716,13 @@ export function stationPage(
       ? `<span class="chip warn">${s.status === 'missing_from_osm' ? t.buildingGone : t.building}</span>`
       : missing ? `<span class="chip warn">${t.outNap}</span>` : `<span class="chip ok">${t.inNap}</span>`}
     ${building ? '' : `<span class="chip">${t.sockets(points.length)}</span>`}
-    <span class="chip${main || own.length ? ' ok' : ''}">${main || own.length ? t.hasPhoto : t.noPhotos}</span>
+    <span class="chip${main || pics.length ? ' ok' : ''}">${main || pics.length ? t.hasPhoto : t.noPhotos}</span>
   </div>
 </div>
 ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}${building ? `<p class="notice">${s.status === 'missing_from_osm' ? t.buildingGoneNotice : t.buildingNotice}</p>\n` : ''}${building && s.codes ? `<p>${t.buildingCodes} ${s.codes.split(' ').map((c) => `<code>${esc(c)}</code>`).join(', ')}</p>\n` : ''}<div class="columns">
   <section class="photos">
     <h2 class="sr-only">${t.photosHeading}</h2>
-    ${building && own.length ? ownGallery(lang, s.id, own) : main
+    ${building && pics.length ? ownGallery(lang, s.id, pics) : main
       ? `<figure class="main-photo">
       <a href="${PICTURES}/${encodeURIComponent(s.id)}.full.jpg" target="_blank" rel="noopener"><img src="${PICTURES}/${encodeURIComponent(s.id)}.jpg" alt="${esc(t.photoAlt(s.id))}"></a>
       <figcaption>${t.photoBy} ${main.photo_id ? `<a href="${photoPath(lang, main.photo_id)}">` : ''}<span lang="">${esc(main.credit ?? BRAND)}</span>${main.photo_id ? '</a>' : ''} · <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.${lang === 'pt' ? 'pt' : 'en'}" rel="license noopener" target="_blank">CC BY-SA 4.0</a> · <a href="${lang === 'pt' ? '/report' : '/en/report'}?alvo=${encodeURIComponent(s.id)}" rel="nofollow">${t.askRemoval}</a></figcaption>
@@ -725,8 +732,9 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}${building ? `<p c
       <strong>${t.emptyTitle}</strong>
       <a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.emptySend}</a>
     </div>`}
-    ${building ? (own.length ? `<p><a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.sendMore}</a></p>` : '') : `<p class="hint">${t.hint}</p>
-    ${ownGallery(lang, s.id, own.filter((p) => !p.evse_compact), t.moreHeading)}`}
+    ${building ? (pics.length ? `<p><a href="${uploadPath(lang)}?posto=${encodeURIComponent(s.id)}">${t.sendMore}</a></p>` : '') : `<p class="hint">${t.hint}</p>
+    ${ownGallery(lang, s.id, pics.filter((p) => !p.evse_compact), t.moreHeading, 'more')}`}
+    ${ownGallery(lang, s.id, plates, t.platesHeading, 'plates', t.platesIntro)}
     <p class="mod-link" hidden><a href="${stationAdminPath(lang, s.id)}">${t.moderate}</a></p>
     ${externalGallery(lang, s.id, externals)}
   </section>
@@ -751,7 +759,7 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}${building ? `<p c
       <h2>${t.socketsTitle}</h2>
       <p>${t.socketsIntro}</p>
       <ul class="sockets" role="list">
-    ${points.map((p, i) => socketItem(lang, s.id, p, i, p.evse_compact ? mains[p.evse_compact] : undefined, own.filter((o) => p.evse_compact && o.evse_compact === p.evse_compact))).join('\n    ')}
+    ${points.map((p, i) => socketItem(lang, s.id, p, i, p.evse_compact ? mains[p.evse_compact] : undefined, pics.filter((o) => p.evse_compact && o.evse_compact === p.evse_compact))).join('\n    ')}
       </ul>
     </section>`}
     <section class="card" id="osm">

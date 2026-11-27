@@ -57,7 +57,7 @@ Resposta: `{ "id", "code", "name", "operator": { "id", "name" }, "address", "mun
 
 `photo` é a foto principal do posto ou da tomada, ou `null` quando não há (ver *Objeto `photo`*, abaixo).
 
-`photos` são as outras fotos enviadas pelo olh'o'posto e publicadas, as que não são principais de nada (no máximo 24): `[ { "id", "socket", "credit", "license", "attribution", "page", "thumb" } ]` (`socket` é o código EVSE compacto da tomada que a foto mostra, ou `null` para o posto em geral). Não têm link estático: `thumb` é a miniatura do Panoramax e `page` a página de crédito. Num posto sem mais fotos vem `[]`.
+`photos` são as outras fotos enviadas pelo olh'o'posto e publicadas, as que não são principais de nada (no máximo 24): `[ { "id", "kind", "socket", "credit", "license", "attribution", "page", "thumb" } ]` (`socket` é o código EVSE compacto da tomada que a foto mostra, ou `null` para o posto em geral; `kind` é `photo`, ou `plate` para a chapa de um carregador, a placa de características, que nunca é a foto principal). Não têm link estático: `thumb` é a miniatura do Panoramax e `page` a página de crédito. Num posto sem mais fotos vem `[]`.
 
 `externalPhotos` são as fotos que outras pessoas puseram no OSM e estão noutro sítio (Panoramax, Wikimedia Commons), no máximo 12, só como referência. Nunca são a foto principal, não têm link estático e não entram em `/main-photos`:
 
@@ -207,7 +207,7 @@ O *token* age como a conta, com o papel e os limites dela, lidos em cada pedido.
 
 ### `POST /photos`
 
-Envio de uma foto (multipart). Campos: `full`, `main`, `thumb` (JPEGs dos três tamanhos: lado maior até 2048, 1024 e 400 px, a mesma imagem, já desfocados e sem nenhum metadado), `meta` (JSON com `station`, `target`, `taken_at`, `exif_lat`, `exif_lon`, `license: true`, `no_people: true`) e, só com a sessão do site, `turnstile`.
+Envio de uma foto (multipart). Campos: `full`, `main`, `thumb` (JPEGs dos três tamanhos: lado maior até 2048, 1024 e 400 px, a mesma imagem, já desfocados e sem nenhum metadado), `meta` (JSON com `station`, `target`, `kind`, `taken_at`, `exif_lat`, `exif_lon`, `license: true`, `no_people: true`; `kind` é `photo` por omissão, ou `plate` para a chapa de um carregador, com `target` = o id do posto) e, só com a sessão do site, `turnstile`.
 
 ```bash
 curl -X POST 'https://olhaoposto.ocarroeletrico.com/api/v1/photos' \

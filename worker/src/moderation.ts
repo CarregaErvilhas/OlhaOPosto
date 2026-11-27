@@ -58,6 +58,7 @@ const T = {
     building: 'Posto em construção: numa obra há trabalhadores e carrinhas com o nome da empresa. Vê as caras e os letreiros com atenção antes de aprovar.',
     station: 'Posto',
     socket: 'Tomada',
+    plate: 'Chapa (placa de características): vai para a galeria das chapas, nunca é a principal',
     sentBy: 'Enviada por',
     sentAt: 'Enviada em',
     takenAt: 'Tirada em',
@@ -92,6 +93,7 @@ const T = {
     building: 'Station under construction: building sites have workers, and vans with the company name. Check faces and lettering carefully before approving.',
     station: 'Station',
     socket: 'Socket',
+    plate: 'Rating plate: goes to the rating plates gallery, never the main photo',
     sentBy: 'Sent by',
     sentAt: 'Sent on',
     takenAt: 'Taken on',
@@ -127,6 +129,7 @@ export interface QueueRow {
   station_name: string | null;
   operator: string | null;
   evse_compact: string | null;
+  kind?: string | null;
   credit: string | null;
   taken_at: string | null;
   exif_lat: number | null;
@@ -159,7 +162,7 @@ function card(lang: Lang, r: QueueRow): string {
 <a href="${img}main.jpg" target="_blank" rel="noopener"><img src="${img}thumb.jpg" alt="" loading="lazy"></a>
 <div>
 <p><strong>${t.station}:</strong> <a href="${stationPath(lang, r.station_id)}" target="_blank" rel="noopener">${esc(r.station_name ?? r.station_id)}</a> <span class="muted">${esc(r.station_id)}${r.operator ? ` · ${esc(r.operator)}` : ''}</span></p>
-${r.evse_compact ? `<p><strong>${t.socket}:</strong> ${esc(r.evse_compact)}</p>` : ''}
+${r.evse_compact ? `<p><strong>${t.socket}:</strong> ${esc(r.evse_compact)}</p>` : ''}${r.kind === 'plate' ? `<p><span class="chip">${t.plate}</span></p>` : ''}
 <p><strong>${t.sentBy}:</strong> <span lang="">${esc(r.credit ?? '—')}</span> · <strong>${t.sentAt}:</strong> ${esc(r.created_at.slice(0, 16).replace('T', ' '))}</p>
 <p><strong>${t.takenAt}:</strong> ${esc(r.taken_at ? r.taken_at.slice(0, 16).replace('T', ' ') : t.unknown)} · <strong>${t.gps}:</strong> ${gps}</p>
 ${warn}
@@ -229,7 +232,7 @@ export async function queueHtml(lang: Lang, request: Request, env: PhotoEnv, hea
   if (!user) return redirect(`/auth/osm/login?next=${encodeURIComponent(queuePath(lang))}`);
   if (!canModerate(user.role)) return page(lang, forbiddenPage(lang), 403, headers);
   const { results } = await db(env).prepare(
-    `SELECT p.id, p.station_id, s.name AS station_name, s.operator, p.evse_compact, p.credit,
+    `SELECT p.id, p.station_id, s.name AS station_name, s.operator, p.evse_compact, p.kind, p.credit,
             p.taken_at, p.exif_lat, p.exif_lon, p.distance_m, p.created_at, s.status AS station_status, s.source AS station_source
        FROM photos p JOIN stations s ON s.id = p.station_id
       WHERE p.status = 'pending'

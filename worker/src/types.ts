@@ -218,6 +218,8 @@ export type OwnPhoto = {
   panoramax_id: string;
   // The socket it shows, or null for the station in general.
   evse_compact?: string | null;
+  // `plate`: a charger's rating plate, shown in its own gallery.
+  kind?: 'photo' | 'plate';
 };
 
 // One published main photo, for apps that copy them (nap.ocarroeletrico.com).

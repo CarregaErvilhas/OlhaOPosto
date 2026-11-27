@@ -25,10 +25,10 @@ const goodMeta = {
 
 test('parseMeta: accepts a full upload and one without GPS or date', () => {
   assert.deepEqual(parseMeta(JSON.stringify(goodMeta), NOW), {
-    station: 'EZC-AMD-00051', target: 'PTEZCEAMD000511', taken_at: '2026-11-20T10:15:00+00:00', exif_lat: 38.788, exif_lon: -9.2266,
+    station: 'EZC-AMD-00051', target: 'PTEZCEAMD000511', kind: 'photo', taken_at: '2026-11-20T10:15:00+00:00', exif_lat: 38.788, exif_lon: -9.2266,
   });
   const bare = parseMeta(JSON.stringify({ ...goodMeta, taken_at: null, exif_lat: null, exif_lon: null }), NOW);
-  assert.deepEqual(bare, { station: 'EZC-AMD-00051', target: 'PTEZCEAMD000511', taken_at: null, exif_lat: null, exif_lon: null });
+  assert.deepEqual(bare, { station: 'EZC-AMD-00051', target: 'PTEZCEAMD000511', kind: 'photo', taken_at: null, exif_lat: null, exif_lon: null });
 });
 
 test('parseMeta: consents, targets, dates and coordinates are checked', () => {
@@ -46,6 +46,13 @@ test('parseMeta: consents, targets, dates and coordinates are checked', () => {
   assert.equal(parseMeta('{', NOW), 'bad_meta');
   assert.equal(parseMeta(null, NOW), 'bad_meta');
   assert.equal(parseMeta('x'.repeat(3000), NOW), 'bad_meta');
+});
+
+test('parseMeta: a rating plate goes on the station, never on a socket', () => {
+  const p = (over: Record<string, unknown>) => parseMeta(JSON.stringify({ ...goodMeta, ...over }), NOW);
+  assert.equal((p({ kind: 'plate', target: 'EZC-AMD-00051' }) as { kind: string }).kind, 'plate');
+  assert.equal(p({ kind: 'plate' }), 'bad_target');
+  assert.equal(p({ kind: 'sticker' }), 'bad_meta');
 });
 
 test('checkImage: clean JPEG within its size, nothing else', () => {
@@ -102,7 +109,7 @@ function fakes(opts: { count?: number; panoramax?: number; role?: string; socket
       },
       async run() {
         if (sql.startsWith('INSERT INTO photos')) {
-          rows.set(args[0] as string, { station_id: args[1], evse_compact: args[2], distance_m: args[7], credit: args[8], status: 'uploading' });
+          rows.set(args[0] as string, { station_id: args[1], evse_compact: args[2], kind: args[3], distance_m: args[8], credit: args[9], status: 'uploading' });
         } else if (sql.includes(`SET status = ?`)) {
           Object.assign(rows.get(args[5] as string)!, { status: args[0], panoramax_set: args[1], panoramax_id: args[2] });
         } else if (sql.includes(`SET status = 'failed'`)) {

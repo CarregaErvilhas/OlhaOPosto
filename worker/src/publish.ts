@@ -146,7 +146,7 @@ export async function publishMain(
     // until it merges into its NAP station (Docs/arquitetura.md, *Postos em construção*).
     `SELECT p.id, p.station_id, p.evse_compact, p.credit, p.panoramax_id
        FROM photos p JOIN stations s ON s.id = p.station_id AND s.source = 'nap'
-      WHERE p.id = ? AND p.status = 'published' AND p.origin = 'olhaoposto'`,
+      WHERE p.id = ? AND p.status = 'published' AND p.origin = 'olhaoposto' AND p.kind = 'photo'`,
   ).bind(photoId).first<Approved>();
   if (!p) return [];
   const claims = await claim(env, p, userId, now.toISOString());
@@ -220,8 +220,9 @@ export async function chooseMain(
     // until it merges into its NAP station (Docs/arquitetura.md, *Postos em construção*).
     `SELECT p.id, p.station_id, p.evse_compact, p.credit, p.panoramax_id
        FROM photos p JOIN stations s ON s.id = p.station_id AND s.source = 'nap'
-      WHERE p.id = ? AND p.status = 'published' AND p.origin = 'olhaoposto'`,
+      WHERE p.id = ? AND p.status = 'published' AND p.origin = 'olhaoposto' AND p.kind = 'photo'`,
   ).bind(photoId).first<Approved>();
+  // A rating plate is never a main photo (kind = 'plate').
   // The target comes from the photo, not from its shape: a compact EVSE code
   // (PTEZCEAMD000511) also passes STATION_ID. A station takes only a photo of
   // the station in general; a socket, only a photo of that socket.

@@ -40,6 +40,8 @@ const T = {
     intro: 'Todas as fotos publicadas deste posto e das tomadas. Para trocar a principal por uma melhor, torna a melhor principal primeiro; depois, se a antiga deve sair, remove-a com o motivo. Remover a principal deixa o posto ou a tomada sem foto principal (o link estático dá 404) até escolheres outra.',
     station: 'Posto em geral',
     socket: (n: number) => `Tomada ${n}`,
+    plates: 'Chapas',
+    platesHint: 'As placas de características dos carregadores. Nunca são a foto principal: só se removem.',
     none: 'Sem fotos publicadas.',
     main: 'Principal',
     lost: 'Sem foto principal: escolhe uma.',
@@ -72,6 +74,8 @@ const T = {
     intro: 'Every published photo of this station and its sockets. To replace the main photo with a better one, make the better one main first; then, if the old one should go, remove it with the reason. Removing the main photo leaves the station or socket without one (the static link answers 404) until you choose another.',
     station: 'Station in general',
     socket: (n: number) => `Socket ${n}`,
+    plates: 'Rating plates',
+    platesHint: 'The chargers’ rating plates. Never the main photo: they can only be removed.',
     none: 'No published photos.',
     main: 'Main',
     lost: 'No main photo: choose one.',
@@ -104,6 +108,7 @@ const T = {
 interface AdminPhoto {
   id: string;
   evse_compact: string | null;
+  kind?: string | null;
   credit: string | null;
   approved_at: string | null;
   taken_at: string | null;
@@ -125,7 +130,7 @@ export async function stationPhotos(env: { DB: unknown }, id: string): Promise<S
     D.prepare(`SELECT id, name, source FROM stations WHERE id = ?`).bind(id),
     D.prepare(`SELECT evse_compact, evse_id, connector, max_kw FROM evses WHERE station_id = ? ORDER BY point_id`).bind(id),
     D.prepare(
-      `SELECT id, evse_compact, credit, approved_at, taken_at FROM photos
+      `SELECT id, evse_compact, kind, credit, approved_at, taken_at FROM photos
         WHERE station_id = ? AND origin = 'olhaoposto' AND status = 'published'
         ORDER BY approved_at, id LIMIT ${PHOTO_LIMIT}`,
     ).bind(id),
@@ -148,7 +153,8 @@ function photoItem(lang: Lang, s: AdminStation, target: string, p: AdminPhoto, i
 <input type="hidden" name="target" value="${esc(target)}">
 <input type="hidden" name="photo" value="${esc(p.id)}">
 <input type="hidden" name="lang" value="${lang}">`;
-  const promote = isMain || s.source !== 'nap' ? '' : `<form method="post" action="${STATION_ADMIN_ACTION}">
+  // A rating plate is never a main photo: it can only be removed.
+  const promote = isMain || s.source !== 'nap' || p.kind === 'plate' ? '' : `<form method="post" action="${STATION_ADMIN_ACTION}">
 ${hidden}
 <input type="hidden" name="action" value="promote">
 <button type="submit" class="button">${t.promote}</button></form>`;
@@ -174,24 +180,25 @@ export function stationAdminPage(lang: Lang, d: StationPhotos, result?: string):
   const s = d.station;
   const mains = new Map(d.selections.filter((x) => x.published_at && !x.lost_at).map((x) => [x.target, x.photo_id]));
   const lost = new Set(d.selections.filter((x) => x.lost_at).map((x) => x.target));
-  const groups: { target: string; title: string; meta: string }[] = [
+  const groups: { target: string; title: string; meta: string; plates?: boolean }[] = [
     { target: s.id, title: t.station, meta: '' },
     ...d.points.map((p, i) => ({ p, n: i + 1 })).filter((x) => x.p.evse_compact).map((x) => ({
       target: x.p.evse_compact as string,
       title: t.socket(x.n),
       meta: [x.p.connector, x.p.max_kw ? `${x.p.max_kw} kW` : null, x.p.evse_id].filter(Boolean).join(' · '),
     })),
+    { target: s.id, title: t.plates, meta: '', plates: true },
   ];
   const sections = groups.map((g) => {
-    const photos = d.photos.filter((p) => (p.evse_compact ?? s.id) === g.target);
+    const photos = d.photos.filter((p) => (p.kind === 'plate') === Boolean(g.plates) && (p.evse_compact ?? s.id) === g.target);
     const main = mains.get(g.target);
     // The main photo first, then the others in the order they were approved.
     photos.sort((a, b) => Number(b.id === main) - Number(a.id === main));
-    const notes = [
+    const notes = g.plates ? `<p class="hint">${t.platesHint}</p>` : [
       s.source !== 'nap' && g.target === s.id ? `<p class="hint">${t.noMainHere}</p>` : '',
       lost.has(g.target) ? `<p class="notice">${t.lost}</p>` : '',
     ].join('');
-    return `<section class="card admin-target" id="t-${esc(g.target)}">
+    return `<section class="card admin-target" id="${g.plates ? 'chapas' : `t-${esc(g.target)}`}">
 <h2>${esc(g.title)}</h2>${g.meta ? `\n<p class="meta mono">${esc(g.meta)}</p>` : ''}
 ${notes}${photos.length
       ? `<ul class="admin-photos" role="list">\n${photos.map((p) => photoItem(lang, s, g.target, p, p.id === main)).join('\n')}\n</ul>`

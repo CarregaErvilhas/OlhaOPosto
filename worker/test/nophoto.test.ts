@@ -111,6 +111,20 @@ test('page: «sem foto» lists the stations, filters by town and operator, in bo
     assert.ok(lisboa.includes('id="f-town" name="concelho" type="search" value="Lisboa"'), op);
     assert.ok(lisboa.includes('name="operador" type="search" value="EDP Comercial"'), op);
   }
+  (env.DB as ReturnType<typeof d1>).sql.exec(`INSERT INTO stations (id, opc, operator, name, municipality, lat, lon, status, updated_at)
+    VALUES ('GLP-EVR-00005', 'GLP', 'Galp Electric', 'Posto GLP', 'Évora', 38.57, -7.9, 'active', 'x')`);
+  // A few letters, without accents, find the town or operator they name.
+  for (const path of ['/postos/sem-foto?concelho=evora', '/postos/sem-foto?operador=galp', '/postos/sem-foto?concelho=vor']) {
+    const page = await (await get(env, path)).text();
+    assert.ok(page.includes('href="/postos/GLP-EVR-00005"'), path);
+    assert.equal(page.includes('href="/postos/EDP-LSB-00003"'), false, path);
+  }
+  // Two codes under one name: each box value carries its code.
+  (env.DB as ReturnType<typeof d1>).sql.exec(`INSERT INTO stations (id, opc, operator, name, municipality, lat, lon, status, updated_at)
+    VALUES ('GL2-EVR-00006', 'GL2', 'Galp Electric', 'Posto GL2', 'Évora', 38.57, -7.9, 'active', 'x')`);
+  const twin = await (await get(env, '/postos/sem-foto?operador=Galp+Electric+(GL2)')).text();
+  assert.ok(twin.includes('<option value="Galp Electric (GLP)">'));
+  assert.ok(twin.includes('href="/postos/GL2-EVR-00006"') && !twin.includes('href="/postos/GLP-EVR-00005"'));
   const nobody = await (await get(env, '/postos/sem-foto?operador=Ningu%C3%A9m+Lda')).text();
   assert.match(nobody, /Nenhum posto sem foto com estes filtros/);
   const en = await get(env, '/en/stations/without-photo?municipality=Amadora');

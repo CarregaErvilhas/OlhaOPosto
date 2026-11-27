@@ -23,7 +23,7 @@ const T = {
     searchHint: 'Código, nome, morada ou localidade.',
     town: 'Concelho',
     operator: 'Operador',
-    any: 'Escreve para procurar; vazio mostra todos',
+    any: 'Escreve para procurar',
     count: (n: number) => (n === 1 ? '1 sem foto' : `${n} sem foto`),
     filter: 'Filtrar',
     clear: 'Limpar filtros',
@@ -43,7 +43,7 @@ const T = {
     searchHint: 'Code, name, address or place.',
     town: 'Municipality',
     operator: 'Operator',
-    any: 'Type to look one up; empty shows all',
+    any: 'Type to look one up',
     count: (n: number) => `${n} without a photo`,
     filter: 'Filter',
     clear: 'Clear filters',
@@ -137,11 +137,17 @@ ${more}
   });
 }
 
-// The operator box sends a name picked from the suggestions, but an operator
-// code (older links, the API's opc) still works.
-function operatorOf(facets: Facet[], typed: string): Facet | undefined {
-  const t = typed.toLowerCase();
-  return facets.find((f) => f.value.toLowerCase() === t) ?? facets.find((f) => f.label.toLowerCase() === t);
+// The boxes send what was typed: a picked suggestion, a few letters, or an
+// operator code (older links, the API's opc). Matched against the facets
+// ignoring case and accents: the same value or label first, then the only one
+// that contains it. Nothing found: undefined.
+const fold = (x: string) => x.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+export function facetOf(facets: Facet[], typed: string): Facet | undefined {
+  const t = fold(typed);
+  const exact = facets.find((f) => fold(f.value) === t) ?? facets.find((f) => fold(f.label) === t);
+  if (exact) return exact;
+  const some = facets.filter((f) => fold(f.label).includes(t) || fold(f.value).includes(t));
+  return some.length === 1 ? some[0] : undefined;
 }
 
 // Reads the search and the filters in the page's own language, then the list
@@ -153,9 +159,13 @@ export async function noPhotoData(env: Env, lang: Lang, url: URL): Promise<NoPho
   const typedOp = (url.searchParams.get(p.operator) ?? '').trim().slice(0, 80);
   const after = (url.searchParams.get(p.after) ?? '').slice(0, 64);
   const facets = await withoutPhotoFacets(env);
+  // Two codes under one name (it happens): the code tells them apart.
+  const seen = new Map<string, number>();
+  for (const f of facets.operators) seen.set(f.label, (seen.get(f.label) ?? 0) + 1);
+  facets.operators = facets.operators.map((f) => (seen.get(f.label)! > 1 ? { ...f, label: `${f.label} (${f.value})` } : f));
   const filters: StationFilters = { hasPhoto: false };
-  if (town) filters.municipality = town;
-  const op = typedOp ? operatorOf(facets.operators, typedOp) : undefined;
+  if (town) filters.municipality = facetOf(facets.municipalities, town)?.value ?? town;
+  const op = typedOp ? facetOf(facets.operators, typedOp) : undefined;
   if (op) filters.opc = op.value;
   else if (/^[A-Za-z0-9_-]{1,40}$/.test(typedOp)) filters.opc = typedOp;
   // A name that is no operator with stations left to photograph: nothing matches.

@@ -15,7 +15,7 @@
 
 import { currentUser, page, sameOrigin, type AuthEnv } from './auth.ts';
 import { canModerate, STAGING_PREFIX } from './moderation.ts';
-import { BRAND, accountPath, esc, layout, photoPath, stationAdminPath, stationPath, type Lang } from './pages.ts';
+import { BRAND, PANORAMAX_URL, accountPath, esc, layout, photoPath, stationAdminPath, stationPath, type Lang } from './pages.ts';
 import { deletePhoto } from './photoapi.ts';
 import { chooseMain } from './publish.ts';
 import { reasonOptions } from './reasons.ts';
@@ -41,6 +41,10 @@ const T = {
     station: 'Posto em geral',
     socket: (n: number) => `Tomada ${n}`,
     plates: 'Chapas',
+    moveTo: 'Mudar para',
+    movePick: 'Escolhe onde',
+    move: 'Mudar',
+    moveMain: 'É a principal: para a mudar de sítio, torna outra principal primeiro.',
     platesHint: 'As placas de características dos carregadores. Nunca são a foto principal: só se removem.',
     none: 'Sem fotos publicadas.',
     main: 'Principal',
@@ -67,6 +71,9 @@ const T = {
       publish: 'Não foi possível copiar a foto para os links estáticos. Tenta outra vez.',
       reason: 'Escolhe um motivo para remover.',
       remove: 'Não foi possível remover a foto no Panoramax. Tenta outra vez.',
+      moved: 'Foto mudada; as etiquetas no Panoramax também.',
+      move: 'Não foi possível mudar as etiquetas no Panoramax: nada mudou. Tenta outra vez.',
+      ismain: 'É a principal: torna outra principal primeiro.',
     } as Record<string, string>,
   },
   en: {
@@ -75,6 +82,10 @@ const T = {
     station: 'Station in general',
     socket: (n: number) => `Socket ${n}`,
     plates: 'Rating plates',
+    moveTo: 'Move to',
+    movePick: 'Choose where',
+    move: 'Move',
+    moveMain: 'It is the main photo: to move it, make another one main first.',
     platesHint: 'The chargers’ rating plates. Never the main photo: they can only be removed.',
     none: 'No published photos.',
     main: 'Main',
@@ -101,6 +112,9 @@ const T = {
       publish: 'Copying the photo to the static links failed. Try again.',
       reason: 'Choose a reason to remove it.',
       remove: 'Removing the photo on Panoramax failed. Try again.',
+      moved: 'Photo moved; its tags on Panoramax too.',
+      move: 'Changing the tags on Panoramax failed: nothing changed. Try again.',
+      ismain: 'It is the main photo: make another one main first.',
     } as Record<string, string>,
   },
 };
@@ -146,8 +160,23 @@ export async function stationPhotos(env: { DB: unknown }, id: string): Promise<S
   };
 }
 
-function photoItem(lang: Lang, s: AdminStation, target: string, p: AdminPhoto, isMain: boolean): string {
+// Where a photo can be moved: the station in general, each socket with an
+// EVSE code, or the rating plates. `plate` is the station's plates gallery.
+type Dest = { value: string; label: string };
+const PLATE_DEST = 'plate';
+function destinations(lang: Lang, s: AdminStation, points: AdminPoint[]): Dest[] {
   const t = T[lang];
+  return [
+    { value: s.id, label: t.station },
+    ...points.map((p, i) => ({ p, n: i + 1 })).filter((x) => x.p.evse_compact)
+      .map((x) => ({ value: x.p.evse_compact as string, label: `${t.socket(x.n)} · ${[x.p.connector, x.p.max_kw ? `${x.p.max_kw} kW` : null].filter(Boolean).join(' ')}` })),
+    { value: PLATE_DEST, label: t.plates },
+  ];
+}
+
+function photoItem(lang: Lang, s: AdminStation, target: string, p: AdminPhoto, isMain: boolean, dests: Dest[] = []): string {
+  const t = T[lang];
+  const here = p.kind === 'plate' ? PLATE_DEST : (p.evse_compact ?? s.id);
   const img = `${STAGING_PREFIX}${encodeURIComponent(p.id)}/`;
   const hidden = `<input type="hidden" name="station" value="${esc(s.id)}">
 <input type="hidden" name="target" value="${esc(target)}">
@@ -158,6 +187,15 @@ function photoItem(lang: Lang, s: AdminStation, target: string, p: AdminPhoto, i
 ${hidden}
 <input type="hidden" name="action" value="promote">
 <button type="submit" class="button">${t.promote}</button></form>`;
+  // Moving the main photo would leave its target without one: promote
+  // another first. The tags on Panoramax follow (osm|ref:EU:EVSE, OlhaOPosto|kind).
+  const others = dests.filter((d) => d.value !== here);
+  const move = isMain || !others.length ? (isMain ? `<p class="hint">${t.moveMain}</p>` : '') : `<form method="post" action="${STATION_ADMIN_ACTION}" class="move-photo">
+${hidden}
+<input type="hidden" name="action" value="move">
+<label for="to-${esc(p.id)}">${t.moveTo}</label>
+<select id="to-${esc(p.id)}" name="to" required><option value="" selected disabled>${t.movePick}</option>${others.map((d) => `<option value="${esc(d.value)}">${esc(d.label)}</option>`).join('')}</select>
+<button type="submit" class="button secondary">${t.move}</button></form>`;
   const remove = `<form method="post" action="${STATION_ADMIN_ACTION}" class="remove-photo">
 ${hidden}
 <input type="hidden" name="action" value="remove">
@@ -171,6 +209,7 @@ ${hidden}
 <a href="${img}main.jpg" target="_blank" rel="noopener"><img src="${img}thumb.jpg" alt="" loading="lazy"></a>
 <p>${isMain ? `<span class="chip ok">${t.main}</span> ` : ''}${t.sentBy} <span lang="">${esc(p.credit ?? '—')}</span>${date ? ` · ${esc(date)}` : ''} · <a href="${photoPath(lang, p.id)}">${t.credit}</a></p>
 ${promote}
+${move}
 ${remove}
 </li>`;
 }
@@ -189,6 +228,7 @@ export function stationAdminPage(lang: Lang, d: StationPhotos, result?: string):
     })),
     { target: s.id, title: t.plates, meta: '', plates: true },
   ];
+  const dests = destinations(lang, s, d.points);
   const sections = groups.map((g) => {
     const photos = d.photos.filter((p) => (p.kind === 'plate') === Boolean(g.plates) && (p.evse_compact ?? s.id) === g.target);
     const main = mains.get(g.target);
@@ -201,12 +241,12 @@ export function stationAdminPage(lang: Lang, d: StationPhotos, result?: string):
     return `<section class="card admin-target" id="${g.plates ? 'chapas' : `t-${esc(g.target)}`}">
 <h2>${esc(g.title)}</h2>${g.meta ? `\n<p class="meta mono">${esc(g.meta)}</p>` : ''}
 ${notes}${photos.length
-      ? `<ul class="admin-photos" role="list">\n${photos.map((p) => photoItem(lang, s, g.target, p, p.id === main)).join('\n')}\n</ul>`
+      ? `<ul class="admin-photos" role="list">\n${photos.map((p) => photoItem(lang, s, g.target, p, p.id === main, dests)).join('\n')}\n</ul>`
       : `<p class="muted">${t.none}</p>`}
 </section>`;
   });
   const msg = result && t.results[result]
-    ? `<p class="${result === 'promoted' || result === 'removed' ? 'ok' : 'notice'}" role="status">${t.results[result]}</p>`
+    ? `<p class="${result === 'promoted' || result === 'removed' || result === 'moved' ? 'ok' : 'notice'}" role="status">${t.results[result]}</p>`
     : '';
   return layout({
     lang,
@@ -288,6 +328,10 @@ export async function stationAdminAction(
       return back('publish');
     }
   }
+  if (action === 'move') {
+    const r = await movePhoto(env, station, id, form.get('to'), fetcher);
+    return back(r);
+  }
   if (action === 'remove') {
     const reason = form.get('reason');
     if (typeof reason !== 'string' || !reason) return back('reason');
@@ -296,4 +340,51 @@ export async function stationAdminAction(
     return back(r.error === 'bad_reason' ? 'reason' : r.error === 'panoramax' ? 'remove' : 'photo');
   }
   return back('bad');
+}
+
+// Move a photo to another target of the same station: the station in
+// general, a socket, or the rating plates. Panoramax first (the EVSE and kind
+// tags), then D1, so a failure there changes nothing. Never the main photo.
+export async function movePhoto(
+  env: TakedownEnv & AuthEnv, station: string, id: string, to: unknown, fetcher: Fetch = fetch,
+): Promise<'moved' | 'bad' | 'photo' | 'ismain' | 'move'> {
+  if (typeof to !== 'string' || !to) return 'bad';
+  const D = env.DB as unknown as D1Database;
+  const p = await D.prepare(
+    `SELECT id, evse_compact, kind, panoramax_id FROM photos WHERE id = ? AND station_id = ? AND origin = 'olhaoposto' AND status IN ('pending', 'published', 'hidden')`,
+  ).bind(id, station).first<{ id: string; evse_compact: string | null; kind: string; panoramax_id: string | null }>();
+  if (!p) return 'photo';
+  const main = await D.prepare(`SELECT 1 AS x FROM selections WHERE photo_id = ? AND lost_at IS NULL`).bind(id).first();
+  if (main) return 'ismain';
+  const kind = to === PLATE_DEST ? 'plate' : 'photo';
+  let evse: string | null = null;
+  let evseId: string | null = null;
+  if (kind === 'photo' && to !== station) {
+    const row = await D.prepare(`SELECT evse_compact, evse_id FROM evses WHERE station_id = ? AND evse_compact = ?`).bind(station, to)
+      .first<{ evse_compact: string; evse_id: string | null }>();
+    if (!row) return 'bad';
+    evse = row.evse_compact;
+    evseId = row.evse_id;
+  }
+  if (evse === p.evse_compact && kind === p.kind) return 'moved';
+  const oldEvseId = p.evse_compact
+    ? (await D.prepare(`SELECT evse_id FROM evses WHERE station_id = ? AND evse_compact = ?`).bind(station, p.evse_compact).first<{ evse_id: string | null }>())?.evse_id ?? null
+    : null;
+  if (p.panoramax_id) {
+    if (!env.PANORAMAX_TOKEN) return 'move';
+    const semantics = [
+      ...(oldEvseId && oldEvseId !== evseId ? [{ action: 'delete', key: 'osm|ref:EU:EVSE', value: oldEvseId }] : []),
+      ...(evseId && evseId !== oldEvseId ? [{ action: 'add', key: 'osm|ref:EU:EVSE', value: evseId }] : []),
+      ...(p.kind === 'plate' && kind !== 'plate' ? [{ action: 'delete', key: 'OlhaOPosto|kind', value: 'plate' }] : []),
+      ...(kind === 'plate' && p.kind !== 'plate' ? [{ action: 'add', key: 'OlhaOPosto|kind', value: 'plate' }] : []),
+    ];
+    const r = await fetcher(`${env.PANORAMAX_URL ?? PANORAMAX_URL}/api/pictures/${encodeURIComponent(p.panoramax_id)}`, {
+      method: 'PATCH',
+      headers: { authorization: `Bearer ${env.PANORAMAX_TOKEN}`, 'user-agent': 'OlhaOPosto', 'content-type': 'application/json' },
+      body: JSON.stringify({ semantics }),
+    }).catch(() => null);
+    if (!r || !r.ok) return 'move';
+  }
+  await D.prepare(`UPDATE photos SET evse_compact = ?, kind = ? WHERE id = ?`).bind(evse, kind, id).run();
+  return 'moved';
 }

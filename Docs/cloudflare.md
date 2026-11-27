@@ -2,7 +2,7 @@
 
 Zona `ocarroeletrico.com`, na conta Cloudflare existente. O servidor Panoramax (Zerops, bucket `panoramax`, DNS do `panoramax.*`) está em [`infra.md`](infra.md). O porquê está em [`arquitetura.md`](arquitetura.md), secções *Nomes e domínios* e *Links estáticos*; o que falta, em [`plan.md`](plan.md).
 
-**A zona é partilhada.** Aqui estão só os recursos do olh'o'posto. O que vale para a zona toda e afeta outros projetos (TLS, *rate limiting*, regras WAF, cache, *redirects* e que CLI gere o quê) está em [Cloudflare: zone-wide rules](https://github.com/CarregaErvilhas/OCarroEletrico/blob/main/docs/cloudflare-zone.md) (em inglês): atualizar lá no mesmo passo que mudar uma regra.
+**A zona é partilhada.** Aqui estão só os recursos do olh'o'posto. O que vale para a zona toda e afeta outros projetos (TLS, *rate limiting*, regras WAF, cache, *redirects* e que CLI gere o quê) está em [Cloudflare: zone-wide rules](https://github.com/CarregaErvilhas/Architecture/blob/main/Docs/cloudflare-zone.md) (em inglês): atualizar lá no mesmo passo que mudar uma regra.
 
 **Que CLI.** Os recursos da conta e da zona (R2, domínios, DNS, Cache Rules, purgas) fazem-se com o `cf`. O Worker, a D1 e os segredos do Worker continuam com o wrangler, sempre pelos *scripts* do `npm` (`npm run dev`, `npm run deploy`, `npm run remote`): o projeto tem `wrangler.json`, o deploy depende do truque do ID da D1 (secção 4), o Workers Builds corre o `npm run deploy`, e o `cf` (em beta) ainda não faz `secret put`. Não correr `cf dev`, `cf deploy` nem `cf migrate` aqui: geram outra configuração que ignora o `wrangler.json`.
 
@@ -177,7 +177,7 @@ Se o Panoramax falhar, nada muda. `approved_by` e `approved_at` guardam quem dec
 
 **Acesso de administração (Cloudflare Access).** Uma aplicação Access (Zero Trust Free) cobre `/admin`, `/admin/*`, `/en/admin` e `/en/admin/*`: antes de chegar ao Worker, quem abre estas paths recebe o ecrã de login da Cloudflare e um código de uso único no email. Só passam os emails da regra *Moderadores*; a sessão dura 24 h. Depois, o Worker ainda pede o login OSM e o papel `moderator` ou `admin`. Nomear um moderador são dois passos: o email na regra do Access e o papel em `/admin/utilizadores`. Os emails vivem só na Cloudflare, nunca no repositório. O resto do site não passa pelo Access.
 
-**Limites de pedidos** (`src/ratelimit.ts`, `ratelimits` no `wrangler.json`). A [única regra de *rate limiting* da zona](https://github.com/CarregaErvilhas/OCarroEletrico/blob/main/docs/cloudflare-zone.md#rate-limiting-the-only-rule) já está ocupada (apanha o `/mcp` de todos os *hosts*, também o nosso). Por isso os limites ficam no Worker, com o *binding* de *rate limiting* dos Workers (grátis):
+**Limites de pedidos** (`src/ratelimit.ts`, `ratelimits` no `wrangler.json`). A [única regra de *rate limiting* da zona](https://github.com/CarregaErvilhas/Architecture/blob/main/Docs/cloudflare-zone.md#rate-limiting-the-only-rule) já está ocupada (apanha o `/mcp` de todos os *hosts*, também o nosso). Por isso os limites ficam no Worker, com o *binding* de *rate limiting* dos Workers (grátis):
 
 | Binding | Chave | Limite | Onde |
 | --- | --- | --- | --- |

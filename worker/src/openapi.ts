@@ -186,6 +186,7 @@ export function openApiSpec() {
             400: err('`bad_photo`, `bad_target` or `consent_required`.'),
             409: err('`duplicate`.'),
             429: err('`daily_limit` or `too_fast`.'),
+            503: err('`unavailable`: the database refuses writes for now; nothing was stored.'),
             ...FORBIDDEN_TOKEN,
           },
         },

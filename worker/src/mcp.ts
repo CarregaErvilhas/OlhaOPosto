@@ -117,6 +117,7 @@ const ERROR_DETAIL: Record<string, string> = {
   consent_required: 'Both license and no_people must be true.',
   duplicate: 'This photo was already sent.',
   upload_failed: 'The upload failed on our side; try again later.',
+  unavailable: 'The database cannot store photos right now (nothing was sent); try again later, at the latest after 00:00 UTC.',
   station_nearby: 'There is already a station less than 60 m away: check the list; if yours is another one, repeat with force: true.',
   name_and_operator: 'name and operator need at least two characters each.',
   bad_position: 'The position must be in Portugal (mainland, Madeira or the Azores).',

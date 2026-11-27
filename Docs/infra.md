@@ -30,17 +30,16 @@ Ficheiros:
 
 | O quê | Onde |
 | --- | --- |
-| Projeto Zerops | `Panoramax`, org Cocofree, core *Lightweight*, região `prg1` |
+| Projeto Zerops | `Panoramax`, core *Lightweight*, região `prg1` |
 | Serviços | `pano` (Panoramax 2.17.0) e `db` (PostgreSQL 18, PostGIS 3.6.4) |
 | Imagens | Bucket R2 `panoramax`, privado |
 | Domínio | `panoramax.ocarroeletrico.com`: `AAAA` com proxy da Cloudflare, certificado do Zerops, *Access Policy* só para a Cloudflare |
 | Deploy | Webhook do GitHub: cada push para `main` faz build e deploy |
-| Contas | Conta `OlhaOPosto` criada, com token; sem OAuth |
+| Contas | Conta de serviço `OlhaOPosto`, sem OAuth. O Worker envia com o token dela (`PANORAMAX_TOKEN`): cria, publica e apaga os *upload sets* e trata as denúncias |
 
 Próximos passos:
 
 - [ ] Ponto 6 do ensaio: ler o consumo na GUI do Zerops e fazer a conta mensal (secção 9).
-- [ ] Quando o Worker passar a enviar fotos: emitir um token novo da `OlhaOPosto` e guardá-lo com `npm run remote -- secret put PANORAMAX_TOKEN` (secção 4). O Worker já existe, mas ainda não fala com o Panoramax.
 
 ---
 

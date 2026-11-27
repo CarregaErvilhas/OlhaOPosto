@@ -1,6 +1,6 @@
 # Cloudflare — recursos do olh'o'posto
 
-Zona `ocarroeletrico.com`, na conta Cloudflare existente. O servidor Panoramax (Zerops, bucket `panoramax`, DNS do `panoramax.*`) está em [`infra.md`](infra.md). O porquê está em [`arquitetura.md`](arquitetura.md), secções *Nomes e domínios* e *Links estáticos*; a publicação das fotos, que falta, em [`plan.md`](plan.md).
+Zona `ocarroeletrico.com`, na conta Cloudflare existente. O servidor Panoramax (Zerops, bucket `panoramax`, DNS do `panoramax.*`) está em [`infra.md`](infra.md). O porquê está em [`arquitetura.md`](arquitetura.md), secções *Nomes e domínios* e *Links estáticos*; o que falta, em [`plan.md`](plan.md).
 
 **Que CLI.** Os recursos da conta e da zona (R2, domínios, DNS, Cache Rules, purgas) fazem-se com o `cf`. O Worker, a D1 e os segredos do Worker continuam com o wrangler, sempre pelos *scripts* do `npm` (`npm run dev`, `npm run deploy`, `npm run remote`): o projeto tem `wrangler.json`, o deploy depende do truque do ID da D1 (secção 4), o Workers Builds corre o `npm run deploy`, e o `cf` (em beta) ainda não faz `secret put`. Não correr `cf dev`, `cf deploy` nem `cf migrate` aqui: geram outra configuração que ignora o `wrangler.json`.
 
@@ -9,24 +9,26 @@ Zona `ocarroeletrico.com`, na conta Cloudflare existente. O servidor Panoramax (
 | O quê | Estado |
 | --- | --- |
 | R2 `pictures` | Criado (WEUR), público em `pictures.ocarroeletrico.com`; ligado ao Worker (`PICTURES`), que escreve as fotos principais ao aprovar |
-| R2 `pictures-staging` | Criado (WEUR), privado, vazio; ligado ao Worker (`STAGING`) |
+| R2 `pictures-staging` | Criado (WEUR), privado; ligado ao Worker (`STAGING`). Sem regra de ciclo de vida, de propósito (secção 2) |
 | Cache Rule do `pictures.*` | Aplicada e testada |
-| D1 `pictures` | Criada, jurisdição EU, com o import diário. O deploy aplica as migrações novas antes do Worker |
+| D1 `pictures` | Criada, jurisdição EU, com o import de hora a hora. O deploy aplica as migrações novas antes do Worker |
 | Worker `olhaoposto` em `olhaoposto.ocarroeletrico.com` | Publicado: páginas dos postos, pesquisa por texto e por proximidade, API (leitura aberta; escrita com sessão ou *token*), `sitemap.xml`, privacidade e condições de utilização, seletor de tema, o login OSM, a conta (pontos, *tokens*), o ranking e a página de envio. O envio (`POST /api/v1/photos`) está aberto, com moderação; aprovar publica a foto principal em `pictures.*` |
 | Servidor MCP (`/mcp`) | No código: leitura sem login e escrita com *token* de API. O OAuth usa o KV `olhaoposto-oauth`, que o deploy cria se faltar (secção 4, *Servidor MCP*); sem ele, o OAuth responde `503` |
 | Início de sessão com o OSM | Ligado: aplicação registada no OSM (só `read_prefs`) e segredos postos (secção 4) |
 | Deploy do Worker | `npm run deploy` (migrações e depois o Worker). Workers Builds ligado: corre isso a cada push para `main` (secção 4, *Deploy automático*) |
-| Import diário dos postos | Workflow `import-stations.yml`, ativo; segredos do repositório postos. Correu à mão; o agendamento diário ainda não correu nenhuma vez |
+| Import dos postos | Workflow `import-stations.yml`, de hora a hora (`cron` no próprio workflow) e à mão (`workflow_dispatch`); segredos do repositório postos |
 
 ## 2. R2
 
 | Bucket | Acesso | Para quê |
 | --- | --- | --- |
 | `pictures` | Público só pelo custom domain `pictures.ocarroeletrico.com`; `r2.dev` desligado | Links estáticos: as três chaves de cada foto principal |
-| `pictures-staging` | Privado: sem domínio, `r2.dev` desligado | Versões de 1024 e 400 px até à aprovação |
+| `pictures-staging` | Privado: sem domínio, `r2.dev` desligado | Versões de 1024 e 400 px de cada foto, enquanto ela existir |
 | `panoramax` | Privado ([`infra.md`](infra.md), secção 5) | Armazenamento do Panoramax |
 
 O `pictures-staging` tem de ser um bucket à parte, não um prefixo em `pictures`: tudo o que está em `pictures` fica público pelo domínio.
+
+**Sem regra de ciclo de vida no `pictures-staging`, de propósito.** As cópias não servem só até à aprovação: trocar a principal (`chooseMain` em `src/publish.ts`, pelo `PUT /api/v1/selections/{target}` e por «Tornar principal»), a fusão de um posto em construção (`publishMain`, a partir de `src/construction.ts`) e as miniaturas da moderação e de «os meus envios» leem as de 1024 e 400 px de fotos publicadas há muito tempo. Uma regra por idade apagava-as e partia esses caminhos. As cópias de fotos recusadas ou removidas já saem no momento (`src/moderation.ts`, `src/takedown.ts`), e um envio que falha a meio apaga as suas (`src/photos.ts`). Rever se o código deixar de ler o `pictures-staging` depois da aprovação, ou se aparecerem cópias sem foto na D1.
 
 ## 3. `pictures.ocarroeletrico.com`
 
@@ -114,7 +116,7 @@ As páginas são HTML feito no Worker (`src/pages.ts`), sem *framework*. Os fich
 
 **Início de sessão com o OpenStreetMap** (`src/auth.ts`, migração `0004`). OAuth2 com PKCE (S256), só o âmbito `read_prefs`: chega para ler o número e o nome da conta, não dá o email nem deixa editar o mapa. O *token* do OSM serve uma vez, para ler `user/details`, e é revogado logo a seguir. A sessão é do olh'o'posto: um *cookie* `__Host-oop_session` (`HttpOnly`, `Secure`, `SameSite=Lax`, 30 dias) com um valor aleatório, e na tabela `sessions` só o SHA-256 dele. As sessões expiradas saem no login seguinte. A tabela `users` guarda o número e o nome no OSM (o nome e o `osm_key` atualizam-se em cada login), o papel (`contributor` por omissão), o pseudónimo, a promoção e a licença. As páginas dos postos e da pesquisa não leem a sessão, por isso continuam em cache e sem ida à D1; só a conta e o envio (`/conta`, `/enviar` e as versões em inglês) a leem.
 
-Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e `OSM_CLIENT_SECRET`: até lá, `/conta` e `/enviar` dizem que ainda não está disponível e `/auth/osm/*` responde `503`. Para ligar (só o Fernando):
+Fica **desligado** até existirem os segredos do Worker `OSM_CLIENT_ID` e `OSM_CLIENT_SECRET`: até lá, `/conta` e `/enviar` dizem que ainda não está disponível e `/auth/osm/*` responde `503`. Para ligar (só o responsável do projeto):
 
 1. Confirmar que a política de privacidade (`/privacidade`) está publicada e certa, incluindo o parágrafo sobre a página de envio.
 2. Registar a aplicação em `openstreetmap.org/oauth2/applications`: nome "olh'o'posto", confidencial, só "Ler as preferências do utilizador" (`read_prefs`), *redirect* `https://olhaoposto.ocarroeletrico.com/auth/osm/callback`.
@@ -304,4 +306,3 @@ Quem chamar com a localização de uma pessoa deve arredondar as coordenadas a 3
 
 ## 6. Questões em aberto
 
-- [ ] Regra de ciclo de vida no `pictures-staging` como rede de segurança para fotos rejeitadas ou abandonadas (por exemplo 90 dias). O risco é apagar as versões de uma foto que ainda está na fila.

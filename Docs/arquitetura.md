@@ -2,11 +2,19 @@
 
 Este documento descreve o olh'o'posto tal como existe hoje. O que ainda falta construir, e o design dessas partes, está em [`plan.md`](plan.md). Os detalhes de operação estão em [`infra.md`](infra.md) (servidor Panoramax no Zerops) e em [`cloudflare.md`](cloudflare.md) (R2, Worker, D1 e o import dos postos). As licenças estão em [`licenca.md`](licenca.md).
 
+## Estado
+
+- **Fase 1 (Panoramax):** o servidor está em produção em `panoramax.ocarroeletrico.com`, fora da federação, com o ensaio feito. Falta a conversa com a comunidade ([`plan.md`](plan.md), *Fases*) e a conta mensal ([`infra.md`](infra.md), secção 9).
+- **Fase 2 (o site para pessoas):** quase feita. Funcionam as páginas, a pesquisa, a API, o login OSM, o envio, a moderação, a foto principal, as chapas, as fotos externas, os postos em construção, os pontos, o crédito, os *tokens*, o MCP e os pedidos de remoção (secções abaixo). O que falta (o detetor de matrículas, entre outros) está no [`plan.md`](plan.md).
+- **Envio aberto:** Turnstile, limites de pedidos e 50 fotos por dia para contribuidores ([`cloudflare.md`](cloudflare.md), secção 4).
+- **Papéis:** mudam-se em `/admin/utilizadores`; quem pode dar qual está em [`moderadores.md`](moderadores.md).
+- **Deploy:** cada push para `main` que mexa em `worker/` publica o Worker pelo Workers Builds; o Panoramax faz deploy pelo webhook do Zerops. O que está publicado na Cloudflare está no [`cloudflare.md`](cloudflare.md), secção 1.
+
 ## Objetivo
 
 Um servidor **Panoramax** próprio, só para postos de carregamento, guarda as fotos. Um **Worker da Cloudflare** (`olhaoposto`) faz o resto: a lista de postos do NAP, os links estáticos pelo ID oficial, a escolha da foto principal, o envio, a moderação, o ranking, a API e o MCP. Exemplo de link: `https://pictures.ocarroeletrico.com/TRK-VNT-00005.jpg`.
 
-Requisitos (proposta de Alexandre Moleiro):
+Requisitos (da proposta inicial do projeto):
 
 - Servidor que aloja as fotos e gera links estáticos.
 - Upload obrigatoriamente associado a um posto (`OPC-XXXXXXXXXX`) ou a uma tomada (`PT-OPC-E-YYYYYYYYY`).
@@ -53,7 +61,7 @@ O `pictures.*` não tem Worker à frente de propósito: um Worker corre antes da
    users, sessions, photos, selections,    (privado, cópias até à aprovação)
    points, api_tokens, review_queue...
               ^
-   GitHub Actions, todos os dias:
+   GitHub Actions, de hora a hora:
    ohmigo_chargers.json (NAP dashboard) --> D1
 
    Panoramax (panoramax.*, Zerops)
@@ -78,9 +86,9 @@ O servidor está configurado para isto: licença CC BY-SA 4.0, envio só com tok
 
 A lista de postos válidos vem do NAP (fonte oficial): mais de 8 900 locais e 19 700 pontos.
 
-**Sincronização.** O olh'o'posto lê o `ohmigo_chargers.json` que o NAP dashboard já publica (o mesmo que o site e o ohmigo usam), todos os dias, pelo GitHub Actions, e faz *upsert* na D1: postos novos entram como `active`, postos que desaparecem passam a `missing_from_nap` (nunca são apagados, para os links e as fotos continuarem a funcionar). O mesmo import traz os postos em construção do OpenStreetMap (abaixo). Corre de hora a hora e não faz nada quando o feed não mudou. Funcionamento e travões em [`cloudflare.md`](cloudflare.md), secção 5.
+**Sincronização.** O olh'o'posto lê o `ohmigo_chargers.json` que o NAP dashboard já publica (o mesmo que o site e o ohmigo usam), de hora a hora, pelo GitHub Actions, e faz *upsert* na D1: postos novos entram como `active`, postos que desaparecem passam a `missing_from_nap` (nunca são apagados, para os links e as fotos continuarem a funcionar). O mesmo import traz os postos em construção do OpenStreetMap (abaixo). Corre de hora a hora e não faz nada quando o feed não mudou. Funcionamento e travões em [`cloudflare.md`](cloudflare.md), secção 5.
 
-**Chave dos links.** O posto usa o `id` do local (`EZC-AMD-00051`: prefixo do operador + código), que é único e é o formato `OPC-XXXXXXXXXX` do Alexandre. A tomada usa o código EVSE do NAP sem os `*` (`PTEZCEAMD000511`), vindo do campo `evse` de cada ponto do feed. Pontos sem código EVSE no NAP não têm link de tomada.
+**Chave dos links.** O posto usa o `id` do local (`EZC-AMD-00051`: prefixo do operador + código), que é único e é o formato `OPC-XXXXXXXXXX` da proposta inicial. A tomada usa o código EVSE do NAP sem os `*` (`PTEZCEAMD000511`), vindo do campo `evse` de cada ponto do feed. Pontos sem código EVSE no NAP não têm link de tomada.
 
 **Armadilhas de IDs** (do [gotchas.md](https://github.com/CarregaErvilhas/nap-dashboard/blob/main/references/gotchas.md) do NAP dashboard):
 
@@ -142,7 +150,7 @@ Contas `trusted` publicam logo quando a foto foi tirada a 300 m ou menos de um p
 
 ## Links estáticos
 
-O URL é o ID e nunca muda. Só há link estático para fotos enviadas pelo olh'o'posto; as externas (*Fotos externas*, abaixo) ficam só na galeria. A resolução código → foto acontece **na escrita, não no pedido**: quando um moderador aprova uma foto e o alvo (a tomada, ou o posto para uma foto do posto em geral) ainda não tem principal, o Worker (`src/publish.ts`) regista-a na tabela `selections` e copia três tamanhos para o bucket `pictures`. Uma foto de uma tomada também passa a principal do posto, se o posto não tiver nenhuma. As cópias de 1024 e 400 px vêm do `pictures-staging`; a de 2048 px vem do Panoramax, sem o EXIF que o Panoramax lhe escreve. Cada cópia leva um XMP com o autor, a licença CC BY-SA 4.0 e o link da página de crédito da foto (`/p/{photo_id}`; o R2 não manda cabeçalhos próprios), sem GPS, e `Cache-Control: public, max-age=86400`. As cópias publicadas antes da página de crédito existir continuam a apontar para a página do posto até serem publicadas outra vez. A página do posto mostra a foto principal com o crédito, e as miniaturas das tomadas; ambas ligam à página de crédito. As outras fotos publicadas do posto e das tomadas (as que não são principais) aparecem por baixo, em «Outras fotos», com a miniatura do Panoramax ligada à página de crédito. Um moderador ou uma conta `trusted` pode trocar a principal (`PUT /api/v1/selections/{target}`): o Worker copia a foto nova por cima das três chaves e faz *purge* desses URLs.
+O URL é o ID e nunca muda. Só há link estático para fotos enviadas pelo olh'o'posto; as externas (*Fotos externas*, abaixo) ficam só na galeria. A resolução código → foto acontece **na escrita, não no pedido**: quando um moderador aprova uma foto e o alvo (a tomada, ou o posto para uma foto do posto em geral) ainda não tem principal, o Worker (`src/publish.ts`) regista-a na tabela `selections` e copia três tamanhos para o bucket `pictures`. Uma foto de uma tomada também passa a principal do posto, se o posto não tiver nenhuma. As cópias de 1024 e 400 px vêm do `pictures-staging`; a de 2048 px vem do Panoramax, sem o EXIF que o Panoramax lhe escreve. Cada cópia leva um XMP com o autor, a licença CC BY-SA 4.0 e o link da página de crédito da foto (`/p/{photo_id}`; o R2 não manda cabeçalhos próprios), sem GPS, e `Cache-Control: public, max-age=86400`. As cópias publicadas antes da página de crédito existir continuam a apontar para a página do posto até serem publicadas outra vez. A página do posto mostra a foto principal com o crédito, e as miniaturas das tomadas; ambas ligam à página de crédito. As outras fotos publicadas do posto e das tomadas (as que não são principais) aparecem por baixo, em «Outras fotos», com a miniatura do Panoramax ligada à página de crédito. Um moderador ou administrador pode trocar a principal (`PUT /api/v1/selections/{target}`): o Worker copia a foto nova por cima das três chaves e faz *purge* desses URLs.
 
 Quando a principal é ocultada ou removida (pedido de remoção), as três chaves saem logo do `pictures` e o link passa a `404`: a privacidade vem primeiro. A seguinte **nunca passa a principal sozinha**, porque pode estar mal desfocada, ser de outra tomada ou simplesmente pior. A linha de `selections` fica, com `lost_at` preenchido e `published_at` a `NULL`, e o alvo aparece na lista «Sem foto principal» (`/admin/sem-principal`, e no fim da fila de moderação e do painel de remoções; `src/mains.ts`), com as outras fotos publicadas do mesmo alvo: do posto em geral para um posto, dessa tomada para uma tomada. Um moderador ou administrador escolhe uma e carrega em «Tornar principal» (`POST /admin/principal`, que usa o mesmo caminho do `PUT /api/v1/selections/{target}`). Sem escolha, o link fica `404`. Uma foto nova desse alvo, quando aprovada, preenche-o como a qualquer alvo sem principal; o mesmo faz a própria foto, se o moderador a mantiver.
 
@@ -178,7 +186,7 @@ A chapa de um carregador é a placa de características: modelo, número de sér
 
 ## Fotos externas
 
-Há postos com uma foto que alguém pôs no OSM (`panoramax=`, `wikimedia_commons=`, `image=`, pelo MapComplete ou à mão) e que ninguém enviou pelo olh'o'posto. O NAP dashboard já as recolhe (`charger_photos.py`) e publica cada miniatura em `nap.ocarroeletrico.com/photos/`. O import diário (`scripts/import-stations.ts`, [`cloudflare.md`](cloudflare.md)) lê o `photos` de cada posto do feed e guarda-as em `photos` **só como referência** (migração `0017`):
+Há postos com uma foto que alguém pôs no OSM (`panoramax=`, `wikimedia_commons=`, `image=`, pelo MapComplete ou à mão) e que ninguém enviou pelo olh'o'posto. O NAP dashboard já as recolhe (`charger_photos.py`) e publica cada miniatura em `nap.ocarroeletrico.com/photos/`. O import dos postos (`scripts/import-stations.ts`, [`cloudflare.md`](cloudflare.md)) lê o `photos` de cada posto do feed e guarda-as em `photos` **só como referência** (migração `0017`):
 
 - `origin` é `osm_panoramax` (a página é um Panoramax, `external_ref` é o UUID da imagem) ou `commons` (a página é do Wikimedia, `external_ref` é o título do ficheiro). `external_src` é a miniatura, `source_url` a página na origem, e `credit`, `license` e `taken_at` vêm da origem. Sem cópias no R2, sem `uploader_id`, sem moderação (`status` fica `published`), sem pontos, sem `panoramax_id`. O `id` é um hash do posto e da origem, por isso o API é estável entre importações.
 - Ficam de fora: o Mapillary (a API deles pede chave), fotos sem miniatura ou sem licença, miniaturas que não estejam em `nap.ocarroeletrico.com/photos/`, e as nossas (a página é do olh'o'posto ou do nosso Panoramax, ou o UUID é o `panoramax_id` de uma foto `olhaoposto`).
@@ -195,6 +203,10 @@ Há postos com uma foto que alguém pôs no OSM (`panoramax=`, `wikimedia_common
 - **Motivo de recusa:** recusar uma foto na fila (`/admin/fila`) exige um motivo de uma lista fixa (`wrong_station`, `privacy`, `quality`, `duplicate`, `advertising`, `other`, em `src/reasons.ts`) e aceita uma nota curta. Guarda-se em `photos.refusal_reason`, `refusal_note` e `refused_by`. Uma remoção pelo painel `/admin/remocoes` guarda o motivo da denúncia convertido para a mesma lista, sem `refused_by`.
 - **Os meus envios:** `/conta/envios` (`/en/account/uploads`), ligada da conta: as fotos do próprio autor, com miniatura (só dele), posto, data, estado (à espera, publicada, principal, recusada, removida, oculta) e o motivo em linguagem simples. Paginada, 20 por página.
 - **Histórico de decisões:** `/admin/decisoes` (`/en/admin/decisions`), para moderadores: quem aprovou ou recusou fotos, quando e porquê, da mais recente para a mais antiga. As remoções por denúncia não entram (vivem no Panoramax).
+
+## Pedidos de remoção
+
+Assentam nas denúncias do próprio Panoramax (`src/takedown.ts`). O formulário `/report` (com Turnstile; o botão «Report» do nosso `/viewer` abre-o) cria a denúncia e oculta logo as nossas cópias. Os moderadores decidem no painel `/admin/remocoes`. Uma regra WAF só deixa passar as denúncias que vêm do Worker, e um *cron* de 6 em 6 horas (e o painel, ao abrir) repete as ocultações que falharam a meio. Uma principal oculta ou removida sai logo do `pictures` (*Links estáticos*, acima). Detalhe em [`cloudflare.md`](cloudflare.md), secção 4.
 
 ## Pontos e ranking
 

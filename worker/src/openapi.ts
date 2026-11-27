@@ -266,7 +266,7 @@ export function openApiSpec() {
             points: { type: 'array', items: ref('Point') }, updatedAt: str,
             lifecycle: { const: 'construction', description: 'Only on stations under construction (id OSM-w… or OSM-n…, from OpenStreetMap, not in the NAP yet). They do not charge, have no sockets and no static link; they merge into their NAP station later and the old id answers 301.' },
             codes: { type: 'array', items: str, description: 'Under construction only: the MOBI.E codes in the OSM tags.' },
-            photos: { type: 'array', description: 'Under construction only: the published photos.', items: { type: 'object', properties: { id: str, credit: nstr, license: str, page: str, thumb: str } } },
+            photos: { type: 'array', description: 'The other published photos, the ones that are not a main photo (for a station under construction, all of them). No static link: the thumbnail is on Panoramax, the page is the photo\'s credit page.', items: { type: 'object', properties: { id: str, credit: nstr, license: str, attribution: str, page: str, thumb: str } } },
           },
         },
         Evse: {

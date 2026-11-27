@@ -258,7 +258,7 @@ test('submitPhoto: D1 refusing writes answers 503 before anything is sent', asyn
   assert.deepEqual(body, { error: 'unavailable' });
   assert.equal(f.r2.size, 0);
   assert.equal(f.rows.size, 0);
-  assert.equal(f.calls.filter((c) => c.url.startsWith('https://pano.test')).length, 0);
+  assert.equal(f.calls.filter((c) => new URL(c.url).host === 'pano.test').length, 0);
 });
 
 test('submitPhoto: a Panoramax failure leaves only a failed row', async () => {

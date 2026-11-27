@@ -29,7 +29,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <ul>
 <li><strong>És o autor.</strong> Só envias fotos que tiraste tu. Não envias fotos de outras pessoas, nem capturas de ecrã, nem imagens tiradas da Internet.</li>
 <li><strong>Licença.</strong> Publicas cada foto sob a <a href="${LINKS.ccbysa.pt}" target="_blank" rel="noopener">Creative Commons Atribuição-CompartilhaIgual 4.0 (CC BY-SA 4.0)</a>. Qualquer pessoa pode usá-la, também para fins comerciais, desde que te dê crédito e partilhe os derivados sob a mesma licença. A licença não se pode revogar para as cópias que já foram feitas.</li>
-<li><strong>Dados tirados das fotos.</strong> Autorizas também que os dados não fotográficos que se tiram das fotos (o tipo de tomada, o operador, a posição de um posto) sejam publicados sob <a href="${LINKS.ccby.pt}" target="_blank" rel="noopener">CC BY 4.0</a> ou <a href="${LINKS.odbl}" target="_blank" rel="noopener">ODbL</a>, para poderem ir para o OpenStreetMap.</li>
+<li><strong>Dados tirados das fotos.</strong> Autorizas também que os dados não fotográficos que se tiram das fotos (o tipo de tomada, o operador, a posição de um posto, o modelo e as características escritas na chapa de um carregador) sejam publicados sob <a href="${LINKS.ccby.pt}" target="_blank" rel="noopener">CC BY 4.0</a> ou <a href="${LINKS.odbl}" target="_blank" rel="noopener">ODbL</a>, para poderem ir para o OpenStreetMap.</li>
 <li><strong>Crédito.</strong> O crédito é o teu nome no OpenStreetMap ou, se o escolheres na tua <a href="${accountPath('pt')}">conta</a>, um pseudónimo («nome a mostrar»). Vai com a foto no Panoramax, nos metadados dos links estáticos, nas páginas dos postos e no ranking. O pseudónimo não pode ser o nome de outra pessoa nem um link, e muda no máximo uma vez por dia. Quando o mudas, atualizamos as tuas fotos no ${BRAND}, no Panoramax e nos links estáticos; as cópias que outras pessoas já fizeram ficam com o nome antigo.</li>
 </ul>
 
@@ -37,12 +37,12 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <ul>
 <li>Antes de enviar, desfocas todas as caras e matrículas legíveis. A página de envio ajuda (pode sugerir zonas), mas a confirmação é tua.</li>
 <li>Não envias fotos de pessoas a carregar, do interior de casas ou garagens privadas, nem de documentos.</li>
-<li>Fotografas o posto, as tomadas e o que ajuda a encontrá-lo (sinalética, o lugar de estacionamento), e mais nada.</li>
+<li>Fotografas o posto, as tomadas, as chapas dos carregadores (a placa de características) e o que ajuda a encontrá-lo (sinalética, o lugar de estacionamento), e mais nada.</li>
 </ul>
 
 <h2>O que se pode enviar</h2>
 <ul>
-<li>Fotos do posto ou da tomada que escolhes, tiradas no local. A página usa o GPS da foto para confirmar o posto; o GPS nunca é publicado (<a href="${privacyPath('pt')}">privacidade</a>).</li>
+<li>Fotos do posto, da tomada ou da chapa que escolhes, tiradas no local. A página usa o GPS da foto para confirmar o posto; o GPS nunca é publicado (<a href="${privacyPath('pt')}">privacidade</a>).</li>
 <li>Não se propõem postos aqui. Os postos vêm do NAP e do OpenStreetMap: um posto que falta acrescenta-se no OpenStreetMap.</li>
 <li>Não são aceites: publicidade, texto ou marcas de água por cima da foto, fotos repetidas, fotos tremidas ou escuras demais para se perceber o posto.</li>
 </ul>
@@ -84,7 +84,7 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <ul>
 <li><strong>You are the author.</strong> You only send photos you took yourself. No photos by other people, no screenshots, no images from the Internet.</li>
 <li><strong>Licence.</strong> You publish each photo under <a href="${LINKS.ccbysa.en}" target="_blank" rel="noopener">Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0)</a>. Anyone can use it, commercially too, as long as they credit you and share derivatives under the same licence. The licence cannot be revoked for copies already made.</li>
-<li><strong>Data taken from the photos.</strong> You also allow the non-photographic data taken from the photos (the socket type, the operator, a station’s position) to be published under <a href="${LINKS.ccby.en}" target="_blank" rel="noopener">CC BY 4.0</a> or <a href="${LINKS.odbl}" target="_blank" rel="noopener">ODbL</a>, so it can go into OpenStreetMap.</li>
+<li><strong>Data taken from the photos.</strong> You also allow the non-photographic data taken from the photos (the socket type, the operator, a station’s position, the model and ratings written on a charger’s rating plate) to be published under <a href="${LINKS.ccby.en}" target="_blank" rel="noopener">CC BY 4.0</a> or <a href="${LINKS.odbl}" target="_blank" rel="noopener">ODbL</a>, so it can go into OpenStreetMap.</li>
 <li><strong>Credit.</strong> The credit is your OpenStreetMap name or, if you choose one on your <a href="${accountPath('en')}">account</a> page, a pseudonym (“display name”). It travels with the photo on Panoramax, in the metadata of the static links, on the station pages and in the ranking. The pseudonym cannot be someone else’s name or a link, and changes at most once a day. When you change it, we update your photos on ${BRAND}, on Panoramax and in the static links; copies other people have already made keep the old name.</li>
 </ul>
 
@@ -92,12 +92,12 @@ export const TERMS: Record<Lang, { title: string; description: string; body: str
 <ul>
 <li>Before sending, you blur every readable face and number plate. The upload page helps (it can suggest areas), but confirming is up to you.</li>
 <li>You do not send photos of people charging, of the inside of homes or private garages, or of documents.</li>
-<li>You photograph the station, the sockets and what helps find it (signs, the parking bay), and nothing else.</li>
+<li>You photograph the station, the sockets, the chargers’ rating plates and what helps find it (signs, the parking bay), and nothing else.</li>
 </ul>
 
 <h2>What you can send</h2>
 <ul>
-<li>Photos of the station or socket you pick, taken on site. The page uses the photo’s GPS to check the station; the GPS is never published (<a href="${privacyPath('en')}">privacy</a>).</li>
+<li>Photos of the station, socket or rating plate you pick, taken on site. The page uses the photo’s GPS to check the station; the GPS is never published (<a href="${privacyPath('en')}">privacy</a>).</li>
 <li>Stations are not proposed here. They come from the NAP and OpenStreetMap: a missing station is added on OpenStreetMap.</li>
 <li>Not accepted: advertising, text or watermarks over the photo, repeated photos, photos too blurry or dark to make out the station.</li>
 </ul>

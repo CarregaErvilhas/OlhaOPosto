@@ -32,6 +32,7 @@ export interface PhotoRow {
   origin: string;
   station_id: string;
   evse_compact: string | null;
+  kind?: string | null;
   uploader_id: string | null;
   panoramax_set: string | null;
   panoramax_id: string | null;
@@ -58,7 +59,7 @@ export interface PhotoRow {
   source_url: string | null;
 }
 
-const SELECT = `SELECT p.id, p.origin, p.station_id, p.evse_compact, p.uploader_id, p.panoramax_set, p.panoramax_id,
+const SELECT = `SELECT p.id, p.origin, p.station_id, p.evse_compact, p.kind, p.uploader_id, p.panoramax_set, p.panoramax_id,
        p.credit, p.license, p.taken_at, p.approved_at, p.created_at, p.status, p.refusal_reason, p.refusal_note,
        EXISTS (SELECT 1 FROM selections sel
                 WHERE sel.target = coalesce(p.evse_compact, p.station_id)
@@ -99,6 +100,7 @@ function externalPhoto(r: PhotoRow) {
   return {
     id: r.id,
     origin: r.origin,
+    kind: 'photo',
     target: r.station_id,
     socket: null,
     station: stationOf(r),
@@ -137,6 +139,8 @@ export function publicPhoto(r: PhotoRow) {
   return {
     id: r.id,
     origin: r.origin,
+    // `plate`: a charger's rating plate (gallery only, never the main photo).
+    kind: r.kind ?? 'photo',
     target,
     socket: r.evse_compact,
     station: stationOf(r),

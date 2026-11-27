@@ -174,7 +174,7 @@ export function openApiSpec() {
                     full: { type: 'string', format: 'binary', description: 'JPEG, longest side up to 2048 px.' },
                     main: { type: 'string', format: 'binary', description: 'JPEG, longest side up to 1024 px.' },
                     thumb: { type: 'string', format: 'binary', description: 'JPEG, longest side up to 400 px.' },
-                    meta: { type: 'string', description: 'JSON: `{"station", "target", "taken_at", "exif_lat", "exif_lon", "license": true, "no_people": true}`. `target` is the station id or a compact EVSE code.' },
+                    meta: { type: 'string', description: 'JSON: `{"station", "target", "kind", "taken_at", "exif_lat", "exif_lon", "license": true, "no_people": true}`. `target` is the station id or a compact EVSE code. `kind` is `photo` (default) or `plate`, a charger\'s rating plate, with `target` = the station id.' },
                     turnstile: { type: 'string', description: 'Only from the site, with a session.' },
                   },
                 },
@@ -275,7 +275,7 @@ export function openApiSpec() {
             points: { type: 'array', items: ref('Point') }, updatedAt: str,
             lifecycle: { const: 'construction', description: 'Only on stations under construction (id OSM-w… or OSM-n…, from OpenStreetMap, not in the NAP yet). They do not charge, have no sockets and no static link; they merge into their NAP station later and the old id answers 301.' },
             codes: { type: 'array', items: str, description: 'Under construction only: the MOBI.E codes in the OSM tags.' },
-            photos: { type: 'array', description: 'The other published photos, the ones that are not a main photo (for a station under construction, all of them). No static link: the thumbnail is on Panoramax, the page is the photo\'s credit page.', items: { type: 'object', properties: { id: str, credit: nstr, license: str, attribution: str, page: str, thumb: str } } },
+            photos: { type: 'array', description: 'The other published photos, the ones that are not a main photo (for a station under construction, all of them). No static link: the thumbnail is on Panoramax, the page is the photo\'s credit page.', items: { type: 'object', properties: { id: str, kind: { enum: ['photo', 'plate'] }, socket: nstr, credit: nstr, license: str, attribution: str, page: str, thumb: str } } },
           },
         },
         Evse: {
@@ -298,6 +298,7 @@ export function openApiSpec() {
           description: 'A photo. The position is the station\'s, never the photo\'s GPS. `sizes` are the stable static links for a main photo and Panoramax\'s own images (maxPx unknown) for the others.',
           properties: {
             id: str, origin: { type: 'string', description: '`olhaoposto` for photos sent here; `osm_panoramax` or `commons` for a reference to a photo that lives there (no copy here: `sizes.thumb` only, no credit page, no removal request).' },
+            kind: { enum: ['photo', 'plate'], description: '`plate`: a charger\'s rating plate (model, serial, rated V/A/kW). Gallery only: never a main photo, no static link.' },
             target: { type: 'string', description: 'Station id, or the compact EVSE code of the socket.' },
             socket: nstr,
             station: { type: 'object', properties: { id: str, code: nstr, name: nstr, operator: ref('Operator'), municipality: nstr, lat: num, lon: num } },

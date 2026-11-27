@@ -123,7 +123,7 @@ export async function lostTargets(env: PhotoEnv): Promise<LostTarget[]> {
     `SELECT sel.target, p.id, p.credit, p.approved_at
        FROM selections sel
        JOIN photos p ON p.station_id = sel.station_id AND p.status = 'published' AND p.origin = 'olhaoposto'
-        AND p.id <> sel.photo_id
+        AND p.kind = 'photo' AND p.id <> sel.photo_id
         AND ((sel.target = sel.station_id AND p.evse_compact IS NULL) OR p.evse_compact = sel.target)
       WHERE sel.lost_at IS NOT NULL
       ORDER BY p.approved_at DESC, p.created_at DESC`,

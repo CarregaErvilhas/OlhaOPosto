@@ -101,9 +101,13 @@ const reply = (status: number, body: Record<string, unknown>) =>
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
   });
 
+export type PhotoKind = 'photo' | 'plate';
+
 export interface PhotoMeta {
   station: string;
   target: string;
+  // `plate`: a charger's rating plate, of the station in general (never a socket).
+  kind: PhotoKind;
   taken_at: string | null;
   exif_lat: number | null;
   exif_lon: number | null;
@@ -126,6 +130,11 @@ export function parseMeta(raw: unknown, now = new Date()): PhotoMeta | string {
   if (m.license !== true || m.no_people !== true) return 'consent_required';
   if (typeof m.station !== 'string' || !STATION_ID.test(m.station)) return 'bad_target';
   if (typeof m.target !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(m.target)) return 'bad_target';
+  if (m.kind != null && m.kind !== 'photo' && m.kind !== 'plate') return 'bad_meta';
+  const kind: PhotoKind = m.kind === 'plate' ? 'plate' : 'photo';
+  // A plate goes on the station: a station can have several chargers, and
+  // the NAP does not say which socket is on which.
+  if (kind === 'plate' && m.target !== m.station) return 'bad_target';
   let taken: string | null = null;
   if (m.taken_at != null) {
     if (typeof m.taken_at !== 'string' || !TAKEN_AT.test(m.taken_at)) return 'bad_meta';
@@ -138,7 +147,7 @@ export function parseMeta(raw: unknown, now = new Date()): PhotoMeta | string {
   const lon = num(m.exif_lon);
   if ((m.exif_lat != null || m.exif_lon != null) && (lat === null || lon === null)) return 'bad_meta';
   if (lat !== null && lon !== null && (Math.abs(lat) > 90 || Math.abs(lon) > 180)) return 'bad_meta';
-  return { station: m.station, target: m.target, taken_at: taken, exif_lat: lat, exif_lon: lon };
+  return { station: m.station, target: m.target, kind, taken_at: taken, exif_lat: lat, exif_lon: lon };
 }
 
 // One size: a clean JPEG whose longest side fits.
@@ -294,10 +303,10 @@ export async function submitPhoto(
     && distance !== null
     && distance <= FAR_M;
   await env.DB.prepare(
-    `INSERT INTO photos (id, station_id, evse_compact, uploader_id, taken_at, exif_lat, exif_lon, distance_m,
+    `INSERT INTO photos (id, station_id, evse_compact, kind, uploader_id, taken_at, exif_lat, exif_lon, distance_m,
        credit, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploading', ?)`,
-  ).bind(id, meta.station, evse, user.id, meta.taken_at, meta.exif_lat, meta.exif_lon, distance, user.name, createdAt).run();
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploading', ?)`,
+  ).bind(id, meta.station, evse, meta.kind, user.id, meta.taken_at, meta.exif_lat, meta.exif_lon, distance, user.name, createdAt).run();
 
   const staged = [`${id}/main.jpg`, `${id}/thumb.jpg`];
   let setId: string | null = null;
@@ -309,6 +318,7 @@ export async function submitPhoto(
       ...(target.evse_id ? [{ key: 'osm|ref:EU:EVSE', value: target.evse_id }] : []),
       { key: 'OlhaOPosto|site', value: meta.station },
       { key: 'OlhaOPosto|author', value: user.name },
+      ...(meta.kind === 'plate' ? [{ key: 'OlhaOPosto|kind', value: 'plate' }] : []),
     ];
     // Panoramax gets the station's position, never the photographer's.
     const pictureId = await sendToPanoramax(env, fetcher, id, files.full, {

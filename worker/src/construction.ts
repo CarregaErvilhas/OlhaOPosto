@@ -36,7 +36,7 @@ export async function publishMergedMains(env: PublishEnv, fetcher: Fetch = fetch
        JOIN stations o ON o.id = a.old_id AND o.source = 'osm' AND o.status = 'merged'
        JOIN stations n ON n.id = a.new_id AND n.source = 'nap'
        JOIN photos p ON p.station_id = a.new_id
-      WHERE p.origin = 'olhaoposto' AND p.status = 'published' AND p.evse_compact IS NULL
+      WHERE p.origin = 'olhaoposto' AND p.status = 'published' AND p.evse_compact IS NULL AND p.kind = 'photo'
         AND p.panoramax_id IS NOT NULL
         AND NOT EXISTS (SELECT 1 FROM selections sel WHERE sel.target = a.new_id)
       ORDER BY p.approved_at, p.id`,

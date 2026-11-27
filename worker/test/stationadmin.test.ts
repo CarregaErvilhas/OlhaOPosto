@@ -12,6 +12,7 @@ const NOW = new Date('2026-11-27T12:00:00Z');
 const A = '00000000-0000-0000-0000-00000000000a';
 const B = '00000000-0000-0000-0000-00000000000b';
 const S = '00000000-0000-0000-0000-00000000000c';
+const P = '00000000-0000-0000-0000-00000000000d';
 
 function jpeg(width: number, height: number): Uint8Array {
   const seg = (m: number, p: number[]) => [0xff, m, (p.length + 2) >> 8, (p.length + 2) & 0xff, ...p];
@@ -39,12 +40,14 @@ async function world() {
       ('${A}', 'EZC-AMD-00051', NULL, 's1', 'pic-a', 'Ana', 'ana', 'mod', 'published', '2026-01-01', '2026-01-01'),
       ('${B}', 'EZC-AMD-00051', NULL, 's2', 'pic-b', 'Ana', 'ana', 'mod', 'published', '2026-02-01', '2026-02-01'),
       ('${S}', 'EZC-AMD-00051', 'PTEZCEAMD000511', 's3', 'pic-s', 'Ana', 'ana', 'mod', 'published', '2026-03-01', '2026-03-01');
+    INSERT INTO photos (id, station_id, kind, panoramax_set, panoramax_id, credit, uploader_id, approved_by, status, approved_at, created_at) VALUES
+      ('${P}', 'EZC-AMD-00051', 'plate', 's4', 'pic-p', 'Ana', 'ana', 'mod', 'published', '2026-04-01', '2026-04-01');
     INSERT INTO selections (target, station_id, photo_id, chosen_at, published_at) VALUES
       ('EZC-AMD-00051', 'EZC-AMD-00051', '${A}', 'x', 'x');
   `);
   const r2 = new Map<string, number>();
   const staging = new Map<string, Uint8Array>();
-  for (const id of [A, B, S]) {
+  for (const id of [A, B, S, P]) {
     staging.set(`${id}/main.jpg`, jpeg(1024, 768));
     staging.set(`${id}/thumb.jpg`, jpeg(400, 300));
   }
@@ -117,4 +120,31 @@ test('/api/v1/me says whether to show the moderators link, never cached', async 
   assert.deepEqual(await me({ cookie: cookie('m') }), { role: 'moderator', moderator: true });
   assert.deepEqual(await me({ cookie: cookie('t') }), { role: 'trusted', moderator: false });
   assert.deepEqual(await me({}), { role: null, moderator: false });
+});
+
+test('a rating plate is in its own section, can be removed and never made main', async () => {
+  const w = await world();
+  const ctx = { waitUntil() {} } as never;
+  const html = await (await worker.fetch(new Request(`${SITE}/admin/posto/EZC-AMD-00051`, { headers: { cookie: cookie('m') } }), w.env as never, ctx)).text();
+  const plates = html.slice(html.indexOf('id="chapas"'));
+  assert.ok(plates.includes(`value="${P}"`));
+  assert.ok(!plates.includes('Tornar principal'));
+  // Not under the station's own photos.
+  assert.ok(html.indexOf(`value="${P}"`) > html.indexOf('id="chapas"'));
+  const r = await stationAdminAction(post({ action: 'promote', station: 'EZC-AMD-00051', target: 'EZC-AMD-00051', photo: P, lang: 'pt' }), w.env as never, w.fetcher as never, NOW);
+  assert.match(r.headers.get('location')!, /\?r=photo/);
+  assert.equal(w.db.sql.prepare('SELECT photo_id FROM selections WHERE target = ?').get('EZC-AMD-00051')!.photo_id, A);
+});
+
+test('the station page shows rating plates in their own gallery, not as photos', async () => {
+  const w = await world();
+  const ctx = { waitUntil() {} } as never;
+  const html = await (await worker.fetch(new Request(`${SITE}/postos/EZC-AMD-00051`), w.env as never, ctx)).text();
+  assert.ok(html.includes('id="plates-h">Chapas'));
+  const plates = html.slice(html.indexOf('id="plates-h"'));
+  assert.ok(plates.includes('/api/pictures/pic-p/thumb.jpg'));
+  const more = html.slice(html.indexOf('id="more-h"'), html.indexOf('id="plates-h"'));
+  assert.ok(more.includes('/api/pictures/pic-b/thumb.jpg') && !more.includes('pic-p'));
+  const api = await (await worker.fetch(new Request(`${SITE}/api/v1/stations/EZC-AMD-00051`), w.env as never, ctx)).json() as { photos: { id: string; kind: string; socket: string | null }[] };
+  assert.deepEqual(api.photos.map((p) => [p.id, p.kind, p.socket]), [[B, 'photo', null], [S, 'photo', 'PTEZCEAMD000511'], [P, 'plate', null]]);
 });

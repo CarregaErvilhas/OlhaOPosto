@@ -366,6 +366,7 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
     inputSchema: z.object({
       station: z.string().regex(STATION_ID).describe('Station id (EZC-AMD-00051).'),
       target: z.string().max(80).optional().describe('The socket\'s EVSE code when the photo is of one socket; omit for the station as a whole.'),
+      kind: z.enum(['photo', 'plate']).optional().describe('plate: a charger\'s rating plate (model, serial, rated V/A/kW), on the station as a whole (no target). It goes to the station\'s rating plates gallery: never a main photo, no static link. Default photo.'),
       full: photoInput(SIZE_PX.full, '6 MB'),
       main: photoInput(SIZE_PX.main, '2 MB'),
       thumb: photoInput(SIZE_PX.thumb, '500 kB'),
@@ -395,7 +396,7 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
     }
     if (total > MAX_BODY) return fail('too_large', 'The three sizes together are too large.');
     form.append('meta', JSON.stringify({
-      station: a.station, target, taken_at: a.taken_at ?? null,
+      station: a.station, target, kind: a.kind ?? 'photo', taken_at: a.taken_at ?? null,
       exif_lat: a.lat ?? null, exif_lon: a.lon ?? null, license: a.license, no_people: a.no_people,
     }));
     const req = new Request(`${SITE}/api/v1/photos`, { method: 'POST', body: form });

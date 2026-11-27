@@ -46,7 +46,7 @@ export async function getStation(env: Env, id: string): Promise<{ station: Stati
     // construction has none, so all of its photos): the page shows them as a
     // gallery. Current mains are left out, the page already shows those.
     env.DB.prepare(
-      `SELECT p.id, p.credit, p.panoramax_id, p.evse_compact
+      `SELECT p.id, p.credit, p.panoramax_id, p.evse_compact, p.kind
          FROM photos p
         WHERE p.station_id = ? AND p.origin = 'olhaoposto' AND p.status = 'published' AND p.panoramax_id IS NOT NULL
           AND p.id NOT IN (SELECT sel.photo_id FROM selections sel

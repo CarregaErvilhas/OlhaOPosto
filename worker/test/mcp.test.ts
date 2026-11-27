@@ -207,7 +207,9 @@ test('wantsWrite: only calls to write tools, also in a batch', () => {
 
 test('scopes follow the role now, not the role at the grant', async () => {
   assert.deepEqual(liveScopes(['photos:write', 'selections:write'], 'contributor'), ['photos:write']);
-  assert.deepEqual(liveScopes(['selections:write', 'bogus'], 'trusted'), ['selections:write']);
+  // Choosing main photos is for moderators and admins only, not trusted accounts.
+  assert.deepEqual(liveScopes(['selections:write', 'bogus'], 'trusted'), []);
+  assert.deepEqual(liveScopes(['selections:write', 'bogus'], 'moderator'), ['selections:write']);
   const db = world() as unknown as UserDb;
   const m = await callerFromProps(db, { userId: 'm', scopes: ['photos:write', 'selections:write'] });
   assert.deepEqual(m?.scopes, ['photos:write', 'selections:write']);

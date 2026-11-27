@@ -195,7 +195,7 @@ export function openApiSpec() {
           tags: ['Write'],
           operationId: 'setMainPhoto',
           summary: 'Choose the main photo of a station or socket',
-          description: 'Scope `selections:write`; accounts `trusted`, `moderator` or `admin`. The photo must be published and be of that target.',
+          description: 'Scope `selections:write`; accounts `moderator` or `admin`. The photo must be published and be of that target.',
           security: AUTH,
           parameters: [idParam('target', 'Station id or compact EVSE code.', 'EZC-AMD-00051')],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['photo'], properties: { photo: { type: 'string', description: 'Photo id.' } } } } } },

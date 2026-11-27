@@ -23,8 +23,10 @@ export const TOKEN_PREFIX = 'oop_';
 // What a token may do. Reading the API needs no token at all.
 export const SCOPES = ['photos:write', 'selections:write'] as const;
 export type Scope = (typeof SCOPES)[number];
-// selections:write only makes sense for the roles that may choose main photos.
-export const canChooseMain = (role: string) => role === 'trusted' || role === 'moderator' || role === 'admin';
+// selections:write only makes sense for the roles that may choose main photos:
+// moderators and admins (a trusted account publishes directly, but does not
+// pick which photo is the main one).
+export const canChooseMain = (role: string) => role === 'moderator' || role === 'admin';
 export const scopesFor = (role: string): Scope[] => (canChooseMain(role) ? [...SCOPES] : ['photos:write']);
 
 export const TTL_DAYS = [30, 90, 365] as const;

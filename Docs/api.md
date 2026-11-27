@@ -201,7 +201,7 @@ Quem tem sessão cria *tokens* na conta (`/conta`, `/en/account`): um nome, os �
 | Âmbito | Dá acesso a | Quem o pode ter |
 | --- | --- | --- |
 | `photos:write` | `POST /photos`, `POST /stations`, `DELETE /photos/{id}` | Todas as contas |
-| `selections:write` | `PUT /selections/{target}` | `trusted`, `moderator`, `admin` |
+| `selections:write` | `PUT /selections/{target}` | `moderator`, `admin` |
 
 O *token* age como a conta, com o papel e os limites dela, lidos em cada pedido. Erros: `401 sign_in_required` (*token* desconhecido, expirado ou revogado), `403 missing_scope`. Sem *token*, a sessão só vale a partir do próprio site (`403 cross_site`).
 

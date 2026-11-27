@@ -260,22 +260,20 @@ As credenciais do `db` não são copiadas: o `zerops.yml` refere-as (`${db_conne
 
 ## 7. Domínio e Cloudflare
 
-Como no CEME: **só um registo `AAAA`** com proxy ativo, para o IPv6 do projeto. O IPv4 partilhado do Zerops escolhe o projeto pelo `AAAA` do domínio, e com o proxy da Cloudflare esse `AAAA` é da Cloudflare, por isso um `A` partilhado com proxy não funciona. A Cloudflare traduz os clientes IPv4.
+O procedimento é o do grupo, em [How a Zerops service is exposed](https://github.com/CarregaErvilhas/OCarroEletrico/blob/main/docs/zerops-exposure.md) (em inglês): um só registo `AAAA` com proxy (e nunca o `A` partilhado nem o CNAME que o Zerops propõe), certificado do Zerops, *Access Policy* só para a Cloudflare e subdomínio `zerops.app` desligado. As regras da zona estão em [Cloudflare: zone-wide rules](https://github.com/CarregaErvilhas/OCarroEletrico/blob/main/docs/cloudflare-zone.md).
 
 Como está:
 
 | Onde | O quê |
 | --- | --- |
 | Zerops, *Public access* do `pano` | `panoramax.ocarroeletrico.com` → `pano:5000`, SSL (Let's Encrypt emitido pelo Zerops) |
-| Cloudflare, zona `ocarroeletrico.com` | `panoramax  AAAA  <IPv6 dedicado do projeto>`, proxy ON (o IPv6 está no Zerops, *Public access* do `pano`). A zona já estava em SSL *Full (strict)* |
+| Cloudflare, zona `ocarroeletrico.com` | `panoramax  AAAA  <IPv6 dedicado do projeto>`, proxy ON (o IPv6 está no Zerops, *Public access* do `pano`) |
 | Zerops, roda dentada do domínio → *Access Policy* | *Default Policy* `deny`; *CIDR Blocks* = as gamas da Cloudflare, uma por linha |
 | Zerops, subdomínio `zerops.app` | Desligado: ficava fora da Cloudflare |
 | Cloudflare, Cache Rule «panoramax pictures: origin TTLs, 4xx never stored» | Só as imagens (`/api/pictures/….jpg` em `panoramax.ocarroeletrico.com`): ficam em cache com os TTLs do Panoramax, mas um 4xx nunca. O Panoramax manda `Cache-Control: public` até nos `404` das imagens, e uma foto escondida responde `404`: sem esta regra, esse `404` ficava na cache depois de a foto ser aprovada |
 | Cloudflare, Cache Rule «panoramax: API, map tiles and pages never cached» | Tudo o resto do `panoramax.*` passa sem cache. O Panoramax manda `Cache-Control: public` sem prazo também na API, nas tiles do mapa e nas páginas, e a Cloudflare guardava-as: uma foto aprovada não aparecia no mapa e a página do visualizador podia ficar presa a uma versão antiga |
 
-O `A` partilhado do Zerops não se usa, e o CNAME que o Zerops também propõe não traz nada: com o IPv4 partilhado excluído, aponta para o mesmo IPv6, e esse interruptor vale para o projeto todo.
-
-**Access Policy.** O Zerops só a configura na GUI (sem chave no `zerops.yml`, sem zcli). A verificação usa o IP de quem liga, por isso funciona atrás da Cloudflare. As gamas vêm de `https://www.cloudflare.com/ips-v4` e `ips-v6`; quando a Cloudflare as mudar, atualizam-se à mão. Para confirmar:
+**Access Policy.** Como a configurar e atualizar: [Access Policy](https://github.com/CarregaErvilhas/OCarroEletrico/blob/main/docs/zerops-exposure.md#access-policy). Para confirmar:
 
 ```bash
 # direto à origem, sem Cloudflare: tem de dar 403
@@ -284,7 +282,7 @@ curl -s -o /dev/null -w '%{http_code}\n' --resolve "panoramax.ocarroeletrico.com
 curl -s -o /dev/null -w '%{http_code}\n' https://panoramax.ocarroeletrico.com/api/configuration
 ```
 
-**Limite de envio.** O domínio próprio corta os pedidos acima de 512 MB. As fotos chegam com 2048 px (menos de 2 MB), por isso o limite não conta.
+**Limite de envio.** As fotos chegam com 2048 px (menos de 2 MB), por isso os [limites do Zerops e do proxy](https://github.com/CarregaErvilhas/OCarroEletrico/blob/main/docs/zerops-exposure.md#behind-the-two-proxies) não contam.
 
 **Proxies.** O Panoramax monta os URLs absolutos das respostas STAC a partir dos `X-Forwarded-*`. O `INFRA_NB_PROXIES` dele aplica a mesma contagem aos cinco cabeçalhos, e isso não serve aqui (visto no subdomínio, com `INFRA_NB_PROXIES=1`):
 

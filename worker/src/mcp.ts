@@ -242,7 +242,8 @@ export function mcpServer(env: McpEnv, caller: McpCaller | null, deps: McpDeps =
   server.registerTool('get_station', {
     title: 'Station details',
     description: 'One station with its sockets and the main photo of each (static links in three sizes, credit, '
-      + 'licence and the attribution to show with it). Takes a station id (EZC-AMD-00051) or a socket EVSE code '
+      + 'licence and the attribution to show with it), plus its other published photos in photos (thumbnail and '
+      + 'credit page, no static link). Takes a station id (EZC-AMD-00051) or a socket EVSE code '
       + '(PT*EZC*E*AMD*00051*1). A photo is null when there is none yet: the result then has upload_page.',
     inputSchema: z.object({ id: z.string().min(1).max(80).describe('Station id or socket EVSE code.') }),
     annotations: read,

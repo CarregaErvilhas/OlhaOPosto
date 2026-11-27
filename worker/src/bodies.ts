@@ -1,7 +1,7 @@
 // The JSON shapes of stations, sockets and search results, shared by the REST
 // API (src/index.ts) and the MCP server (src/mcp.ts), so both say the same
 // thing about a station and its photos (Docs/api.md).
-import { PANORAMAX_URL, PICTURES, SITE, photoPath, socketAnchor, stationPath } from './pages.ts';
+import { BRAND, PANORAMAX_URL, PICTURES, SITE, photoPath, socketAnchor, stationPath } from './pages.ts';
 import { photoLink } from './photolinks.ts';
 import { underConstruction, type EvseMatch, type ExternalPhoto, type MainPhotoRow, type MainPhotos, type OwnPhoto, type PointRow, type SearchRow, type StationRow } from './types.ts';
 
@@ -28,15 +28,16 @@ export function stationBody(found: { station: StationRow; points: PointRow[]; ma
     ...lifecycle(s),
     osm: s.osm_ref,
     photo: photo(s.id),
-    // A station under construction has no main photo or static link until it
-    // merges into its NAP station: its published photos are listed instead.
-    ...(underConstruction(s) ? {
-      codes: (s.codes ?? '').split(' ').filter(Boolean),
-      photos: own.map((p) => ({
-        id: p.id, credit: p.credit, license: 'CC-BY-SA-4.0', page: SITE + photoPath('pt', p.id),
-        thumb: `${PANORAMAX_URL}/api/pictures/${encodeURIComponent(p.panoramax_id)}/thumb.jpg`,
-      })),
-    } : {}),
+    ...(underConstruction(s) ? { codes: (s.codes ?? '').split(' ').filter(Boolean) } : {}),
+    // Our other published photos, the ones that are not a main photo (a
+    // station under construction has none, so all of its photos): no static
+    // link, Panoramax's thumbnail and the credit page.
+    photos: own.map((p) => ({
+      id: p.id, credit: p.credit, license: 'CC-BY-SA-4.0',
+      attribution: `© ${p.credit ?? BRAND}, CC BY-SA 4.0, via ${BRAND}`,
+      page: SITE + photoPath('pt', p.id),
+      thumb: `${PANORAMAX_URL}/api/pictures/${encodeURIComponent(p.panoramax_id)}/thumb.jpg`,
+    })),
     // Photos at their origin (Panoramax, Commons), as references: never a main
     // photo, no static link. Show the author, the licence and the source link.
     externalPhotos: externals.map((p) => ({

@@ -26,7 +26,8 @@ function world() {
       ('EZC-AMD-00051', 'AMD-00051-2', 'PT*EZC*E*AMD*00051*2', 'PTEZCEAMD000512', 'T2', 22, 'active', 0, '2000-01-01');
     INSERT INTO photos (id, station_id, evse_compact, credit, status, panoramax_id, created_at) VALUES
       ('p1', 'EZC-AMD-00051', NULL, 'Ana', 'published', 'pano-1', '2026-03-05'),
-      ('p2', 'EZC-AMD-00051', 'PTEZCEAMD000511', 'Ana', 'published', 'pano-2', '2026-03-05');
+      ('p2', 'EZC-AMD-00051', 'PTEZCEAMD000511', 'Ana', 'published', 'pano-2', '2026-03-05'),
+      ('p3', 'EZC-AMD-00051', NULL, 'Rui', 'published', 'pano-3', '2026-03-06');
     INSERT INTO selections (target, station_id, photo_id, chosen_at, published_at) VALUES
       ('EZC-AMD-00051', 'EZC-AMD-00051', 'p1', '2026-03-05', '2026-03-05'),
       ('PTEZCEAMD000511', 'EZC-AMD-00051', 'p2', '2026-03-05', '2026-03-05');
@@ -109,6 +110,10 @@ test('get_station: by id or socket code, with photos, credit and licence', async
   assert.equal(s.data.license, 'CC-BY-SA-4.0');
   assert.equal(s.data.photo.attribution, "© Ana, CC BY-SA 4.0, via olh'o'posto");
   assert.equal(s.data.points.find((p: { compact: string }) => p.compact === 'PTEZCEAMD000512').photo, null);
+  // The photo that is no main photo is listed, the mains are not.
+  assert.deepEqual(s.data.photos.map((p: { id: string }) => p.id), ['p3']);
+  assert.equal(s.data.photos[0].attribution, "© Rui, CC BY-SA 4.0, via olh'o'posto");
+  assert.equal(s.data.photos[0].thumb, 'https://panoramax.ocarroeletrico.com/api/pictures/pano-3/thumb.jpg');
   const hidden = await call('get_station', { id: 'OOP-HIDDEN' });
   assert.equal(hidden.isError, true);
   assert.equal(hidden.data.error, 'not_found');

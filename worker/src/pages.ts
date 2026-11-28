@@ -406,7 +406,7 @@ const CONNECTORS: Record<Lang, Record<string, string>> = {
 };
 
 const REGIONS: Record<Lang, Record<string, string>> = {
-  pt: { CONT: 'Continente', AZO: 'Açores', MAD: 'Madeira' },
+  pt: { CONT: 'Portugal continental', AZO: 'Açores', MAD: 'Madeira' },
   en: { CONT: 'Mainland Portugal', AZO: 'Azores', MAD: 'Madeira' },
 };
 

@@ -184,5 +184,6 @@ export function creditPage(lang: Lang, r: CreditRow): string {
     alternates: { pt: photoPath('pt', r.id), en: photoPath('en', r.id) },
     body,
     script: Boolean(osm),
+    image: image ? { url: image, alt: `${t.alt(target)} · ${attribution}` } : undefined,
   });
 }

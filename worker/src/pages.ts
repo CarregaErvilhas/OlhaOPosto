@@ -452,6 +452,8 @@ interface Layout {
   module?: string;
   // schema.org JSON-LD, already serialised with < escaped.
   jsonld?: string;
+  // The page's photo for link previews (Open Graph): the mascot when absent.
+  image?: { url: string; alt: string };
 }
 
 // "Instalar app" (public/install.js shows what fits): a footer button, a banner
@@ -501,9 +503,10 @@ export function layout(p: Layout): string {
     `<meta property="og:description" content="${esc(p.description)}">`,
     `<meta property="og:locale" content="${OG_LOCALE[p.lang]}">`,
     `<meta property="og:locale:alternate" content="${OG_LOCALE[other]}">`,
-    `<meta property="og:image" content="${SITE}/icon-512.png">`,
-    `<meta property="og:image:alt" content="${esc(t.ogImageAlt)}">`,
-    '<meta name="twitter:card" content="summary">',
+    `<meta property="og:image" content="${esc(p.image?.url ?? `${SITE}/icon-512.png`)}">`,
+    `<meta property="og:image:alt" content="${esc(p.image?.alt ?? t.ogImageAlt)}">`,
+    // A photo gets the large card; the square mascot stays small.
+    `<meta name="twitter:card" content="${p.image ? 'summary_large_image' : 'summary'}">`,
   );
   if (p.path) head.push(`<meta property="og:url" content="${esc(SITE + p.path)}">`);
   if (p.jsonld) head.push(`<script type="application/ld+json">${p.jsonld}</script>`);
@@ -791,6 +794,10 @@ ${missing ? `<p class="notice">${t.missingNotice}</p>\n` : ''}${building ? `<p c
     noindex: building,
     body,
     script: true,
+    // A station being built has no static links yet.
+    image: main && !building
+      ? { url: `${PICTURES}/${encodeURIComponent(s.id)}.jpg`, alt: `${t.photoAlt(s.id)} · © ${main.credit ?? BRAND}, CC BY-SA 4.0` }
+      : undefined,
   });
 }
 

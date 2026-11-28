@@ -222,3 +222,16 @@ test('stationPage: each socket with an EVSE code links to the upload page with t
   const en = stationPage('en', station(), [point()], { PTEZCEAMD000511: { credit: 'Ana' } });
   assert.ok(en.includes('tomada=PTEZCEAMD000511">Send another photo of this socket</a>'));
 });
+
+test('stationPage: link previews show the main photo with its credit, else the mascot', () => {
+  const withPhoto = stationPage('pt', station(), [point()], { 'EZC-AMD-00051': { credit: '<b>Ana</b>' } });
+  assert.ok(withPhoto.includes('<meta property="og:image" content="https://pictures.ocarroeletrico.com/EZC-AMD-00051.jpg">'));
+  assert.ok(withPhoto.includes('<meta property="og:image:alt" content="Foto principal do posto EZC-AMD-00051 · © &lt;b&gt;Ana&lt;/b&gt;, CC BY-SA 4.0">'));
+  assert.ok(withPhoto.includes('<meta name="twitter:card" content="summary_large_image">'));
+  // Only a socket's photo: the station has no static link of its own.
+  const socketOnly = stationPage('en', station(), [point()], { PTEZCEAMD000511: { credit: 'Ana' } });
+  assert.ok(socketOnly.includes(`<meta property="og:image" content="https://olhaoposto.ocarroeletrico.com/icon-512.png">`));
+  assert.ok(socketOnly.includes('<meta name="twitter:card" content="summary">'));
+  const building = stationPage('pt', station({ id: 'OSM-w1', source: 'osm', osm_ref: 'way/1' }), [], { 'OSM-w1': { credit: 'Ana' } });
+  assert.ok(!building.includes('og:image" content="https://pictures.'));
+});

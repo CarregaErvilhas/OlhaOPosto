@@ -12,7 +12,9 @@ Este documento só tem o que ainda não existe. O que já está a funcionar (ser
 - detetor de matrículas no browser (ver *Desfocagem*);
 - confirmar num iPhone que o GPS de uma foto HEIC chega à página (o seletor do iOS pode converter para JPEG e tirar o GPS) e o tempo de CPU do envio em produção;
 - o `charger_photos.py` do NAP dashboard a perguntar também ao nosso Panoramax;
-- entrada na federação, depois da conversa com a comunidade.
+- entrada na federação, depois da conversa com a comunidade;
+- categorias das fotos e ferramentas para as mover (ver *Categorias das fotos*);
+- hubs, quando o modelo do NAP dashboard os publicar (ver *Hubs*).
 3. **Bot e agentes.** Bot do OSM (depois da aprovação da comunidade) e o `photos.json` lido pelo NAP dashboard e pelo ohmigo.
 4. **Desfocagem no servidor**, quando houver uma GPU a um custo razoável.
 
@@ -35,6 +37,9 @@ Falta uma tabela:
 | Tabela | Colunas principais | Notas |
 | --- | --- | --- |
 | `osm_edits` | `osm_element`, `key`, `value`, `photo_id`, `changeset`, `written_at` | O que o bot escreveu no OSM, para só alterar valores dele |
+| `hubs` | `id`, `name`, `kind`, `osm_element`, `lat`, `lon`, `status`, `updated_at` | Os hubs do modelo do NAP dashboard (ver *Hubs*). `status`: `active` ou `dissolved` |
+
+E colunas novas: `stations.hub_id`; `photos.category`, `photos.hub_id` e `photos.part` (ver *Categorias das fotos*).
 
 E uma coluna para o motivo de uma recusa em `photos` (hoje fica só o estado `removed`, quem decidiu e quando).
 
@@ -100,6 +105,74 @@ O pseudónimo já se escolhe na conta ([`arquitetura.md`](arquitetura.md), *Cré
 - Moderadores: só o responsável do projeto no lançamento; a lista de moderadores da comunidade vem depois. Com um só moderador, o prazo de 72 h depende de ele estar disponível; como a foto fica oculta logo, o risco é atraso, não exposição.
 - Apagar a conta a partir da própria conta (hoje é por email, como diz a política de privacidade).
 
+## Hubs
+
+Um hub é um lugar com vários postos: um centro comercial, uma área de serviço, um parque. Nenhum operador o publica, porque cada um publica só os seus postos. O hub vem do modelo da rede do NAP dashboard (`hubs`; a definição, o nome e como se divide estão no `docs/plan.md` de lá): é um lugar do OpenStreetMap, com contorno, que contém dois ou mais postos. O nome é o `name` desse lugar no OSM. O olh'o'posto não define hubs nem edita os nomes.
+
+- **Import:** o `scripts/import-stations.ts` lê também `hubs`, para a tabela `hubs` e para `stations.hub_id`. Um hub que sai do modelo passa a `dissolved` e nunca se apaga, como os postos `missing_from_nap`.
+- **ID e link estático:** `HUB-` mais o elemento do OSM (`HUB-w42645796`, Centro Comercial Colombo). O link `pictures.ocarroeletrico.com/HUB-w42645796.jpg` serve a foto principal do hub (a vista geral), com as mesmas regras dos postos e das tomadas.
+- **Página `/hubs/{id}` (`/en/hubs/{id}`):**
+  - a vista geral;
+  - «Como encontrar os carregadores»: a entrada e a sinalética;
+  - os postos do hub por operador, cada um com a sua página, fotos e links;
+  - os links estáticos e as fotos que faltam;
+  - o lugar no OSM e a ligação ao NAP dashboard.
+- **API e MCP:** `GET /api/v1/hubs/{id}` e a ferramenta `get_hub`. O `get_station` passa a dizer o hub do posto.
+- **Panoramax:** as fotos de um hub levam `OlhaOPosto|hub=HUB-w…` em vez de `OlhaOPosto|site`. As vistas gerais são fotos «ao nível da rua», o que ajuda na conversa sobre a federação.
+- **Pontos:** a primeira foto de um hub conta como a primeira de um posto.
+- **Quando um hub muda no modelo:**
+  - A área que fica no OSM mantém o ID, e nada muda.
+  - Um hub que se desfaz (área apagada, ou menos de dois postos) passa a `dissolved`:
+    - o link estático continua a servir a última principal, porque o link nunca muda;
+    - a página diz em que hubs foi dividido;
+    - as fotos «Local» dele aparecem na moderação para mover para os hubs novos.
+  - A mesma área redesenhada no OSM (ID novo, os mesmos postos): um moderador confirma o alias, com `301`, como nos aliases dos postos (`/admin/postos-fora-do-nap`).
+  - Os moderadores veem, depois de cada import, a lista dos hubs que mudaram.
+
+## Categorias das fotos
+
+Hoje o envio pede primeiro o posto e só depois «O que mostra esta foto?» (posto em geral, tomada ou chapa). A moderação só aprova ou recusa: uma foto na categoria errada tem de ser recusada com `wrong_station` e enviada outra vez.
+
+**Uma foto tem uma categoria e um alvo:**
+
+| Categoria | Alvo | Pode ser principal |
+| --- | --- | --- |
+| Local | hub; `part`: vista geral, entrada ou sinalética | Só a vista geral |
+| Posto | posto | Sim |
+| Tomada | tomada (código EVSE) | Sim |
+| Chapa | posto (o carregador) | Nunca |
+
+- **As categorias são uma lista no código,** `src/categories.ts`, como os motivos de recusa em `src/reasons.ts`. Cada entrada tem o nome em pt e en, o ícone, a cor, o nível do alvo e se pode ser principal. Uma categoria nova é uma entrada nessa lista mais a migração do `CHECK`. O nome, o ícone e a cor são os mesmos no envio, nas galerias, na moderação, na API e no MCP.
+- **Dados:** as colunas `photos.category` (com o `CHECK` da lista), `photos.hub_id` e `photos.part`. A migração das fotos que já existem:
+  - `kind = 'plate'` → `chapa`;
+  - `evse_compact` preenchido → `tomada`;
+  - o resto → `posto`.
+
+  A API e o MCP continuam a aceitar `kind: "plate"`, como `chapa`.
+- **Envio:**
+  - A categoria passa a ser a primeira escolha, em quatro cartões, cada um com ícone, nome e uma frase.
+  - Depois vem «Ligar a», que muda com a categoria:
+    - Local: o hub, pelo GPS da foto, e a parte (vista geral, entrada ou sinalética);
+    - Posto: os postos do mais perto para o mais longe;
+    - Tomada: o posto e o código do autocolante;
+    - Chapa: o carregador.
+  - Uma linha no fim diz o que acontece à foto: se pode passar a principal, ou se nunca passa.
+  - «Local» só aparece quando o posto pertence a um hub.
+- **Mover:** uma só função, `movePhoto` em `src/move.ts`. Usam-na a fila, a página de moderação de um hub ou posto, a API (`PATCH /api/v1/photos/{id}` com `category` e `target`, só para moderadores) e o MCP (`move_photo`). O que faz:
+  - Se a foto era a principal do alvo antigo, esse alvo fica em «Sem foto principal» e o link estático passa a `404`, como numa remoção.
+  - Se o alvo novo não tem principal e a categoria o permite, a foto passa a principal, como numa aprovação.
+  - Atualiza no Panoramax as etiquetas `OlhaOPosto|kind`, `OlhaOPosto|site` e `OlhaOPosto|hub`, e repete o que falhar, como já se faz na fusão dos postos em construção (`site_tag_old`).
+  - Os pontos passam a contar para o alvo novo.
+  - O autor vê «Categoria corrigida para X» em «Os meus envios».
+  - A mudança fica no histórico de decisões (`/admin/decisoes`), como uma ação nova.
+- **Fila de moderação:**
+  - Tem um filtro por categoria.
+  - A categoria e o alvo mudam-se antes de aprovar, com atalhos de 1 a 4 para a categoria.
+  - Um quadro «O que muda» explica o efeito, e o botão passa a «Mudar para X e aprovar».
+  - O `wrong_station` fica só para fotos de outro sítio.
+- **«Fotos de um hub ou posto»:** uma página nova de moderação. Mostra as fotos publicadas numa coluna por categoria, com seleção múltipla e «Mover para…». Avisa quando uma das fotos é a principal de algum alvo.
+- **Visitantes:** um «Categoria errada?» na página de crédito (`/p/{id}`), que aparece na moderação com uma bandeira. A política de privacidade muda no mesmo PR, se isto guardar alguma coisa nova.
+
 ## Custos
 
 Orçamento: **10 €/mês** no total.
@@ -111,6 +184,8 @@ Orçamento: **10 €/mês** no total.
 ## Questões em aberto
 
 - [ ] Lista de moderadores da comunidade.
+- [ ] «Categoria errada?» para visitantes: com ou sem conta, e o que se guarda.
+- [ ] Que coordenadas o Panoramax recebe para uma foto de hub: o centro do lugar ou o posto mais perto da foto.
 - [ ] Como correr a desfocagem no servidor com GPU de forma barata, em escala.
 - [ ] Modelo de deteção de matrículas para o browser, com pesos de licença permissiva.
 - [ ] Resposta da OSM Portugal e da equipa do Panoramax (federação, nome, bot).

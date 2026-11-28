@@ -107,7 +107,9 @@ O pseudónimo já se escolhe na conta ([`arquitetura.md`](arquitetura.md), *Cré
 
 ## Hubs
 
-Um hub é um lugar com vários postos: um centro comercial, uma área de serviço, um parque. Nenhum operador o publica, porque cada um publica só os seus postos. O hub vem do modelo da rede do NAP dashboard (`hubs`; a definição, o nome e como se divide estão no `docs/plan.md` de lá): é um lugar do OpenStreetMap, com contorno, que contém dois ou mais postos. O nome é o `name` desse lugar no OSM. O olh'o'posto não define hubs nem edita os nomes.
+Um hub é um lugar com vários postos: um centro comercial, uma área de serviço, um parque. Nenhum operador o publica, porque cada um publica só os seus postos. É um lugar do OpenStreetMap, com contorno, que contém dois ou mais postos, e o nome é o `name` desse lugar no OSM.
+
+O que é um hub, o ID, o nome, como se divide e o que quem lê o modelo pode esperar está no [`Docs/hubs.md` do Architecture](https://github.com/CarregaErvilhas/Architecture/blob/main/Docs/hubs.md), a cópia única do grupo. Só o NAP dashboard decide os hubs (`hubs` no modelo da rede). O olh'o'posto não define hubs nem edita os nomes; esta secção é a parte dele.
 
 - **Import:** o `scripts/import-stations.ts` lê também `hubs`, para a tabela `hubs` e para `stations.hub_id`. Um hub que sai do modelo passa a `dissolved` e nunca se apaga, como os postos `missing_from_nap`.
 - **ID e link estático:** `HUB-` mais o elemento do OSM (`HUB-w42645796`, Centro Comercial Colombo). O link `pictures.ocarroeletrico.com/HUB-w42645796.jpg` serve a foto principal do hub (a vista geral), com as mesmas regras dos postos e das tomadas.
